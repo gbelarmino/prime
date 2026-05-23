@@ -2,7 +2,7 @@
 
 O Prime é um **Next.js com `output: 'export'`** — site estático servido por nginx na porta **3000**.
 
-As variáveis `NEXT_PUBLIC_*` são **injetadas no build**. Alterar a URL da API exige **redeploy com novos Build Arguments**, não basta mudar env em runtime.
+A URL da API pode vir do **build** ou do **runtime** (recomendado no Dokploy).
 
 ## 1. Novo projeto no Dokploy
 
@@ -13,55 +13,55 @@ As variáveis `NEXT_PUBLIC_*` são **injetadas no build**. Alterar a URL da API 
 | Dockerfile | `Dockerfile` (raiz) |
 | Porta do container | **3000** |
 
-## 2. Build Arguments (obrigatório)
+## 2. Variáveis de ambiente (Environment — recomendado)
+
+Defina em **Environment** (não precisa rebuild ao mudar a URL):
+
+| Variável | Exemplo |
+|----------|---------|
+| `API_BASE_URL` | `https://api.domusparticipacoes.com` |
+| `NEXT_PUBLIC_SKIP_AUTH` | `false` |
+
+Alternativa: `NEXT_PUBLIC_API_BASE_URL` com o mesmo valor.
+
+Sem barra final. O `docker-entrypoint.sh` gera `/env-config.js` no arranque do container.
+
+## 3. Build Arguments (opcional)
+
+Útil se quiser a URL já no bundle (Firebase, etc.):
 
 | Argumento | Exemplo |
 |-----------|---------|
 | `NEXT_PUBLIC_API_BASE_URL` | `https://api.domusparticipacoes.com` |
 | `NEXT_PUBLIC_SITE_URL` | `https://app.domusparticipacoes.com` |
-| `NEXT_PUBLIC_SKIP_AUTH` | `false` |
 
-Sem barra final na URL da API.
+## 4. Domínio + HTTPS
 
-## 3. Domínio + HTTPS
-
-Em **Domains**:
-
-- Host: `app.domusparticipacoes.com` (ou o subdomínio que preferires)
+- Host: `app.domusparticipacoes.com`
 - HTTPS + Let's Encrypt
 - Porta: **3000**
 
-Registo DNS (tipo A → IP da VPS):
+DNS (A → IP da VPS): `app.domusparticipacoes.com` → `2.24.94.197`
 
-```
-app.domusparticipacoes.com  →  2.24.94.197
-```
+## 5. CORS na API
 
-## 4. CORS na API
-
-Na **aires-api**, incluir a origem do Prime em `AIRES_CORS_ALLOWED_ORIGINS`:
+Incluir em `AIRES_CORS_ALLOWED_ORIGINS`:
 
 ```
 https://app.domusparticipacoes.com
 ```
 
-(junto com portal, Firebase, etc.)
+## 6. Deploy e teste
 
-## 5. Certificado TLS da API
-
-O dashboard chama a API em HTTPS. Garante que `api.domusparticipacoes.com` tem Let's Encrypt válido no serviço **aires-api** (não o certificado default do Traefik).
-
-## 6. Deploy
-
-1. Push do código com `Dockerfile`
-2. Deploy no Dokploy
-3. Testar: `https://app.domusparticipacoes.com/login`
+1. Push + deploy no Dokploy
+2. Abrir `https://app.domusparticipacoes.com/env-config.js` — deve mostrar a URL da API
+3. Login em `https://app.domusparticipacoes.com/login`
 
 ## Troubleshooting
 
 | Sintoma | Causa provável |
 |---------|----------------|
-| Login falha / CORS | Origem do Prime ausente em `AIRES_CORS_ALLOWED_ORIGINS` |
-| API errada no browser | `NEXT_PUBLIC_API_BASE_URL` errado no build — redeploy com Build Args |
-| 404 em rotas internas | nginx `try_files` — usar imagem com `nginx.conf` deste repo |
-| Mixed content | Site em HTTPS mas API em HTTP — API também em HTTPS |
+| «A API não está configurada» | Falta `API_BASE_URL` no Environment — redeploy/restart do container |
+| `env-config.js` com URL vazia | Variável não definida ou nome errado (use `API_BASE_URL`) |
+| Login falha / CORS | Origem ausente em `AIRES_CORS_ALLOWED_ORIGINS` |
+| Mixed content | API deve ser HTTPS |

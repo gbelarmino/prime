@@ -1,3 +1,5 @@
+import { readPrimeEnv } from "@/lib/runtime-env";
+
 /**
  * URLs da API Spring Boot.
  * Só `NEXT_PUBLIC_API_BASE_URL` vem do ambiente; caminhos REST são fixos (iguais em local e produção).
@@ -43,7 +45,7 @@ function withBase(base: string, path: string): string {
 }
 
 export function getApiBaseUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+  const raw = readPrimeEnv("NEXT_PUBLIC_API_BASE_URL");
   return raw ? normalizeApiBaseUrl(raw) : "";
 }
 

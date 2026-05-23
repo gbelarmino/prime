@@ -35,6 +35,10 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
+      <head>
+        {/* Runtime: Dokploy injeta API_BASE_URL via docker-entrypoint.sh → /env-config.js */}
+        <script src="/env-config.js" />
+      </head>
       <body className="min-h-full flex flex-col bg-[#020817] text-slate-50">
         <PrimeReactProvider value={{ ripple: true }}>
           {children}

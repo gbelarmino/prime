@@ -1,3 +1,5 @@
+import { readPrimeEnv } from "@/lib/runtime-env";
+
 /** Token JWT e Role do utilizador — SPA estática no Firebase. */
 const TOKEN_KEY = "aires_auth_token";
 const ROLE_KEY = "aires_auth_role";
@@ -29,7 +31,7 @@ const ADMINISTRATIVO_BLOCKED_CONTRATOS = [
  * Quando `NEXT_PUBLIC_SKIP_AUTH=true`, o dashboard não exige token (apenas desenvolvimento / teste rápido).
  */
 export function isAuthCheckDisabled(): boolean {
-  return process.env.NEXT_PUBLIC_SKIP_AUTH === "true";
+  return readPrimeEnv("NEXT_PUBLIC_SKIP_AUTH") === "true";
 }
 
 export function getAuthToken(): string | null {
