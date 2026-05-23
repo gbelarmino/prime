@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { PrimeReactProvider } from "primereact/api";
 import { Toaster } from "sonner";
 import { GlobalSpinner } from "@/components/ui/GlobalSpinner";
+import { PrimeEnvLoader } from "@/components/PrimeEnvLoader";
 import { primeEnvBootstrapScript } from "@/lib/prime-env-bootstrap";
 
 // PrimeReact Styles
@@ -46,6 +47,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-[#020817] text-slate-50">
         <PrimeReactProvider value={{ ripple: true }}>
+          <PrimeEnvLoader />
           {children}
           <Toaster richColors position="top-right" />
           <GlobalSpinner />

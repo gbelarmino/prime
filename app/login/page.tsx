@@ -10,6 +10,7 @@ import { Password } from "primereact/password";
 import { Checkbox } from "primereact/checkbox";
 import { AppLogo } from "@/components/AppLogo";
 import { getLoginUrl } from "@/lib/api-config";
+import { ensureApiBaseUrl } from "@/lib/runtime-env";
 import { setAuthSession, resolvePostLoginPath } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
 import { loadingState } from "@/lib/loading-store";
@@ -30,15 +31,10 @@ function LoginContent() {
 
   const onSubmit = async (values: LoginValues) => {
     const requestedNext = searchParams.get("next");
-    let loginUrl = getLoginUrl();
     try {
       loadingState.start();
-      if (!loginUrl) {
-        for (let i = 0; i < 20 && !loginUrl; i += 1) {
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          loginUrl = getLoginUrl();
-        }
-      }
+      const apiBase = await ensureApiBaseUrl();
+      const loginUrl = apiBase ? getLoginUrl() : "";
       if (loginUrl) {
         const res = await fetch(loginUrl, {
           method: "POST",
