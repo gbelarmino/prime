@@ -1,0 +1,29 @@
+import type { ConvenioBanco } from "@/lib/fin-service";
+
+const TIPO_LABEL: Record<string, string> = {
+  ASAAS: "Asaas",
+  UNICRED: "Unicred",
+  MANUAL: "Manual",
+  API: "API",
+  CNAB: "CNAB",
+};
+
+export function convenioTipoLabel(tipo: string): string {
+  return TIPO_LABEL[tipo] ?? tipo;
+}
+
+export function convenioOptionLabel(c: ConvenioBanco): string {
+  return `${c.nome} · ${convenioTipoLabel(c.tipoIntegracao)}`;
+}
+
+/** Apenas convênios com flag ativo (uso em dropdowns de seleção). */
+export function filterConveniosAtivos(convenios: ConvenioBanco[]): ConvenioBanco[] {
+  return convenios.filter((c) => c.ativo);
+}
+
+export function convenioDropdownOptions(convenios: ConvenioBanco[]) {
+  return filterConveniosAtivos(convenios).map((c) => ({
+    label: convenioOptionLabel(c),
+    value: c.id,
+  }));
+}

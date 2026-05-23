@@ -1,0 +1,95 @@
+.portal-root {
+  --portal-bg: #0b0e12;
+  --portal-bg-elevated: #12171e;
+  --portal-surface: #181f28;
+  --portal-surface-hover: #1f2833;
+  --portal-border: rgba(255, 255, 255, 0.09);
+  --portal-border-strong: rgba(255, 255, 255, 0.14);
+  --portal-text: #f3efe6;
+  --portal-text-muted: rgba(243, 239, 230, 0.58);
+  --portal-text-faint: rgba(243, 239, 230, 0.38);
+  --portal-accent: #d4a853;
+  --portal-accent-deep: #a67c2e;
+  --portal-accent-glow: rgba(212, 168, 83, 0.22);
+  --portal-danger: #f07178;
+  --portal-danger-bg: rgba(240, 113, 120, 0.12);
+  --portal-success: #6ee7b7;
+  --portal-success-bg: rgba(110, 231, 183, 0.1);
+  --portal-info-bg: rgba(96, 165, 250, 0.12);
+  --portal-radius: 1rem;
+  --portal-radius-lg: 1.25rem;
+  --portal-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.55);
+}
+
+.portal-root .p-inputtext,
+.portal-root .p-dropdown,
+.portal-root .p-inputnumber-input,
+.portal-root .p-calendar .p-inputtext {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: var(--portal-border) !important;
+  color: var(--portal-text) !important;
+}
+
+.portal-root .p-inputtext:enabled:focus,
+.portal-root .p-dropdown:not(.p-disabled).p-focus {
+  border-color: var(--portal-accent) !important;
+  box-shadow: 0 0 0 2px var(--portal-accent-glow) !important;
+}
+
+.portal-root .p-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.portal-root .p-button .p-button-icon {
+  margin: 0 !important;
+}
+
+.portal-root .p-button.portal-btn-primary {
+  background: linear-gradient(135deg, var(--portal-accent) 0%, var(--portal-accent-deep) 100%);
+  border: none;
+  color: #1a1408;
+  font-weight: 600;
+}
+
+.portal-root .p-button.portal-btn-primary:enabled:hover {
+  filter: brightness(1.06);
+}
+
+.portal-root .p-button.portal-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--portal-border);
+  color: var(--portal-text);
+}
+
+.portal-grain::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.portal-lot-grid {
+  background-image:
+    linear-gradient(var(--portal-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--portal-border) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+@keyframes portal-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.portal-animate-in {
+  animation: portal-fade-up 0.45s ease-out both;
+}

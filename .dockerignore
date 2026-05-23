@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+.git
+.firebase
+.env*
+*.log
+.DS_Store
+README*.md
+!README-DOKPLOY.md
