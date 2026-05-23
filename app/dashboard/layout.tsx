@@ -38,6 +38,7 @@ import {
   Headset,
   Link2,
   ScrollText,
+  TrendingUp,
 } from "lucide-react";
 import { Menu } from "primereact/menu";
 import { AppLogo } from "@/components/AppLogo";
@@ -151,6 +152,7 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
       { href: "/dashboard/financeiro/lancamentos", label: "Lançamentos", icon: BookOpen },
       { href: "/dashboard/financeiro/por-imovel", label: "Por imóvel", icon: Home },
       { href: "/dashboard/financeiro/plano-contas", label: "Plano de contas", icon: Scale },
+      { href: "/dashboard/financeiro/indices-ipca", label: "IPCA", icon: TrendingUp },
     ],
   },
   { kind: "link", href: "/dashboard/clicksign", label: "Portal Clicksign", icon: FileText, roles: ["ADMIN"] },

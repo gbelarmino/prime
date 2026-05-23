@@ -30,9 +30,15 @@ function LoginContent() {
 
   const onSubmit = async (values: LoginValues) => {
     const requestedNext = searchParams.get("next");
-    const loginUrl = getLoginUrl();
+    let loginUrl = getLoginUrl();
     try {
       loadingState.start();
+      if (!loginUrl) {
+        for (let i = 0; i < 20 && !loginUrl; i += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          loginUrl = getLoginUrl();
+        }
+      }
       if (loginUrl) {
         const res = await fetch(loginUrl, {
           method: "POST",

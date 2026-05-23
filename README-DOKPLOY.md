@@ -63,5 +63,6 @@ https://app.domusparticipacoes.com
 |---------|----------------|
 | «A API não está configurada» | Falta `API_BASE_URL` no Environment — redeploy/restart do container |
 | `env-config.js` com URL vazia | Variável não definida ou nome errado (use `API_BASE_URL`) |
+| Login falha na 1.ª visita e funciona após reload | `env-config.js` em cache ou carregado tarde — redeploy com nginx sem cache nesse ficheiro; confirmar `API_BASE_URL` no Environment |
 | Login falha / CORS | Origem ausente em `AIRES_CORS_ALLOWED_ORIGINS` |
 | Mixed content | API deve ser HTTPS |

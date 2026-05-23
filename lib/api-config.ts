@@ -28,6 +28,7 @@ const API_PATHS = {
   finPlanoContas: "/api/fin/plano-contas",
   finConciliacao: "/api/fin/conciliacao",
   finUnicredWebhookConciliacao: "/api/fin/unicred-webhooks/conciliacao",
+  finIndicesIpca: "/api/fin/indices/ipca",
   atendimento: "/api/atendimento",
   auditoria: "/api/auditoria",
 } as const;
@@ -632,6 +633,10 @@ export function getFinTitulosUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finTitulos);
 }
 
+export function getFinTitulosLoteUrl(): string {
+  return `${getFinTitulosUrl()}/lote`;
+}
+
 export type FinTitulosListFilters = {
   status?: string;
   contratoId?: number;
@@ -733,6 +738,28 @@ export function getFinConvenioAtivoUrl(id: string): string {
 
 export function getFinDashboardResumoUrl(): string {
   return withBase(getApiBaseUrl(), `${API_PATHS.finDashboard}/resumo`);
+}
+
+export function getFinIndicesIpcaUrl(opts?: { desde?: string; ate?: string }): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.finIndicesIpca);
+  if (!base) return "";
+  const params = new URLSearchParams();
+  if (opts?.desde) params.set("desde", opts.desde);
+  if (opts?.ate) params.set("ate", opts.ate);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+export function getFinIndicesIpcaUltimoUrl(): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.finIndicesIpca);
+  if (!base) return "";
+  return `${base}/ultimo`;
+}
+
+export function getFinIndicesIpcaSincronizarUrl(): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.finIndicesIpca);
+  if (!base) return "";
+  return `${base}/sincronizar`;
 }
 
 export function getFinLancamentosUrl(): string {

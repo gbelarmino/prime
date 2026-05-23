@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataTablePageEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { InputNumber } from "primereact/inputnumber";
-import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
@@ -28,7 +27,7 @@ import {
 } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
-import { convenioDropdownOptions, filterConveniosAtivos } from "@/lib/convenio-label";
+import { convenioDropdownOptions, convenioOptionLabel, filterConveniosAtivos } from "@/lib/convenio-label";
 import {
   finService,
   formatContratoRef,
@@ -37,9 +36,8 @@ import {
   type TituloContextoLote,
 } from "@/lib/fin-service";
 import {
-  calcularProximoVencimento,
-  isVencimentoValidoParaContrato,
-  parseIsoDate,
+  calcularVencimentosParcelas,
+  formatIsoDate,
 } from "@/lib/fin-vencimento";
 import type { SpringPage } from "@/lib/spring-page";
 
@@ -76,6 +74,8 @@ const FILTER_DROPDOWN_PT = {
       "w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25",
   },
 };
+
+type NovoTituloStep = "form" | "confirm";
 
 type TitulosListProps = {
   showNovo?: boolean;
@@ -135,7 +135,8 @@ export function TitulosList({
   const [selectedLote, setSelectedLote] = useState<number | null>(null);
   const [contexto, setContexto] = useState<TituloContextoLote | null>(null);
   const [contextoLoading, setContextoLoading] = useState(false);
-  const [vencimento, setVencimento] = useState<Date | null>(null);
+  const [quantidadeParcelas, setQuantidadeParcelas] = useState<number>(1);
+  const [novoTituloStep, setNovoTituloStep] = useState<NovoTituloStep>("form");
   const [convenios, setConvenios] = useState<ConvenioBanco[]>([]);
   const [convenioIdNovo, setConvenioIdNovo] = useState<string | null>(null);
   const [registrarDialogOpen, setRegistrarDialogOpen] = useState(false);
@@ -151,8 +152,9 @@ export function TitulosList({
     setQuadras([]);
     setLotes([]);
     setContexto(null);
-    setVencimento(null);
+    setQuantidadeParcelas(1);
     setConvenioIdNovo(null);
+    setNovoTituloStep("form");
   }, []);
 
   const loadConvenios = useCallback(async () => {
@@ -343,7 +345,8 @@ export function TitulosList({
       setLotes([]);
       setSelectedLote(null);
       setContexto(null);
-      setVencimento(null);
+      setQuantidadeParcelas(1);
+      setNovoTituloStep("form");
       return;
     }
     setQuadrasLoading(true);
@@ -362,7 +365,7 @@ export function TitulosList({
       setLotes([]);
       setSelectedLote(null);
       setContexto(null);
-      setVencimento(null);
+      setQuantidadeParcelas(1);
       return;
     }
     setLotesLoading(true);
@@ -382,7 +385,7 @@ export function TitulosList({
   useEffect(() => {
     if (!showNovo || !selectedEmpreendimento || !selectedQuadra || selectedLote == null) {
       setContexto(null);
-      setVencimento(null);
+      setQuantidadeParcelas(1);
       return;
     }
     setContextoLoading(true);
@@ -390,15 +393,46 @@ export function TitulosList({
       .contextoLote(selectedEmpreendimento, selectedQuadra, selectedLote)
       .then((ctx) => {
         setContexto(ctx);
-        setVencimento(parseIsoDate(ctx.vencimentoSugerido));
+        setQuantidadeParcelas(1);
       })
       .catch((e) => {
         setContexto(null);
-        setVencimento(null);
+        setQuantidadeParcelas(1);
         toast.error(e instanceof Error ? e.message : "Erro ao carregar dados do lote.");
       })
       .finally(() => setContextoLoading(false));
   }, [showNovo, selectedEmpreendimento, selectedQuadra, selectedLote]);
+
+  const previewLote = useMemo(() => {
+    if (!contexto || quantidadeParcelas < 1) return null;
+    const qtd = Math.min(360, Math.floor(quantidadeParcelas));
+    const parcelaInicial = contexto.numeroParcela;
+    const parcelaFinal = parcelaInicial + qtd - 1;
+    const vencimentos = calcularVencimentosParcelas(
+      contexto.diaVencimentoMensal,
+      new Date(),
+      qtd,
+    );
+    const itens = vencimentos.map((venc, index) => ({
+      parcela: parcelaInicial + index,
+      vencimento: formatIsoDate(venc),
+      valor: contexto.valorNominal,
+    }));
+    return {
+      parcelaInicial,
+      parcelaFinal,
+      quantidade: qtd,
+      valorTotal: contexto.valorNominal * qtd,
+      primeiroVencimento: itens[0]?.vencimento ?? null,
+      ultimoVencimento: itens.at(-1)?.vencimento ?? null,
+      itens,
+    };
+  }, [contexto, quantidadeParcelas]);
+
+  const convenioSelecionado = useMemo(
+    () => convenios.find((c) => c.id === convenioIdNovo) ?? null,
+    [convenios, convenioIdNovo],
+  );
 
   const onPage = (e: DataTablePageEvent) => {
     setPage(e.page ?? 0);
@@ -565,44 +599,48 @@ export function TitulosList({
       menuRef.current?.toggle(e);
     });
 
-  const criarTitulo = async () => {
-    if (!contexto || !vencimento) {
-      toast.error("Selecione empreendimento, quadra e lote válidos e confira o vencimento.");
-      return;
+  const validarFormNovoTitulo = (): number | null => {
+    if (!contexto) {
+      toast.error("Selecione empreendimento, quadra e lote válidos.");
+      return null;
     }
     if (!convenioIdNovo) {
       toast.error("Selecione um convênio bancário.");
-      return;
+      return null;
     }
-    if (!isVencimentoValidoParaContrato(vencimento, contexto.diaVencimentoMensal)) {
-      toast.error(
-        `Vencimento deve ser uma data futura no dia ${contexto.diaVencimentoMensal} do mês.`,
-      );
-      return;
+    const qtd = Math.floor(quantidadeParcelas);
+    if (!Number.isFinite(qtd) || qtd < 1 || qtd > 360) {
+      toast.error("Informe entre 1 e 360 parcelas.");
+      return null;
     }
+    return qtd;
+  };
+
+  const irParaConfirmacao = () => {
+    if (validarFormNovoTitulo() == null) return;
+    setNovoTituloStep("confirm");
+  };
+
+  const confirmarCriacaoTitulos = async () => {
+    const qtd = validarFormNovoTitulo();
+    if (qtd == null || !contexto || !convenioIdNovo) return;
     setSaving(true);
     try {
-      const y = vencimento.getFullYear();
-      const m = String(vencimento.getMonth() + 1).padStart(2, "0");
-      const d = String(vencimento.getDate()).padStart(2, "0");
-      const venc = `${y}-${m}-${d}`;
-      const criado = await finService.criarTitulo(
-        {
-          contratoId: contexto.contratoId,
-          numeroParcela: contexto.numeroParcela,
-          convenioId: convenioIdNovo,
-          valorNominal: contexto.valorNominal,
-          vencimento: venc,
-        },
-        `contrato-${formatContratoRef(contexto.numeroContrato, contexto.contratoId)}-parcela-${contexto.numeroParcela}`,
-      );
+      const resultado = await finService.criarTitulosEmLote({
+        contratoId: contexto.contratoId,
+        convenioId: convenioIdNovo,
+        quantidadeParcelas: qtd,
+      });
       setPage(0);
       setStatusFilter("RASCUNHO");
       onShowNovoChange?.(false);
+      resetNovoForm();
       await load(true, { page: 0, status: "RASCUNHO" });
-      toast.success(`Título criado em rascunho (parcela ${criado.numeroParcela}).`);
+      toast.success(
+        `${resultado.quantidadeCriada} título(s) criado(s) em rascunho (parcelas ${resultado.parcelaInicial}–${resultado.parcelaFinal}).`,
+      );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao criar título.");
+      toast.error(e instanceof Error ? e.message : "Erro ao criar títulos.");
       if (selectedEmpreendimento && selectedQuadra && selectedLote != null) {
         try {
           const ctx = await finService.contextoLote(
@@ -611,7 +649,6 @@ export function TitulosList({
             selectedLote,
           );
           setContexto(ctx);
-          setVencimento(parseIsoDate(ctx.vencimentoSugerido));
         } catch {
           /* mantém contexto anterior */
         }
@@ -878,13 +915,20 @@ export function TitulosList({
 
       {!embedded && onShowNovoChange ? (
       <DashboardDialog
-        header="Novo título de cobrança"
+        header={
+          novoTituloStep === "confirm"
+            ? "Confirmar geração de títulos"
+            : "Novo título de cobrança"
+        }
         visible={showNovo}
         onHide={() => {
           onShowNovoChange(false);
           resetNovoForm();
         }}
-        className="w-full max-w-md border border-white/10 bg-[#071C33] shadow-2xl"
+        className={cn(
+          "w-full border border-white/10 bg-[#071C33] shadow-2xl",
+          novoTituloStep === "confirm" ? "max-w-lg" : "max-w-md",
+        )}
         pt={{
           header: {
             className:
@@ -895,30 +939,59 @@ export function TitulosList({
         }}
         footer={
           <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                onShowNovoChange(false);
-                resetNovoForm();
-              }}
-              className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/60 transition hover:border-white/15 hover:bg-white/[0.08] hover:text-white/90"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              disabled={saving || !contexto || contextoLoading || !convenioIdNovo}
-              onClick={() => void criarTitulo()}
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
-            >
-              {saving ? "A criar…" : "Criar"}
-            </button>
+            {novoTituloStep === "form" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onShowNovoChange(false);
+                    resetNovoForm();
+                  }}
+                  className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/60 transition hover:border-white/15 hover:bg-white/[0.08] hover:text-white/90"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={!contexto || contextoLoading || !convenioIdNovo || quantidadeParcelas < 1}
+                  onClick={irParaConfirmacao}
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Revisar
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => setNovoTituloStep("form")}
+                  className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/60 transition hover:border-white/15 hover:bg-white/[0.08] hover:text-white/90 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  disabled={saving || !contexto || !previewLote || !convenioIdNovo}
+                  onClick={() => void confirmarCriacaoTitulos()}
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {saving
+                    ? "A criar…"
+                    : previewLote && previewLote.quantidade > 1
+                      ? `Confirmar ${previewLote.quantidade} títulos`
+                      : "Confirmar título"}
+                </button>
+              </>
+            )}
           </div>
         }
         modal
         draggable={false}
       >
         <div className="flex flex-col gap-5">
+          {novoTituloStep === "form" ? (
+            <>
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
               Empreendimento
@@ -1003,7 +1076,7 @@ export function TitulosList({
             <>
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
-                  Nº da parcela
+                  Próxima parcela
                 </label>
                 <InputNumber
                   value={contexto.numeroParcela}
@@ -1028,25 +1101,21 @@ export function TitulosList({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label
-                  htmlFor="fin-titulo-vencimento"
-                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
-                >
-                  Vencimento
+                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+                  Quantidade de parcelas
                 </label>
                 <p className="text-xs text-white/40">
-                  Dia {contexto.diaVencimentoMensal} de cada mês (conforme contrato). Apenas datas
-                  futuras.
+                  Vencimento no dia {contexto.diaVencimentoMensal} de cada mês (conforme contrato).
+                  Se cair em fim de semana, usa a segunda-feira seguinte.
                 </p>
-                <Calendar
-                  inputId="fin-titulo-vencimento"
-                  value={vencimento}
-                  onChange={(e) => setVencimento(e.value ?? null)}
-                  dateFormat="dd/mm/yy"
+                <InputNumber
+                  value={quantidadeParcelas}
+                  onValueChange={(e) => setQuantidadeParcelas(e.value ?? 1)}
+                  min={1}
+                  max={360}
                   className="w-full"
                   inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25 focus:border-emerald-500/40"
-                  showIcon
-                  minDate={calcularProximoVencimento(contexto.diaVencimentoMensal, new Date())}
+                  useGrouping={false}
                   disabled={contextoLoading}
                 />
               </div>
@@ -1070,6 +1139,80 @@ export function TitulosList({
               </div>
             </>
           )}
+            </>
+          ) : contexto && previewLote ? (
+            <div className="flex flex-col gap-5">
+              <p className="text-sm text-white/50">
+                Confira os dados abaixo antes de gerar os títulos em rascunho.
+              </p>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
+                    Lote
+                  </dt>
+                  <dd className="mt-0.5 text-white/80">
+                    {selectedEmpreendimento} · Q{contexto.quadra} L{contexto.lote}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
+                    Contrato
+                  </dt>
+                  <dd className="mt-0.5 text-white/80">
+                    {formatContratoRef(contexto.numeroContrato, contexto.contratoId)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
+                    Convênio
+                  </dt>
+                  <dd className="mt-0.5 text-white/80">
+                    {convenioSelecionado ? convenioOptionLabel(convenioSelecionado) : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
+                    Dia de vencimento
+                  </dt>
+                  <dd className="mt-0.5 text-white/80">Dia {contexto.diaVencimentoMensal}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
+                    Total nominal
+                  </dt>
+                  <dd className="mt-0.5 font-semibold text-emerald-300">
+                    {formatMoney(previewLote.valorTotal)}
+                  </dd>
+                </div>
+              </dl>
+              <div className="overflow-hidden rounded-xl border border-white/10">
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="sticky top-0 bg-[#0a2540] text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <tr>
+                        <th className="px-4 py-3">Parcela</th>
+                        <th className="px-4 py-3">Vencimento</th>
+                        <th className="px-4 py-3 text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.06] text-white/70">
+                      {previewLote.itens.map((item) => (
+                        <tr key={item.parcela} className="bg-white/[0.02]">
+                          <td className="px-4 py-2.5 font-mono">{item.parcela}</td>
+                          <td className="px-4 py-2.5">{formatDate(item.vencimento)}</td>
+                          <td className="px-4 py-2.5 text-right">{formatMoney(item.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <p className="text-xs text-white/35">
+                {previewLote.quantidade} título(s) serão criados com status{" "}
+                <span className="text-white/50">Rascunho</span>.
+              </p>
+            </div>
+          ) : null}
         </div>
       </DashboardDialog>
       ) : null}

@@ -9,15 +9,7 @@ declare global {
   }
 }
 
-function readRuntime(key: keyof PrimeRuntimeEnv): string {
-  if (typeof window === "undefined") return "";
-  return window.__PRIME_ENV__?.[key]?.trim() ?? "";
-}
-
-/** Build-time (Next) ou runtime (Dokploy → env-config.js no arranque do container). */
-export function readPrimeEnv(key: keyof PrimeRuntimeEnv): string {
-  const runtime = readRuntime(key);
-  if (runtime) return runtime;
+function readBuildTime(key: keyof PrimeRuntimeEnv): string {
   if (key === "NEXT_PUBLIC_API_BASE_URL") {
     return process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
   }
@@ -25,4 +17,18 @@ export function readPrimeEnv(key: keyof PrimeRuntimeEnv): string {
     return process.env.NEXT_PUBLIC_SKIP_AUTH?.trim() ?? "";
   }
   return "";
+}
+
+function readRuntime(key: keyof PrimeRuntimeEnv): string {
+  if (typeof window === "undefined") return "";
+  return window.__PRIME_ENV__?.[key]?.trim() ?? "";
+}
+
+/** Runtime (Dokploy / env-config.js) com fallback para build-time (Next export). */
+export function readPrimeEnv(key: keyof PrimeRuntimeEnv): string {
+  return readRuntime(key) || readBuildTime(key);
+}
+
+export function isPrimeEnvReady(): boolean {
+  return Boolean(readPrimeEnv("NEXT_PUBLIC_API_BASE_URL"));
 }

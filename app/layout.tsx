@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { PrimeReactProvider } from "primereact/api";
 import { Toaster } from "sonner";
 import { GlobalSpinner } from "@/components/ui/GlobalSpinner";
+import { primeEnvBootstrapScript } from "@/lib/prime-env-bootstrap";
 
 // PrimeReact Styles
 import "primereact/resources/themes/lara-dark-blue/theme.css";
@@ -36,7 +37,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <head>
-        {/* Runtime: Dokploy injeta API_BASE_URL via docker-entrypoint.sh → /env-config.js */}
+        {/* Inline síncrono — Next export coloca Script beforeInteractive tarde demais no head */}
+        <script
+          id="prime-env-bootstrap"
+          dangerouslySetInnerHTML={{ __html: primeEnvBootstrapScript() }}
+        />
         <script src="/env-config.js" />
       </head>
       <body className="min-h-full flex flex-col bg-[#020817] text-slate-50">

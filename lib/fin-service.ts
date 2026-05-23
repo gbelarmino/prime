@@ -5,6 +5,9 @@ import {
   getFinConveniosGestaoUrl,
   getFinConveniosUrl,
   getFinDashboardResumoUrl,
+  getFinIndicesIpcaSincronizarUrl,
+  getFinIndicesIpcaUltimoUrl,
+  getFinIndicesIpcaUrl,
   getFinLancamentoByIdUrl,
   getFinLancamentosListUrl,
   getFinPlanoContasSaldosUrl,
@@ -32,6 +35,7 @@ import {
   getFinTituloPdfUrl,
   getFinTituloRegistrarUrl,
   getFinTitulosListUrl,
+  getFinTitulosLoteUrl,
   getFinTitulosUrl,
   getFinTituloContextoLoteUrl,
   getFinTituloLegadoManualUrl,
@@ -98,6 +102,34 @@ export interface ConvenioBanco {
   ativo: boolean;
 }
 
+export interface IndiceEconomicoMensal {
+  id: number;
+  tipoIndice: string;
+  ano: number;
+  mes: number;
+  anoMes: number;
+  variacaoMensal: number | null;
+  variacao12Meses: number | null;
+  numeroIndice: number | null;
+  sincronizadoEm: string;
+}
+
+export type IndiceSyncExecucao = "INCREMENTAL" | "BACKFILL" | "MANUAL" | "AGENDADO";
+export type IndiceSyncStatus = "SUCESSO" | "ERRO" | "PARCIAL";
+
+export interface IndiceEconomicoSyncResult {
+  logId: string;
+  tipoIndice: string;
+  execucao: IndiceSyncExecucao;
+  status: IndiceSyncStatus;
+  registrosNovos: number;
+  registrosAtualizados: number;
+  inicioEm: string;
+  fimEm: string | null;
+  urlSidra: string | null;
+  erro: string | null;
+}
+
 export interface FinDashboardResumo {
   totalTitulos: number;
   titulosAbertos: number;
@@ -141,6 +173,19 @@ export interface TituloCobrancaCreate {
   convenioId?: string;
   valorNominal: number;
   vencimento: string;
+}
+
+export interface TituloCobrancaLoteCreate {
+  contratoId: number;
+  convenioId?: string;
+  quantidadeParcelas: number;
+}
+
+export interface TituloCobrancaLoteResult {
+  quantidadeCriada: number;
+  parcelaInicial: number;
+  parcelaFinal: number;
+  titulos: TituloCobranca[];
 }
 
 export type TituloLegadoManualStatus =
@@ -497,6 +542,15 @@ export const finService = {
     return parseJson(res);
   },
 
+  async criarTitulosEmLote(body: TituloCobrancaLoteCreate): Promise<TituloCobrancaLoteResult> {
+    const res = await apiFetch(getFinTitulosLoteUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
   async registrar(id: string, convenioId?: string): Promise<TituloCobranca> {
     const res = await apiFetch(getFinTituloRegistrarUrl(id), {
       method: "POST",
@@ -738,6 +792,28 @@ export const finService = {
 
   async reprocessarUnicredWebhook(id: string): Promise<TituloCobranca> {
     const res = await apiFetch(getFinUnicredWebhookConciliacaoReprocessarUrl(id), { method: "POST" });
+    return parseJson(res);
+  },
+
+  async listIndicesIpca(opts?: { desde?: string; ate?: string }): Promise<IndiceEconomicoMensal[]> {
+    const res = await apiFetch(getFinIndicesIpcaUrl(opts));
+    return parseJson(res);
+  },
+
+  async getIndiceIpcaUltimo(): Promise<IndiceEconomicoMensal> {
+    const res = await apiFetch(getFinIndicesIpcaUltimoUrl());
+    return parseJson(res);
+  },
+
+  async sincronizarIndicesIpca(payload?: {
+    desde?: string;
+    ate?: string;
+  }): Promise<IndiceEconomicoSyncResult> {
+    const res = await apiFetch(getFinIndicesIpcaSincronizarUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload ?? {}),
+    });
     return parseJson(res);
   },
 };
