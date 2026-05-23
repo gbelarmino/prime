@@ -1,5 +1,5 @@
 import { loadingState } from "./loading-store";
-import { getAuthToken } from "./auth-storage";
+import { clearAuthSession, getAuthToken } from "./auth-storage";
 
 /**
  * Wrapper sobre o fetch nativo que:
@@ -34,6 +34,19 @@ export async function apiFetch(
 
   try {
     const response = await fetch(input, finalInit);
+
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined" &&
+      token
+    ) {
+      clearAuthSession();
+      const next = encodeURIComponent(
+        `${window.location.pathname}${window.location.search}`,
+      );
+      window.location.replace(`/login?next=${next}`);
+    }
+
     return response;
   } catch (error) {
     throw error;

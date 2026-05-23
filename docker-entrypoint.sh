@@ -2,7 +2,8 @@
 set -eu
 
 API_URL="${API_BASE_URL:-${NEXT_PUBLIC_API_BASE_URL:-}}"
-SKIP_AUTH="${NEXT_PUBLIC_SKIP_AUTH:-false}"
+# Staff dashboard exige JWT — nunca propagar SKIP_AUTH em runtime de produção.
+SKIP_AUTH="false"
 
 escape_json() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'

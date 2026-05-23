@@ -55,9 +55,7 @@ function LoginContent() {
         const role = data.role || "ADMIN";
         router.push(resolvePostLoginPath(requestedNext, role));
       } else {
-        setAuthSession("demo-token", "ADMIN", values.email);
-        toast.success("Login de demonstração efetuado.");
-        router.push(requestedNext || "/dashboard");
+        toast.error("Serviço de autenticação indisponível. Verifique a configuração da API.");
       }
     } catch {
       toast.error("Erro de conexão com o servidor.");

@@ -47,6 +47,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   isAdmin as isAuthAdmin,
+  isAuthenticated,
   getUserEmail,
   getUserRole,
   clearAuthSession,
@@ -349,10 +350,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     });
     locale("pt-BR");
     
+    if (!isAuthenticated()) {
+      const next = encodeURIComponent(pathname);
+      router.replace(`/login?next=${next}`);
+      return;
+    }
+
     setMounted(true);
     setAdmin(isAuthAdmin());
     setRole(getUserRole());
-  }, []);
+  }, [pathname, router]);
 
   useEffect(() => {
     if (!mounted) return;

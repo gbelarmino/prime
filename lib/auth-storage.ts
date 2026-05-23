@@ -27,11 +27,28 @@ const ADMINISTRATIVO_BLOCKED_CONTRATOS = [
   "/dashboard/contratos/legado",
 ] as const;
 
+/** Token de demonstração — nunca aceite em produção. */
+const DEMO_TOKEN = "demo-token";
+
 /**
- * Quando `NEXT_PUBLIC_SKIP_AUTH=true`, o dashboard não exige token (apenas desenvolvimento / teste rápido).
+ * Bypass de auth do staff apenas em `npm run dev` com `NEXT_PUBLIC_SKIP_AUTH=true`.
+ * Em build de produção (`output: export`) o bundle ignora SKIP_AUTH em runtime.
  */
+export function isStaffDevAuthBypass(): boolean {
+  return (
+    process.env.NODE_ENV === "development" &&
+    readPrimeEnv("NEXT_PUBLIC_SKIP_AUTH") === "true"
+  );
+}
+
+/** @deprecated Use isStaffDevAuthBypass — mantido para compatibilidade local. */
 export function isAuthCheckDisabled(): boolean {
-  return readPrimeEnv("NEXT_PUBLIC_SKIP_AUTH") === "true";
+  return isStaffDevAuthBypass();
+}
+
+function hasValidStaffToken(): boolean {
+  const token = getAuthToken();
+  return Boolean(token && token !== DEMO_TOKEN);
 }
 
 export function getAuthToken(): string | null {
@@ -65,15 +82,13 @@ export function clearAuthSession(): void {
 }
 
 export function isAuthenticated(): boolean {
-  if (isAuthCheckDisabled()) return true;
-  return Boolean(getAuthToken());
+  if (isStaffDevAuthBypass()) return true;
+  return hasValidStaffToken();
 }
 
 export function isAdmin(): boolean {
-  const role = getUserRole();
-  if (role === "ADMIN") return true;
-  if (role) return false;
-  return isAuthCheckDisabled();
+  if (!isAuthenticated()) return false;
+  return getUserRole() === "ADMIN";
 }
 
 export function isCorretor(): boolean {
