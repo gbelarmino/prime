@@ -39,6 +39,7 @@ import {
   Link2,
   ScrollText,
   TrendingUp,
+  Calculator,
 } from "lucide-react";
 import { Menu } from "primereact/menu";
 import { AppLogo } from "@/components/AppLogo";
@@ -146,6 +147,7 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     prefix: "/dashboard/financeiro",
     children: [
       { href: "/dashboard/financeiro/titulos", label: "Títulos", icon: Receipt },
+      { href: "/dashboard/financeiro/simulacao-ipca", label: "Simulação IPCA", icon: Calculator },
       { href: "/dashboard/financeiro/convenios", label: "Convênios", icon: Building2 },
       { href: "/dashboard/financeiro/conciliacao", label: "Conciliação", icon: GitCompareArrows },
       { href: "/dashboard/financeiro/unicred-webhooks", label: "Webhooks Unicred", icon: Link2 },

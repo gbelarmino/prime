@@ -32,20 +32,47 @@ export function calcularProximoVencimento(diaVencimento: number, referencia: Dat
   return ajustarParaProximoDiaUtil(calcularProximoVencimentoBruto(diaVencimento, referencia));
 }
 
+export type VencimentoParcelaDetalhe = {
+  vencimento: Date;
+  vencimentoBruto: Date;
+  ajustadoPorDiaUtil: boolean;
+};
+
+export function calcularVencimentosParcelasDetalhe(
+  diaVencimento: number,
+  referencia: Date,
+  quantidade: number,
+): VencimentoParcelaDetalhe[] {
+  if (quantidade < 1) return [];
+  const vencimentos: VencimentoParcelaDetalhe[] = [];
+  let cursor = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
+  for (let i = 0; i < quantidade; i++) {
+    const bruto = calcularProximoVencimentoBruto(diaVencimento, cursor);
+    const venc = ajustarParaProximoDiaUtil(bruto);
+    vencimentos.push({
+      vencimento: venc,
+      vencimentoBruto: bruto,
+      ajustadoPorDiaUtil: formatIsoDate(bruto) !== formatIsoDate(venc),
+    });
+    cursor = venc;
+  }
+  return vencimentos;
+}
+
+/** Rótulo curto do dia da semana do vencimento bruto (ex.: "sáb."). */
+export function diaSemanaCurto(data: Date): string {
+  const nome = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+  return nome.charAt(0).toUpperCase() + nome.slice(1);
+}
+
 export function calcularVencimentosParcelas(
   diaVencimento: number,
   referencia: Date,
   quantidade: number,
 ): Date[] {
-  if (quantidade < 1) return [];
-  const vencimentos: Date[] = [];
-  let cursor = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
-  for (let i = 0; i < quantidade; i++) {
-    const venc = calcularProximoVencimento(diaVencimento, cursor);
-    vencimentos.push(venc);
-    cursor = venc;
-  }
-  return vencimentos;
+  return calcularVencimentosParcelasDetalhe(diaVencimento, referencia, quantidade).map(
+    (item) => item.vencimento,
+  );
 }
 
 export function isVencimentoValidoParaContrato(vencimento: Date, diaContrato: number): boolean {

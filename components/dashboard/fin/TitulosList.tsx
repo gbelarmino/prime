@@ -36,8 +36,16 @@ import {
   type TituloContextoLote,
 } from "@/lib/fin-service";
 import {
-  calcularVencimentosParcelas,
+  isParcelaReajuste,
+  maxParcelasAteProximoReajuste,
+  proximaParcelaComReajuste,
+  ultimaParcelaEmitivelEmLote,
+} from "@/lib/fin-parcela-reajuste";
+import {
+  calcularVencimentosParcelasDetalhe,
+  diaSemanaCurto,
   formatIsoDate,
+  parseIsoDate,
 } from "@/lib/fin-vencimento";
 import type { SpringPage } from "@/lib/spring-page";
 
@@ -83,6 +91,18 @@ type TitulosListProps = {
   imovelId?: number;
   embedded?: boolean;
 };
+
+function resolveMaxParcelas(ctx: TituloContextoLote): number {
+  return ctx.maxParcelasPermitidas ?? maxParcelasAteProximoReajuste(ctx.numeroParcela);
+}
+
+function resolveParcelaReajusteLimite(ctx: TituloContextoLote): number {
+  return ctx.parcelaReajusteLimite ?? proximaParcelaComReajuste(ctx.numeroParcela);
+}
+
+function resolveUltimaParcelaEmitivel(ctx: TituloContextoLote): number {
+  return ultimaParcelaEmitivelEmLote(ctx.numeroParcela);
+}
 
 function formatMoney(v: number | null | undefined): string {
   if (v == null) return "—";
@@ -393,7 +413,10 @@ export function TitulosList({
       .contextoLote(selectedEmpreendimento, selectedQuadra, selectedLote)
       .then((ctx) => {
         setContexto(ctx);
-        setQuantidadeParcelas(1);
+        const maxPermitidas = resolveMaxParcelas(ctx);
+        setQuantidadeParcelas((q) =>
+          maxPermitidas === 0 ? 0 : Math.min(Math.max(1, q), maxPermitidas),
+        );
       })
       .catch((e) => {
         setContexto(null);
@@ -403,31 +426,79 @@ export function TitulosList({
       .finally(() => setContextoLoading(false));
   }, [showNovo, selectedEmpreendimento, selectedQuadra, selectedLote]);
 
+  const maxParcelasPermitidas = useMemo(
+    () => (contexto ? resolveMaxParcelas(contexto) : 0),
+    [contexto],
+  );
+
+  const parcelaReajusteLimite = useMemo(
+    () => (contexto ? resolveParcelaReajusteLimite(contexto) : 13),
+    [contexto],
+  );
+
+  const ultimaParcelaEmitivel = useMemo(
+    () => (contexto ? resolveUltimaParcelaEmitivel(contexto) : 12),
+    [contexto],
+  );
+
   const previewLote = useMemo(() => {
-    if (!contexto || quantidadeParcelas < 1) return null;
-    const qtd = Math.min(360, Math.floor(quantidadeParcelas));
+    if (!contexto || maxParcelasPermitidas < 1 || quantidadeParcelas < 1) return null;
+    const qtd = Math.min(maxParcelasPermitidas, Math.floor(quantidadeParcelas));
     const parcelaInicial = contexto.numeroParcela;
     const parcelaFinal = parcelaInicial + qtd - 1;
-    const vencimentos = calcularVencimentosParcelas(
+    const vencimentos = calcularVencimentosParcelasDetalhe(
       contexto.diaVencimentoMensal,
       new Date(),
       qtd,
     );
-    const itens = vencimentos.map((venc, index) => ({
+    const itens = vencimentos.map((detalhe, index) => ({
       parcela: parcelaInicial + index,
-      vencimento: formatIsoDate(venc),
+      vencimento: formatIsoDate(detalhe.vencimento),
+      vencimentoBruto: formatIsoDate(detalhe.vencimentoBruto),
+      ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
+      excedente: false,
+      parcelaReajuste: false,
       valor: contexto.valorNominal,
     }));
+
+    const itensExcedentes: typeof itens = [];
+    if (qtd === maxParcelasPermitidas && parcelaFinal < parcelaReajusteLimite) {
+      for (let parcela = parcelaFinal + 1; parcela <= parcelaReajusteLimite; parcela++) {
+        const offset = parcela - parcelaInicial;
+        const detalhe = calcularVencimentosParcelasDetalhe(
+          contexto.diaVencimentoMensal,
+          new Date(),
+          offset + 1,
+        ).at(-1);
+        if (!detalhe) continue;
+        itensExcedentes.push({
+          parcela,
+          vencimento: formatIsoDate(detalhe.vencimento),
+          vencimentoBruto: formatIsoDate(detalhe.vencimentoBruto),
+          ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
+          excedente: true,
+          parcelaReajuste: isParcelaReajuste(parcela),
+          valor: contexto.valorNominal,
+        });
+      }
+    }
+
+    const ajustadosPorDiaUtil = itens.filter((item) => item.ajustadoPorDiaUtil).length;
     return {
       parcelaInicial,
       parcelaFinal,
       quantidade: qtd,
       valorTotal: contexto.valorNominal * qtd,
+      ajustadosPorDiaUtil,
+      parcelaReajusteLimite,
+      ultimaParcelaEmitivel,
       primeiroVencimento: itens[0]?.vencimento ?? null,
       ultimoVencimento: itens.at(-1)?.vencimento ?? null,
       itens,
+      itensExcedentes,
+      itensRevisao: [...itens, ...itensExcedentes],
     };
-  }, [contexto, quantidadeParcelas]);
+  }, [contexto, quantidadeParcelas, maxParcelasPermitidas, parcelaReajusteLimite, ultimaParcelaEmitivel]);
 
   const convenioSelecionado = useMemo(
     () => convenios.find((c) => c.id === convenioIdNovo) ?? null,
@@ -608,9 +679,17 @@ export function TitulosList({
       toast.error("Selecione um convênio bancário.");
       return null;
     }
+    if (maxParcelasPermitidas < 1) {
+      toast.error(
+        `A parcela ${parcelaReajusteLimite} exige reajuste IPCA antes da emissão. Gere essa parcela individualmente após o reajuste.`,
+      );
+      return null;
+    }
     const qtd = Math.floor(quantidadeParcelas);
-    if (!Number.isFinite(qtd) || qtd < 1 || qtd > 360) {
-      toast.error("Informe entre 1 e 360 parcelas.");
+    if (!Number.isFinite(qtd) || qtd < 1 || qtd > maxParcelasPermitidas) {
+      toast.error(
+        `Informe entre 1 e ${maxParcelasPermitidas} parcela(s) (até a parcela ${ultimaParcelaEmitivel}; a ${parcelaReajusteLimite}ª só após reajuste IPCA).`,
+      );
       return null;
     }
     return qtd;
@@ -953,7 +1032,13 @@ export function TitulosList({
                 </button>
                 <button
                   type="button"
-                  disabled={!contexto || contextoLoading || !convenioIdNovo || quantidadeParcelas < 1}
+                  disabled={
+                    !contexto ||
+                    contextoLoading ||
+                    !convenioIdNovo ||
+                    maxParcelasPermitidas < 1 ||
+                    quantidadeParcelas < 1
+                  }
                   onClick={irParaConfirmacao}
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
                 >
@@ -1107,17 +1192,34 @@ export function TitulosList({
                 <p className="text-xs text-white/40">
                   Vencimento no dia {contexto.diaVencimentoMensal} de cada mês (conforme contrato).
                   Se cair em fim de semana, usa a segunda-feira seguinte.
+                  {maxParcelasPermitidas > 0 ? (
+                    <>
+                      {" "}
+                      Máximo de {maxParcelasPermitidas} parcela(s) até a {ultimaParcelaEmitivel}ª (a{" "}
+                      {parcelaReajusteLimite}ª só após reajuste IPCA).
+                    </>
+                  ) : null}
                 </p>
-                <InputNumber
-                  value={quantidadeParcelas}
-                  onValueChange={(e) => setQuantidadeParcelas(e.value ?? 1)}
-                  min={1}
-                  max={360}
-                  className="w-full"
-                  inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25 focus:border-emerald-500/40"
-                  useGrouping={false}
-                  disabled={contextoLoading}
-                />
+                {maxParcelasPermitidas < 1 ? (
+                  <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-200/90">
+                    A próxima parcela ({parcelaReajusteLimite}) exige reajuste IPCA antes da emissão.
+                    Não é possível gerar títulos em lote neste momento.
+                  </p>
+                ) : (
+                  <InputNumber
+                    value={quantidadeParcelas}
+                    onValueChange={(e) => {
+                      const raw = e.value ?? 1;
+                      setQuantidadeParcelas(Math.min(Math.max(1, raw), maxParcelasPermitidas));
+                    }}
+                    min={1}
+                    max={maxParcelasPermitidas}
+                    className="w-full"
+                    inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25 focus:border-emerald-500/40"
+                    useGrouping={false}
+                    disabled={contextoLoading}
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
@@ -1196,17 +1298,84 @@ export function TitulosList({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.06] text-white/70">
-                      {previewLote.itens.map((item) => (
-                        <tr key={item.parcela} className="bg-white/[0.02]">
-                          <td className="px-4 py-2.5 font-mono">{item.parcela}</td>
-                          <td className="px-4 py-2.5">{formatDate(item.vencimento)}</td>
-                          <td className="px-4 py-2.5 text-right">{formatMoney(item.valor)}</td>
+                      {previewLote.itensRevisao.map((item) => (
+                        <tr
+                          key={item.parcela}
+                          className={cn(
+                            "bg-white/[0.02]",
+                            item.excedente &&
+                              "bg-violet-500/[0.08] ring-1 ring-inset ring-violet-500/25 opacity-80",
+                            !item.excedente &&
+                              item.ajustadoPorDiaUtil &&
+                              "bg-amber-500/[0.08] ring-1 ring-inset ring-amber-500/25",
+                          )}
+                        >
+                          <td className="px-4 py-2.5 font-mono">
+                            <span className={cn(item.excedente && "text-violet-200/90")}>
+                              {item.parcela}
+                            </span>
+                            {item.excedente ? (
+                              <span className="ml-2 text-[10px] font-medium text-violet-300/90">
+                                {item.parcelaReajuste
+                                  ? "Reajuste IPCA — não será gerada"
+                                  : "Fora deste lote — não será gerada"}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex flex-col gap-1">
+                              <span
+                                className={cn(
+                                  item.excedente && "text-violet-200/70 line-through decoration-violet-400/40",
+                                  !item.excedente &&
+                                    item.ajustadoPorDiaUtil &&
+                                    "font-medium text-amber-100",
+                                )}
+                              >
+                                {formatDate(item.vencimento)}
+                              </span>
+                              {!item.excedente && item.ajustadoPorDiaUtil ? (
+                                <span className="text-[10px] font-medium text-amber-300/90">
+                                  Seria {formatDate(item.vencimentoBruto)} (
+                                  {diaSemanaCurto(parseIsoDate(item.vencimentoBruto))}) — fim de semana
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td
+                            className={cn(
+                              "px-4 py-2.5 text-right",
+                              item.excedente && "text-violet-200/50 line-through decoration-violet-400/40",
+                            )}
+                          >
+                            {formatMoney(item.valor)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
+              {previewLote.ajustadosPorDiaUtil > 0 ? (
+                <p className="text-xs text-amber-300/90">
+                  {previewLote.ajustadosPorDiaUtil} vencimento(s) em destaque caíam em fim de semana e
+                  foram ajustados para a segunda-feira seguinte.
+                </p>
+              ) : null}
+              {previewLote.itensExcedentes.length > 0 ? (
+                <p className="text-xs text-violet-300/90">
+                  {previewLote.itensExcedentes.length} parcela(s) em destaque violeta não entram neste
+                  lote
+                  {previewLote.itensExcedentes.some((i) => i.parcelaReajuste)
+                    ? ` (a ${previewLote.parcelaReajusteLimite}ª exige reajuste IPCA antes da emissão)`
+                    : ""}
+                  .
+                </p>
+              ) : null}
+              <p className="text-xs text-white/35">
+                Emissão em lote até a parcela {previewLote.ultimaParcelaEmitivel}. A parcela{" "}
+                {previewLote.parcelaReajusteLimite} só pode ser gerada após reajuste IPCA.
+              </p>
               <p className="text-xs text-white/35">
                 {previewLote.quantidade} título(s) serão criados com status{" "}
                 <span className="text-white/50">Rascunho</span>.
