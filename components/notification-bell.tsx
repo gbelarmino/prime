@@ -6,6 +6,7 @@ import { useNotificationsStore } from "@/lib/notifications-store";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useRouter } from "next/navigation";
 import { getNotificacaoMarcarLidaUrl } from "@/lib/api-config";
+import { apiFetch } from "@/lib/api-fetch";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { clsx } from "clsx";
@@ -73,7 +74,7 @@ export function NotificationBell() {
                       try {
                         const url = getNotificacaoMarcarLidaUrl(n.id);
                         if (url) {
-                          await fetch(url, { method: 'PATCH' });
+                          await apiFetch(url, { method: "PATCH", skipLoading: true });
                         }
                       } catch (err) {
                         console.error("Erro ao sincronizar leitura", err);
