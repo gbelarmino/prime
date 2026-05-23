@@ -12,12 +12,17 @@ export type IpcaSimulacaoParcela = {
   valorSimulado: number;
   parcelaReajuste: boolean;
   reajusteAplicadoNestaParcela: boolean;
+  percentualFixoReajuste: number | null;
   ipca12MesesReferencia: number | null;
+  percentualTotalReajuste: number | null;
   mesReferenciaIpca: string | null;
   tituloEmitido: TituloCobranca | null;
   valorEmitido: number | null;
   divergencia: number | null;
 };
+
+/** Percentual fixo anual do contrato quando IPCA não está no cadastro (ex.: 6%). */
+export const REAJUSTE_PERCENTUAL_FIXO_PADRAO = 6;
 
 export function indicesIpcaPorAnoMes(
   indices: IndiceEconomicoMensal[],
@@ -61,15 +66,20 @@ function calcularValorSimulado(
   parcela: number,
   vencimentos: Map<number, Date>,
   indices: Map<number, IndiceEconomicoMensal>,
+  percentualFixoReajuste: number,
 ): {
   valor: number;
   reajusteNesta: boolean;
+  percentualFixo: number | null;
   ipca12: number | null;
+  percentualTotal: number | null;
   mesRef: number | null;
 } {
   let valor = valorBase;
   let reajusteNesta = false;
+  let percentualFixo: number | null = null;
   let ipca12: number | null = null;
+  let percentualTotal: number | null = null;
   let mesRef: number | null = null;
 
   for (let k = 1; ; k++) {
@@ -84,18 +94,26 @@ function calcularValorSimulado(
     const indice = indices.get(anoMes);
     const variacao = indice?.variacao12Meses ?? null;
 
-    if (variacao != null) {
-      valor = valor * (1 + variacao / 100);
-    }
+    const taxaAplicada = percentualFixoReajuste + (variacao ?? 0);
+    valor = valor * (1 + taxaAplicada / 100);
 
     if (parcela === parcelaReajuste) {
       reajusteNesta = true;
+      percentualFixo = percentualFixoReajuste;
       ipca12 = variacao;
+      percentualTotal = taxaAplicada;
       mesRef = anoMes;
     }
   }
 
-  return { valor: roundMoney(valor), reajusteNesta, ipca12, mesRef };
+  return {
+    valor: roundMoney(valor),
+    reajusteNesta,
+    percentualFixo,
+    ipca12,
+    percentualTotal,
+    mesRef,
+  };
 }
 
 function referenciaAntesPrimeiroVencimento(primeiroVencimento: Date): Date {
@@ -147,14 +165,24 @@ export function resolverParcelaLimiteMesAtual(opts: {
   return ultima;
 }
 
+export function resolverPercentualFixoReajuste(percentualCorrecao?: number | null): number {
+  if (percentualCorrecao != null && Number.isFinite(percentualCorrecao)) {
+    return percentualCorrecao;
+  }
+  return REAJUSTE_PERCENTUAL_FIXO_PADRAO;
+}
+
 export function simularParcelasIpca(opts: {
   titulos: TituloCobranca[];
   diaVencimentoMensal: number;
   parcelaAtual: number;
   indices: IndiceEconomicoMensal[];
+  percentualCorrecao?: number | null;
 }): IpcaSimulacaoParcela[] {
-  const { titulos, diaVencimentoMensal, parcelaAtual, indices } = opts;
+  const { titulos, diaVencimentoMensal, parcelaAtual, indices, percentualCorrecao } = opts;
   if (parcelaAtual < 1 || titulos.length === 0) return [];
+
+  const percentualFixoReajuste = resolverPercentualFixoReajuste(percentualCorrecao);
 
   const sorted = [...titulos].sort((a, b) => a.numeroParcela - b.numeroParcela);
   const primeiro = sorted[0];
@@ -181,11 +209,13 @@ export function simularParcelasIpca(opts: {
 
   const resultados: IpcaSimulacaoParcela[] = [];
   for (let parcela = 1; parcela <= parcelaAtual; parcela++) {
-    const { valor, reajusteNesta, ipca12, mesRef } = calcularValorSimulado(
+    const { valor, reajusteNesta, percentualFixo, ipca12, percentualTotal, mesRef } =
+      calcularValorSimulado(
       valorBase,
       parcela,
       vencimentos,
       indicesMap,
+      percentualFixoReajuste,
     );
     const emitido = tituloPorParcela.get(parcela) ?? null;
     const valorEmitido = emitido?.valorNominal ?? null;
@@ -198,7 +228,9 @@ export function simularParcelasIpca(opts: {
       valorSimulado: valor,
       parcelaReajuste: isParcelaReajuste(parcela),
       reajusteAplicadoNestaParcela: reajusteNesta,
+      percentualFixoReajuste: percentualFixo,
       ipca12MesesReferencia: ipca12,
+      percentualTotalReajuste: percentualTotal,
       mesReferenciaIpca: mesRef != null ? formatAnoMesLabel(mesRef) : null,
       tituloEmitido: emitido,
       valorEmitido,
@@ -208,6 +240,9 @@ export function simularParcelasIpca(opts: {
 
   return resultados;
 }
+
+/** Início do backfill IPCA na API — garante índices para contratos antigos. */
+export const IPCA_SERIE_INICIO_ANO_MES = "2015-01";
 
 export function periodoIpcaParaSimulacao(
   primeiraParcelaVencimento: string,
@@ -220,8 +255,9 @@ export function periodoIpcaParaSimulacao(
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   const ateCalculado = fmt(fimEstimado);
   const ateMesAtual = fmt(referencia);
+  const desdeCalculado = fmt(subtractMonths(inicio, 2));
   return {
-    desde: fmt(subtractMonths(inicio, 2)),
+    desde: desdeCalculado < IPCA_SERIE_INICIO_ANO_MES ? IPCA_SERIE_INICIO_ANO_MES : desdeCalculado,
     ate: ateCalculado <= ateMesAtual ? ateCalculado : ateMesAtual,
   };
 }

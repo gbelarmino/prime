@@ -9,6 +9,7 @@ import {
   formatPercentualIpca,
   periodoIpcaParaSimulacao,
   resolverParcelaLimiteMesAtual,
+  resolverPercentualFixoReajuste,
   simularParcelasIpca,
   type IpcaSimulacaoParcela,
 } from "@/lib/fin-ipca-simulacao";
@@ -159,7 +160,17 @@ function LinhaSimulacao({ item }: { item: IpcaSimulacaoParcela }) {
         <div className="font-mono">{item.parcela}</div>
         {item.reajusteAplicadoNestaParcela ? (
           <div className="mt-1 text-[10px] leading-tight text-violet-300/90">
-            <span className="font-semibold">IPCA {formatPercentualIpca(item.ipca12MesesReferencia)}</span>
+            <span className="font-semibold">
+              {item.percentualTotalReajuste != null
+                ? `Reajuste ${formatPercentualIpca(item.percentualTotalReajuste)}`
+                : "Reajuste —"}
+            </span>
+            <span className="block text-violet-300/75">
+              {formatPercentualIpca(item.percentualFixoReajuste)} fixo
+              {item.ipca12MesesReferencia != null
+                ? ` + IPCA ${formatPercentualIpca(item.ipca12MesesReferencia)}`
+                : " + IPCA —"}
+            </span>
             {item.mesReferenciaIpca ? (
               <span className="block text-violet-300/60">ref. {item.mesReferenciaIpca}</span>
             ) : null}
@@ -196,10 +207,12 @@ function ListaSimulacaoIpca({
   simulacao,
   valorBase,
   primeiraVencimento,
+  percentualFixoReajuste,
 }: {
   simulacao: IpcaSimulacaoParcela[];
   valorBase: number;
   primeiraVencimento: string;
+  percentualFixoReajuste: number;
 }) {
   if (simulacao.length === 0) {
     return (
@@ -214,7 +227,8 @@ function ListaSimulacaoIpca({
     <>
       <p className="mb-3 px-4 text-[11px] text-white/40">
         Base: {formatMoney(valorBase)} · 1º vencimento {formatDate(primeiraVencimento)} · até o mês
-        atual · reajuste IPCA 12 meses nas parcelas 13, 25, 37…
+        atual · reajuste anual {formatPercentualIpca(percentualFixoReajuste)} + IPCA 12 meses (parcelas
+        13, 25, 37…)
       </p>
       <table className="w-full text-left text-xs">
         <thead className="sticky top-0 bg-[#071c33] text-[10px] font-bold uppercase tracking-widest text-white/40">
@@ -312,6 +326,11 @@ export function TitulosIpcaSimulacaoWorkspace() {
     }
   }, [empreendimento, quadra, lote]);
 
+  const percentualFixoReajuste = useMemo(
+    () => resolverPercentualFixoReajuste(contexto?.percentualCorrecao),
+    [contexto?.percentualCorrecao],
+  );
+
   const parcelaAtual = useMemo(() => {
     if (!contexto || titulos.length === 0) return 0;
     return resolverParcelaLimiteMesAtual({
@@ -341,6 +360,7 @@ export function TitulosIpcaSimulacaoWorkspace() {
             diaVencimentoMensal: contexto.diaVencimentoMensal,
             parcelaAtual,
             indices,
+            percentualCorrecao: contexto.percentualCorrecao,
           }),
         );
       })
@@ -455,6 +475,7 @@ export function TitulosIpcaSimulacaoWorkspace() {
                 simulacao={simulacao}
                 valorBase={primeiraParcela?.valorNominal ?? 0}
                 primeiraVencimento={primeiraParcela?.vencimento ?? ""}
+                percentualFixoReajuste={percentualFixoReajuste}
               />
             )}
           </PainelCard>

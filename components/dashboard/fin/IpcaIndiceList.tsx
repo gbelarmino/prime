@@ -50,11 +50,15 @@ const CLIENTES_TABLE_PT = {
   },
 };
 
+/** Alinhado ao backfill manual da API (desde jan/2015). */
+const IPCA_SERIE_COMPLETA_DESDE = "2015-01";
+
 const PERIODO_OPCOES = [
   { label: "Últimos 12 meses", value: 12 },
   { label: "Últimos 24 meses", value: 24 },
   { label: "Últimos 36 meses", value: 36 },
   { label: "Últimos 60 meses", value: 60 },
+  { label: "Série completa (desde jan/2015)", value: 0 },
 ] as const;
 
 function formatMesReferencia(ano: number, mes: number): string {
@@ -81,9 +85,12 @@ function formatNumeroIndice(valor: number | null | undefined): string {
 
 function periodoParaQuery(meses: number): { desde: string; ate: string } {
   const ate = new Date();
-  const desde = new Date(ate.getFullYear(), ate.getMonth() - (meses - 1), 1);
   const fmt = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  if (meses <= 0) {
+    return { desde: IPCA_SERIE_COMPLETA_DESDE, ate: fmt(ate) };
+  }
+  const desde = new Date(ate.getFullYear(), ate.getMonth() - (meses - 1), 1);
   return { desde: fmt(desde), ate: fmt(ate) };
 }
 
@@ -93,7 +100,7 @@ export function IpcaIndiceList() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [meses, setMeses] = useState<number>(24);
+  const [meses, setMeses] = useState<number>(0);
   const hasLoadedRef = useRef(false);
   const admin = isAdmin();
 
@@ -233,7 +240,7 @@ export function IpcaIndiceList() {
             options={[...PERIODO_OPCOES]}
             optionLabel="label"
             optionValue="value"
-            onChange={(e) => setMeses(Number(e.value) || 24)}
+            onChange={(e) => setMeses(e.value === 0 ? 0 : Number(e.value) || 24)}
             className="w-full"
             pt={FILTER_DROPDOWN_PT}
           />
@@ -266,7 +273,9 @@ export function IpcaIndiceList() {
       </div>
       <p className="text-xs text-white/35">
         Fonte: IBGE SIDRA (tabela 1737). A variação acumulada em 12 meses é a referência contratual
-        para reajuste de parcelas.
+        para reajuste de parcelas. No primeiro arranque da API, a série desde jan/2015 é carregada do
+        IBGE; o job mensal atualiza os meses recentes. Use &quot;Sincronizar IBGE&quot; (admin) para forçar
+        atualização.
       </p>
     </div>
   );

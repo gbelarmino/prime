@@ -150,6 +150,7 @@ export interface TituloContextoLote {
   vencimentoSugerido: string;
   parcelaReajusteLimite: number;
   maxParcelasPermitidas: number;
+  percentualCorrecao?: number | null;
 }
 
 /** Rótulo exibido ao utilizador — prefere o número do contrato em vez do ID interno. */
