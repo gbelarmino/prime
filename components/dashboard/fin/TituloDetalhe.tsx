@@ -22,6 +22,7 @@ import { dashboardCellText, dashboardStatusBadge } from "@/lib/dashboard-datatab
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
 import { labelAcaoBoletoPdf } from "@/lib/baixar-boleto-pdf";
+import { atendimentoService } from "@/lib/atendimento-service";
 import {
   finService,
   formatContratoRef,
@@ -99,7 +100,26 @@ function ActionButton({ label, icon, onClick, disabled, variant = "secondary" }:
   );
 }
 
-export function TituloDetalhe({ tituloId }: { tituloId: string }) {
+type TituloDetalheProps = {
+  tituloId: string;
+  /** Consulta somente leitura a partir do painel de atendimento. */
+  variant?: "financeiro" | "atendimento";
+  /** Para voltar ao painel do contrato (variant atendimento). */
+  contratoId?: number;
+};
+
+export function TituloDetalhe({
+  tituloId,
+  variant = "financeiro",
+  contratoId,
+}: TituloDetalheProps) {
+  const isAtendimentoView = variant === "atendimento";
+  const backHref =
+    isAtendimentoView && contratoId != null
+      ? `/dashboard/atendimento/painel?id=${contratoId}`
+      : "/dashboard/financeiro/titulos";
+  const backLabel = isAtendimentoView ? "Voltar ao painel" : "Voltar à lista";
+  const sectionKicker = isAtendimentoView ? "Atendimento" : "Gestão Financeira";
   const [titulo, setTitulo] = useState<TituloCobranca | null>(null);
   const [historico, setHistorico] = useState<TituloHistoricoItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,11 +154,12 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
   }, [load]);
 
   useEffect(() => {
+    if (isAtendimentoView) return;
     void finService
       .listConvenios()
       .then((lista) => setConvenios(lista))
       .catch(() => toast.error("Falha ao carregar convênios."));
-  }, []);
+  }, [isAtendimentoView]);
 
   const abrirRegistrar = () => {
     if (!titulo) return;
@@ -226,7 +247,11 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
   const baixarPdf = async () => {
     setActionLoading(true);
     try {
-      await finService.downloadPdf(tituloId, titulo?.urlBoleto);
+      if (isAtendimentoView) {
+        await atendimentoService.downloadPdf(tituloId, titulo?.urlBoleto);
+      } else {
+        await finService.downloadPdf(tituloId, titulo?.urlBoleto);
+      }
     } catch {
       toast.error("Erro ao baixar PDF.");
     } finally {
@@ -250,10 +275,10 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
         <div className="max-w-sm rounded-[2rem] border border-rose-500/20 bg-rose-500/10 p-8 text-center">
           <p className="mb-6 text-sm text-white/50">Título não encontrado.</p>
           <Link
-            href="/dashboard/financeiro/titulos"
+            href={backHref}
             className="inline-block rounded-xl bg-white/10 px-6 py-3 text-xs font-bold uppercase tracking-widest text-white no-underline transition hover:bg-white/20"
           >
-            Voltar à lista
+            {backLabel}
           </Link>
         </div>
       </div>
@@ -280,14 +305,14 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <Link
-            href="/dashboard/financeiro/titulos"
+            href={backHref}
             className="mb-4 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-blue-400 no-underline transition hover:text-blue-300"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
-            Voltar à lista
+            {backLabel}
           </Link>
           <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.4em] text-blue-400">
-            Gestão Financeira
+            {sectionKicker}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-[family-name:var(--font-playfair)] text-3xl font-bold text-white md:text-4xl">
@@ -301,7 +326,7 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {podeRegistrar && (
+          {!isAtendimentoView && podeRegistrar && (
             <ActionButton
               label="Registrar"
               icon={<FileCheck size={14} />}
@@ -318,7 +343,7 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
               onClick={() => void baixarPdf()}
             />
           )}
-          {podeSincronizar && (
+          {!isAtendimentoView && podeSincronizar && (
             <ActionButton
               label="Sincronizar status"
               icon={<RefreshCw size={14} />}
@@ -326,7 +351,7 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
               onClick={() => void sincronizarStatus()}
             />
           )}
-          {podeCancelar && (
+          {!isAtendimentoView && podeCancelar && (
             <ActionButton
               label="Cancelar"
               icon={<Ban size={14} />}
@@ -403,7 +428,7 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
         </div>
       </div>
 
-      {podeLiquidar && (
+      {!isAtendimentoView && podeLiquidar && (
         <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 md:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
@@ -515,24 +540,28 @@ export function TituloDetalhe({ tituloId }: { tituloId: string }) {
         </div>
       </div>
 
-      <TituloCancelarDialog
-        visible={cancelDialogOpen}
-        titulo={titulo}
-        loading={actionLoading}
-        onHide={() => setCancelDialogOpen(false)}
-        onConfirm={confirmarCancelar}
-      />
+      {!isAtendimentoView && (
+        <>
+          <TituloCancelarDialog
+            visible={cancelDialogOpen}
+            titulo={titulo}
+            loading={actionLoading}
+            onHide={() => setCancelDialogOpen(false)}
+            onConfirm={confirmarCancelar}
+          />
 
-      <TituloRegistrarConvenioDialog
-        visible={registrarDialogOpen}
-        onHide={() => setRegistrarDialogOpen(false)}
-        tituloResumo={tituloTitulo}
-        convenios={convenios}
-        convenioId={convenioIdRegistrar}
-        onConvenioIdChange={setConvenioIdRegistrar}
-        onConfirm={() => void confirmarRegistrar()}
-        loading={actionLoading}
-      />
+          <TituloRegistrarConvenioDialog
+            visible={registrarDialogOpen}
+            onHide={() => setRegistrarDialogOpen(false)}
+            tituloResumo={tituloTitulo}
+            convenios={convenios}
+            convenioId={convenioIdRegistrar}
+            onConvenioIdChange={setConvenioIdRegistrar}
+            onConfirm={() => void confirmarRegistrar()}
+            loading={actionLoading}
+          />
+        </>
+      )}
     </div>
   );
 }

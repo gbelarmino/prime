@@ -332,7 +332,10 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
     dashboardActionMenuItem({
       label: "Ver detalhes",
       icon: <Eye size={16} className="text-blue-400 transition-transform group-hover:scale-110" />,
-      onClick: () => router.push(`/dashboard/financeiro/titulos/detalhe?id=${row.id}`),
+      onClick: () =>
+        router.push(
+          `/dashboard/atendimento/titulos/detalhe?id=${row.id}&contratoId=${contratoId}`,
+        ),
     }),
     dashboardActionMenuItem({
       label: "Baixar PDF",
