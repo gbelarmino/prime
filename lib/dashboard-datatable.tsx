@@ -224,10 +224,10 @@ export function dashboardCellText(
   );
 }
 
-/** Célula monoespaçada sem truncar (telefone, datas curtas). */
+/** Célula monoespaçada; use `truncate` para IDs longos (ex.: beneficiário Unicred). */
 export function dashboardCellMono(
   value: string | null | undefined,
-  options?: { size?: "default" | "parcela" },
+  options?: { size?: "default" | "parcela"; truncate?: boolean },
 ) {
   const v = value?.trim();
   if (!v) return <span className="text-white/30">—</span>;
@@ -235,8 +235,11 @@ export function dashboardCellMono(
   return (
     <span
       className={cn(
-        "block whitespace-nowrap font-mono tabular-nums tracking-tight text-white/70",
+        "block font-mono tabular-nums tracking-tight text-white/70",
         textSize,
+        options?.truncate
+          ? "min-w-0 max-w-full truncate"
+          : "whitespace-nowrap",
       )}
       title={v}
     >

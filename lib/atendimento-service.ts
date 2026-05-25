@@ -66,6 +66,9 @@ export interface AtendimentoResumoFinanceiro {
   titulosAbertos: AtendimentoTituloResumo[];
   titulosVencidos: AtendimentoTituloResumo[];
   titulosPagos: AtendimentoTituloResumo[];
+  convenioId: string | null;
+  convenioNome: string | null;
+  avisoConvenio: string | null;
 }
 
 export interface AtendimentoOcorrencia {
@@ -85,7 +88,6 @@ export interface AtendimentoRenegociacaoRequest {
   valorEntrada?: number | null;
   quantidadeParcelas?: number | null;
   primeiroVencimento: string;
-  convenioId?: string | null;
   titulosOrigemIds?: string[] | null;
   observacao?: string | null;
 }

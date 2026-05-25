@@ -7,11 +7,9 @@ import { Dropdown } from "primereact/dropdown";
 import { InputNumber } from "primereact/inputnumber";
 import { InputText } from "primereact/inputtext";
 import { toast } from "sonner";
-import { convenioDropdownOptions, filterConveniosAtivos } from "@/lib/convenio-label";
 import {
   finService,
   formatContratoRef,
-  type ConvenioBanco,
   type TituloContextoLote,
   type TituloLegadoManualCreate,
   type TituloLegadoManualStatus,
@@ -77,8 +75,6 @@ export function TituloLegadoManualDialog({
   const [numeroParcela, setNumeroParcela] = useState<number | null>(null);
   const [valorNominal, setValorNominal] = useState<number | null>(null);
   const [vencimento, setVencimento] = useState<Date | null>(null);
-  const [convenios, setConvenios] = useState<ConvenioBanco[]>([]);
-  const [convenioId, setConvenioId] = useState<string | null>(null);
   const [statusFinal, setStatusFinal] = useState<TituloLegadoManualStatus>("EMITIDO");
   const [nossoNumero, setNossoNumero] = useState("");
   const [linhaDigitavel, setLinhaDigitavel] = useState("");
@@ -103,7 +99,6 @@ export function TituloLegadoManualDialog({
     setNumeroParcela(null);
     setValorNominal(null);
     setVencimento(null);
-    setConvenioId(null);
     setStatusFinal("EMITIDO");
     setNossoNumero("");
     setLinhaDigitavel("");
@@ -132,15 +127,6 @@ export function TituloLegadoManualDialog({
       .then(setEmpreendimentos)
       .catch(() => toast.error("Falha ao carregar empreendimentos."))
       .finally(() => setEmpreendimentosLoading(false));
-    finService
-      .listConvenios()
-      .then((lista) => {
-        const ativos = filterConveniosAtivos(lista);
-        setConvenios(ativos);
-        const manual = ativos.find((c) => c.tipoIntegracao === "MANUAL");
-        setConvenioId(manual?.id ?? ativos[0]?.id ?? null);
-      })
-      .catch(() => toast.error("Falha ao carregar convênios."));
   }, [visible]);
 
   useEffect(() => {
@@ -206,12 +192,16 @@ export function TituloLegadoManualDialog({
     valorNominal != null &&
     valorNominal > 0 &&
     vencimento != null &&
-    convenioId != null &&
+    !contexto?.avisoConvenio &&
     (statusFinal !== "PAGO" || (valorPago != null && valorPago > 0 && dataPagamento != null));
 
   const salvar = async () => {
-    if (!contexto || !vencimento || numeroParcela == null || valorNominal == null || !convenioId) {
-      toast.error("Preencha contrato, parcela, valor, vencimento e convênio.");
+    if (!contexto || !vencimento || numeroParcela == null || valorNominal == null) {
+      toast.error("Preencha contrato, parcela, valor e vencimento.");
+      return;
+    }
+    if (contexto.avisoConvenio) {
+      toast.error(contexto.avisoConvenio);
       return;
     }
     setSaving(true);
@@ -219,7 +209,6 @@ export function TituloLegadoManualDialog({
       const body: TituloLegadoManualCreate = {
         contratoId: contexto.contratoId,
         numeroParcela,
-        convenioId,
         valorNominal,
         vencimento: formatDateIso(vencimento),
         statusFinal,
@@ -377,16 +366,15 @@ export function TituloLegadoManualDialog({
             disabled={!contexto}
           />
         </div>
-        <div className="flex flex-col gap-2">
-          <label className={FORM_LABEL_CLASS}>Convênio</label>
-          <Dropdown
-            value={convenioId}
-            options={convenioDropdownOptions(convenios)}
-            onChange={(e) => setConvenioId(e.value ?? null)}
-            placeholder="Convênio"
-            className="w-full"
-            pt={DROPDOWN_PT}
-          />
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <label className={FORM_LABEL_CLASS}>Convênio (empreendimento)</label>
+          {contexto?.avisoConvenio ? (
+            <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200/90">
+              {contexto.avisoConvenio}
+            </p>
+          ) : (
+            <p className="text-sm font-medium text-white/80">{contexto?.convenioNome ?? "—"}</p>
+          )}
         </div>
         <div className="flex flex-col gap-2 sm:col-span-2">
           <label className={FORM_LABEL_CLASS}>Status final</label>

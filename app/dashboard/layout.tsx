@@ -32,6 +32,7 @@ import {
   FlaskConical,
   ListOrdered,
   Receipt,
+  FilePlus,
   BookOpen,
   Scale,
   GitCompareArrows,
@@ -147,6 +148,7 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     prefix: "/dashboard/financeiro",
     children: [
       { href: "/dashboard/financeiro/titulos", label: "Títulos", icon: Receipt },
+      { href: "/dashboard/financeiro/titulos-avulso", label: "Título avulso", icon: FilePlus },
       { href: "/dashboard/financeiro/simulacao-ipca", label: "Simulação IPCA", icon: Calculator },
       { href: "/dashboard/financeiro/simulacao-igpm", label: "Simulação IGP-M", icon: Calculator },
       { href: "/dashboard/financeiro/convenios", label: "Convênios", icon: Building2 },

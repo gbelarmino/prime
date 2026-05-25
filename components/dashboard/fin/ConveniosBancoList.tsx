@@ -10,15 +10,32 @@ import { Button } from "primereact/button";
 import {
   DASHBOARD_DATATABLE_CLASS,
   DASHBOARD_DATATABLE_SHELL_CLASS,
+  dashboardCellMono,
   dashboardCellText,
   dashboardDataTablePt,
   dashboardStatusBadge,
 } from "@/lib/dashboard-datatable";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
+import { EmpreendimentoConveniosPanel } from "@/components/dashboard/fin/EmpreendimentoConveniosPanel";
 import { finService, type ConvenioBanco } from "@/lib/fin-service";
 import { convenioTipoLabel } from "@/lib/convenio-label";
 
 const TABLE_PT = dashboardDataTablePt({ density: "compact", paginator: false });
+
+function cellOuTraco(value: string | null | undefined) {
+  const t = value?.trim();
+  return dashboardCellText(t || "—");
+}
+
+function cellMonoOuTraco(value: string | null | undefined) {
+  const t = value?.trim();
+  return t ? dashboardCellMono(t) : dashboardCellText("—");
+}
+
+function cellBeneficiario(value: string | null | undefined) {
+  const t = value?.trim();
+  return t ? dashboardCellMono(t, { truncate: true }) : dashboardCellText("—");
+}
 
 const ATIVO_TONES: Record<string, string> = {
   Ativo: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
@@ -102,6 +119,38 @@ export function ConveniosBancoList() {
             body={(r: ConvenioBanco) => dashboardCellText(r.codigoBanco || "—")}
           />
           <Column
+            field="agencia"
+            header="Agência"
+            body={(r: ConvenioBanco) => cellOuTraco(r.agencia)}
+          />
+          <Column
+            field="conta"
+            header="Conta"
+            body={(r: ConvenioBanco) => cellMonoOuTraco(r.conta)}
+          />
+          <Column
+            field="variacaoCarteira"
+            header="Var. carteira"
+            body={(r: ConvenioBanco) => cellMonoOuTraco(r.variacaoCarteira)}
+          />
+          <Column
+            field="cooperativa"
+            header="Cooperativa"
+            body={(r: ConvenioBanco) => cellOuTraco(r.cooperativa)}
+          />
+          <Column
+            field="nomeBeneficiario"
+            header="Nome beneficiário"
+            body={(r: ConvenioBanco) => cellOuTraco(r.nomeBeneficiario)}
+          />
+          <Column
+            field="beneficiario"
+            header="ID beneficiário"
+            style={{ width: "10.5rem", maxWidth: "10.5rem" }}
+            bodyClassName="!max-w-[10.5rem] min-w-0 overflow-hidden"
+            body={(r: ConvenioBanco) => cellBeneficiario(r.beneficiario)}
+          />
+          <Column
             header="Status"
             body={(r: ConvenioBanco) =>
               dashboardStatusBadge(r.ativo ? "Ativo" : "Inativo", ATIVO_TONES)
@@ -120,6 +169,8 @@ export function ConveniosBancoList() {
           />
         </DataTable>
       </DashboardDataTableShell>
+
+      <EmpreendimentoConveniosPanel />
     </div>
   );
 }

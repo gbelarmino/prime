@@ -2,6 +2,8 @@ import { apiFetch } from "./api-fetch";
 import { baixarBoletoPdf } from "./baixar-boleto-pdf";
 import {
   getFinConvenioAtivoUrl,
+  getFinConvenioEmpreendimentoUrl,
+  getFinConveniosEmpreendimentosUrl,
   getFinConveniosGestaoUrl,
   getFinConveniosUrl,
   getFinDashboardResumoUrl,
@@ -41,6 +43,7 @@ import {
   getFinTitulosListUrl,
   getFinTitulosLoteUrl,
   getFinTitulosUrl,
+  getFinTituloAvulsoUrl,
   getFinTituloContextoLoteUrl,
   getFinTituloLegadoManualUrl,
   getImoveisEmpreendimentosUrl,
@@ -102,6 +105,13 @@ export interface ConvenioBanco {
   id: string;
   nome: string;
   codigoBanco: string;
+  agencia?: string | null;
+  conta?: string | null;
+  carteira?: string | null;
+  variacaoCarteira?: string | null;
+  cooperativa?: string | null;
+  nomeBeneficiario?: string | null;
+  beneficiario?: string | null;
   tipoIntegracao: string;
   ativo: boolean;
 }
@@ -165,6 +175,7 @@ export interface TituloContextoLote {
   imovelId: number;
   contratoId: number;
   numeroContrato?: string | null;
+  empreendimento: string;
   quadra: string;
   lote: number;
   numeroParcela: number;
@@ -174,6 +185,16 @@ export interface TituloContextoLote {
   parcelaReajusteLimite: number;
   maxParcelasPermitidas: number;
   percentualCorrecao?: number | null;
+  convenioId?: string | null;
+  convenioNome?: string | null;
+  avisoConvenio?: string | null;
+}
+
+export interface EmpreendimentoConvenioItem {
+  nomeEmpreendimento: string;
+  convenioId: string | null;
+  convenioNome: string | null;
+  convenioAtivo: boolean;
 }
 
 /** Rótulo exibido ao utilizador — prefere o número do contrato em vez do ID interno. */
@@ -197,6 +218,14 @@ export interface TituloCobrancaCreate {
   contratoId: number;
   numeroParcela: number;
   convenioId?: string;
+  valorNominal: number;
+  vencimento: string;
+}
+
+export interface TituloAvulsoEmitir {
+  contratoId: number;
+  numeroParcela: number;
+  convenioId: string;
   valorNominal: number;
   vencimento: string;
 }
@@ -554,6 +583,20 @@ export const finService = {
     return parseJson(res);
   },
 
+  async emitirTituloAvulso(
+    body: TituloAvulsoEmitir,
+    idempotencyKey?: string,
+  ): Promise<TituloCobranca> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+    const res = await apiFetch(getFinTituloAvulsoUrl(), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
   async criarTitulo(
     body: TituloCobrancaCreate,
     idempotencyKey?: string,
@@ -577,11 +620,11 @@ export const finService = {
     return parseJson(res);
   },
 
-  async registrar(id: string, convenioId?: string): Promise<TituloCobranca> {
+  async registrar(id: string): Promise<TituloCobranca> {
     const res = await apiFetch(getFinTituloRegistrarUrl(id), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(convenioId ? { convenioId } : {}),
+      body: JSON.stringify({}),
     });
     return parseJson(res);
   },
@@ -640,6 +683,32 @@ export const finService = {
       body: JSON.stringify({ ativo }),
     });
     return parseJson(res);
+  },
+
+  async listEmpreendimentoConvenios(): Promise<EmpreendimentoConvenioItem[]> {
+    const res = await apiFetch(getFinConveniosEmpreendimentosUrl());
+    return parseJson(res);
+  },
+
+  async vincularEmpreendimentoConvenio(
+    nomeEmpreendimento: string,
+    convenioId: string,
+  ): Promise<EmpreendimentoConvenioItem> {
+    const res = await apiFetch(getFinConveniosEmpreendimentosUrl(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nomeEmpreendimento, convenioId }),
+    });
+    return parseJson(res);
+  },
+
+  async removerVinculoEmpreendimentoConvenio(nomeEmpreendimento: string): Promise<void> {
+    const res = await apiFetch(getFinConvenioEmpreendimentoUrl(nomeEmpreendimento), {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      await parseJson(res);
+    }
   },
 
   async dashboardResumo(): Promise<FinDashboardResumo> {

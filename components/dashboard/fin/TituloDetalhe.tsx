@@ -26,7 +26,6 @@ import { atendimentoService } from "@/lib/atendimento-service";
 import {
   finService,
   formatContratoRef,
-  type ConvenioBanco,
   type TituloCobranca,
   type TituloHistoricoItem,
 } from "@/lib/fin-service";
@@ -126,9 +125,7 @@ export function TituloDetalhe({
   const [actionLoading, setActionLoading] = useState(false);
   const [valorPago, setValorPago] = useState<number | null>(null);
   const [dataPagamento, setDataPagamento] = useState<Date | null>(new Date());
-  const [convenios, setConvenios] = useState<ConvenioBanco[]>([]);
   const [registrarDialogOpen, setRegistrarDialogOpen] = useState(false);
-  const [convenioIdRegistrar, setConvenioIdRegistrar] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -153,28 +150,15 @@ export function TituloDetalhe({
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (isAtendimentoView) return;
-    void finService
-      .listConvenios()
-      .then((lista) => setConvenios(lista))
-      .catch(() => toast.error("Falha ao carregar convênios."));
-  }, [isAtendimentoView]);
-
   const abrirRegistrar = () => {
     if (!titulo) return;
-    setConvenioIdRegistrar(titulo.convenioId ?? null);
     setRegistrarDialogOpen(true);
   };
 
   const confirmarRegistrar = async () => {
-    if (!convenioIdRegistrar) {
-      toast.error("Selecione um convênio bancário.");
-      return;
-    }
     setActionLoading(true);
     try {
-      await finService.registrar(tituloId, convenioIdRegistrar);
+      await finService.registrar(tituloId);
       toast.success("Título registrado e emitido.");
       setRegistrarDialogOpen(false);
       void load();
@@ -554,9 +538,7 @@ export function TituloDetalhe({
             visible={registrarDialogOpen}
             onHide={() => setRegistrarDialogOpen(false)}
             tituloResumo={tituloTitulo}
-            convenios={convenios}
-            convenioId={convenioIdRegistrar}
-            onConvenioIdChange={setConvenioIdRegistrar}
+            convenioNome={titulo.convenioNome}
             onConfirm={() => void confirmarRegistrar()}
             loading={actionLoading}
           />

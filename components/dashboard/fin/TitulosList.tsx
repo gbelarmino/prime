@@ -27,11 +27,9 @@ import {
 } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
-import { convenioDropdownOptions, convenioOptionLabel, filterConveniosAtivos } from "@/lib/convenio-label";
 import {
   finService,
   formatContratoRef,
-  type ConvenioBanco,
   type TituloCobranca,
   type TituloContextoLote,
 } from "@/lib/fin-service";
@@ -157,11 +155,8 @@ export function TitulosList({
   const [contextoLoading, setContextoLoading] = useState(false);
   const [quantidadeParcelas, setQuantidadeParcelas] = useState<number>(1);
   const [novoTituloStep, setNovoTituloStep] = useState<NovoTituloStep>("form");
-  const [convenios, setConvenios] = useState<ConvenioBanco[]>([]);
-  const [convenioIdNovo, setConvenioIdNovo] = useState<string | null>(null);
   const [registrarDialogOpen, setRegistrarDialogOpen] = useState(false);
   const [tituloParaRegistrar, setTituloParaRegistrar] = useState<TituloCobranca | null>(null);
-  const [convenioIdRegistrar, setConvenioIdRegistrar] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [tituloParaCancelar, setTituloParaCancelar] = useState<TituloCobranca | null>(null);
 
@@ -173,26 +168,8 @@ export function TitulosList({
     setLotes([]);
     setContexto(null);
     setQuantidadeParcelas(1);
-    setConvenioIdNovo(null);
     setNovoTituloStep("form");
   }, []);
-
-  const loadConvenios = useCallback(async () => {
-    try {
-      const lista = await finService.listConvenios();
-      const ativos = filterConveniosAtivos(lista);
-      setConvenios(ativos);
-      return ativos;
-    } catch {
-      toast.error("Falha ao carregar convênios.");
-      setConvenios([]);
-      return [];
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadConvenios();
-  }, [loadConvenios]);
 
   const buildListFilters = useCallback(
     (statusOverride?: string) => ({
@@ -351,12 +328,7 @@ export function TitulosList({
       resetNovoForm();
       return;
     }
-    void loadConvenios().then((ativos) => {
-      if (ativos.length > 0) {
-        setConvenioIdNovo((prev) => prev ?? ativos[0].id);
-      }
-    });
-  }, [showNovo, resetNovoForm, loadConvenios]);
+  }, [showNovo, resetNovoForm]);
 
   useEffect(() => {
     if (!showNovo || !selectedEmpreendimento) {
@@ -500,11 +472,6 @@ export function TitulosList({
     };
   }, [contexto, quantidadeParcelas, maxParcelasPermitidas, parcelaReajusteLimite, ultimaParcelaEmitivel]);
 
-  const convenioSelecionado = useMemo(
-    () => convenios.find((c) => c.id === convenioIdNovo) ?? null,
-    [convenios, convenioIdNovo],
-  );
-
   const onPage = (e: DataTablePageEvent) => {
     setPage(e.page ?? 0);
   };
@@ -522,24 +489,19 @@ export function TitulosList({
 
   const abrirRegistrar = (row: TituloCobranca) => {
     setTituloParaRegistrar(row);
-    setConvenioIdRegistrar(row.convenioId ?? null);
     setRegistrarDialogOpen(true);
   };
 
   const fecharRegistrarDialog = () => {
     setRegistrarDialogOpen(false);
     setTituloParaRegistrar(null);
-    setConvenioIdRegistrar(null);
   };
 
   const confirmarRegistrar = async () => {
-    if (!tituloParaRegistrar || !convenioIdRegistrar) {
-      toast.error("Selecione um convênio bancário.");
-      return;
-    }
+    if (!tituloParaRegistrar) return;
     setActionLoading(true);
     try {
-      await finService.registrar(tituloParaRegistrar.id, convenioIdRegistrar);
+      await finService.registrar(tituloParaRegistrar.id);
       toast.success("Título registrado e emitido.");
       fecharRegistrarDialog();
       void load(true);
@@ -675,8 +637,8 @@ export function TitulosList({
       toast.error("Selecione empreendimento, quadra e lote válidos.");
       return null;
     }
-    if (!convenioIdNovo) {
-      toast.error("Selecione um convênio bancário.");
+    if (contexto.avisoConvenio) {
+      toast.error(contexto.avisoConvenio);
       return null;
     }
     if (maxParcelasPermitidas < 1) {
@@ -702,12 +664,11 @@ export function TitulosList({
 
   const confirmarCriacaoTitulos = async () => {
     const qtd = validarFormNovoTitulo();
-    if (qtd == null || !contexto || !convenioIdNovo) return;
+    if (qtd == null || !contexto) return;
     setSaving(true);
     try {
       const resultado = await finService.criarTitulosEmLote({
         contratoId: contexto.contratoId,
-        convenioId: convenioIdNovo,
         quantidadeParcelas: qtd,
       });
       setPage(0);
@@ -984,9 +945,7 @@ export function TitulosList({
               ? `${formatContratoRef(tituloParaRegistrar.numeroContrato, tituloParaRegistrar.contratoId)} · parc. ${tituloParaRegistrar.numeroParcela}`
               : null
           }
-          convenios={convenios}
-          convenioId={convenioIdRegistrar}
-          onConvenioIdChange={setConvenioIdRegistrar}
+          convenioNome={tituloParaRegistrar?.convenioNome}
           onConfirm={() => void confirmarRegistrar()}
           loading={actionLoading}
         />
@@ -1035,7 +994,7 @@ export function TitulosList({
                   disabled={
                     !contexto ||
                     contextoLoading ||
-                    !convenioIdNovo ||
+                    !!contexto?.avisoConvenio ||
                     maxParcelasPermitidas < 1 ||
                     quantidadeParcelas < 1
                   }
@@ -1057,7 +1016,7 @@ export function TitulosList({
                 </button>
                 <button
                   type="button"
-                  disabled={saving || !contexto || !previewLote || !convenioIdNovo}
+                  disabled={saving || !contexto || !previewLote || !!contexto.avisoConvenio}
                   onClick={() => void confirmarCriacaoTitulos()}
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
                 >
@@ -1221,23 +1180,17 @@ export function TitulosList({
                   />
                 )}
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
                 <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
-                  Convênio
+                  Convênio (empreendimento)
                 </label>
-                <Dropdown
-                  value={convenioIdNovo}
-                  options={convenioDropdownOptions(convenios)}
-                  onChange={(e) => setConvenioIdNovo((e.value as string) ?? null)}
-                  placeholder="Selecione Asaas ou Unicred"
-                  className="w-full"
-                  pt={{
-                    input: {
-                      className:
-                        "w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25",
-                    },
-                  }}
-                />
+                {contexto.avisoConvenio ? (
+                  <p className="mt-2 text-sm text-amber-300/90">{contexto.avisoConvenio}</p>
+                ) : (
+                  <p className="mt-1 text-sm font-medium text-white/80">
+                    {contexto.convenioNome ?? "—"}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -1269,7 +1222,9 @@ export function TitulosList({
                     Convênio
                   </dt>
                   <dd className="mt-0.5 text-white/80">
-                    {convenioSelecionado ? convenioOptionLabel(convenioSelecionado) : "—"}
+                    {contexto.avisoConvenio
+                      ? "—"
+                      : (contexto.convenioNome ?? "—")}
                   </dd>
                 </div>
                 <div>

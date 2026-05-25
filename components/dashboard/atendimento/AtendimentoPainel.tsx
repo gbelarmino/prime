@@ -44,7 +44,6 @@ import {
   type AtendimentoResumoFinanceiro,
   type AtendimentoTituloResumo,
 } from "@/lib/atendimento-service";
-import { finService, type ConvenioBanco } from "@/lib/fin-service";
 import {
   DASHBOARD_DATATABLE_CLASS,
   DASHBOARD_TABVIEW_CLASS,
@@ -168,7 +167,6 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
   const [painel, setPainel] = useState<AtendimentoResumoFinanceiro | null>(null);
   const [ocorrencias, setOcorrencias] = useState<AtendimentoOcorrencia[]>([]);
   const [ocorrenciasIndisponiveis, setOcorrenciasIndisponiveis] = useState(false);
-  const [convenios, setConvenios] = useState<ConvenioBanco[]>([]);
 
   const [novaOcorrencia, setNovaOcorrencia] = useState("");
   const [canal, setCanal] = useState<AtendimentoCanal>("TELEFONE");
@@ -180,7 +178,6 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
   const [valorEntrada, setValorEntrada] = useState<number | null>(null);
   const [quantidadeParcelas, setQuantidadeParcelas] = useState<number | null>(2);
   const [primeiroVencimento, setPrimeiroVencimento] = useState("");
-  const [convenioId, setConvenioId] = useState<string | null>(null);
   const [observacao, setObservacao] = useState("");
   const [selectedTitulos, setSelectedTitulos] = useState<AtendimentoTituloResumo[]>([]);
   const [gerandoCobranca, setGerandoCobranca] = useState(false);
@@ -203,14 +200,8 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
       setLoading(true);
     }
     try {
-      const [p, c] = await Promise.all([
-        atendimentoService.getPainel(contratoId),
-        finService.listConvenios(),
-      ]);
+      const p = await atendimentoService.getPainel(contratoId);
       setPainel(p);
-      setConvenios(c);
-      const ativo = c[0];
-      if (ativo) setConvenioId((prev) => prev ?? ativo.id);
 
       try {
         const o = await atendimentoService.listOcorrencias(contratoId);
@@ -281,8 +272,8 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
       toast.error("Informe o primeiro vencimento.");
       return;
     }
-    if (!convenioId) {
-      toast.error("Selecione um convênio bancário.");
+    if (painel?.avisoConvenio) {
+      toast.error(painel.avisoConvenio);
       return;
     }
     if (modo === "PARCELADO" && (!quantidadeParcelas || quantidadeParcelas < 1)) {
@@ -302,7 +293,6 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
         valorEntrada: modo === "ENTRADA_PARCELAS" ? valorEntrada : undefined,
         quantidadeParcelas: modo !== "BOLETO_UNICO" ? quantidadeParcelas : undefined,
         primeiroVencimento,
-        convenioId,
         titulosOrigemIds: selectedTitulos.map((t) => t.id),
         observacao: observacao.trim() || undefined,
       });
@@ -393,7 +383,6 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
     );
   }
 
-  const convenioOptions = convenios.map((c) => ({ label: c.nome, value: c.id }));
 
   return (
     <div className="flex flex-col gap-8">
@@ -808,16 +797,15 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
               className={`${COBRANCA_FORM_INPUT_CLASS} rounded-xl`}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <label className={COBRANCA_FORM_LABEL_CLASS}>Convênio</label>
-            <Dropdown
-              value={convenioId}
-              options={convenioOptions}
-              onChange={(e) => setConvenioId(e.value as string)}
-              placeholder="Selecione"
-              className="w-full"
-              pt={COBRANCA_DROPDOWN_PT}
-            />
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <p className={COBRANCA_FORM_LABEL_CLASS}>Convênio (empreendimento)</p>
+            {painel?.avisoConvenio ? (
+              <p className="mt-2 text-sm text-amber-300/90">{painel.avisoConvenio}</p>
+            ) : (
+              <p className="mt-1 text-sm font-medium text-white/80">
+                {painel?.convenioNome ?? "—"}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <label className={COBRANCA_FORM_LABEL_CLASS}>Observação</label>

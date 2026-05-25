@@ -706,6 +706,12 @@ export function getFinTituloLegadoManualUrl(): string {
   return `${base}/legado-manual`;
 }
 
+export function getFinTituloAvulsoUrl(): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  return `${base}/avulso`;
+}
+
 export function getFinTituloRegistrarUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/registrar`;
 }
@@ -736,6 +742,14 @@ export function getFinConveniosGestaoUrl(): string {
 
 export function getFinConvenioAtivoUrl(id: string): string {
   return `${getFinConveniosUrl()}/${id}/ativo`;
+}
+
+export function getFinConveniosEmpreendimentosUrl(): string {
+  return `${getFinConveniosUrl()}/empreendimentos`;
+}
+
+export function getFinConvenioEmpreendimentoUrl(nomeEmpreendimento: string): string {
+  return `${getFinConveniosEmpreendimentosUrl()}/${encodeURIComponent(nomeEmpreendimento)}`;
 }
 
 export function getFinDashboardResumoUrl(): string {
