@@ -29,6 +29,8 @@ const API_PATHS = {
   finConciliacao: "/api/fin/conciliacao",
   finUnicredWebhookConciliacao: "/api/fin/unicred-webhooks/conciliacao",
   finIndicesIpca: "/api/fin/indices/ipca",
+  finIndicesIgpm: "/api/fin/indices/igpm",
+  finReajusteSimular: "/api/fin/reajuste/simular",
   atendimento: "/api/atendimento",
   auditoria: "/api/auditoria",
 } as const;
@@ -760,6 +762,32 @@ export function getFinIndicesIpcaSincronizarUrl(): string {
   const base = withBase(getApiBaseUrl(), API_PATHS.finIndicesIpca);
   if (!base) return "";
   return `${base}/sincronizar`;
+}
+
+export function getFinIndicesIgpmUrl(opts?: { desde?: string; ate?: string }): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.finIndicesIgpm);
+  if (!base) return "";
+  const params = new URLSearchParams();
+  if (opts?.desde) params.set("desde", opts.desde);
+  if (opts?.ate) params.set("ate", opts.ate);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+export function getFinIndicesIgpmUltimoUrl(): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.finIndicesIgpm);
+  if (!base) return "";
+  return `${base}/ultimo`;
+}
+
+export function getFinIndicesIgpmSincronizarUrl(): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.finIndicesIgpm);
+  if (!base) return "";
+  return `${base}/sincronizar`;
+}
+
+export function getFinReajusteSimularUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.finReajusteSimular);
 }
 
 export function getFinLancamentosUrl(): string {

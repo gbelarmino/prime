@@ -148,6 +148,7 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     children: [
       { href: "/dashboard/financeiro/titulos", label: "Títulos", icon: Receipt },
       { href: "/dashboard/financeiro/simulacao-ipca", label: "Simulação IPCA", icon: Calculator },
+      { href: "/dashboard/financeiro/simulacao-igpm", label: "Simulação IGP-M", icon: Calculator },
       { href: "/dashboard/financeiro/convenios", label: "Convênios", icon: Building2 },
       { href: "/dashboard/financeiro/conciliacao", label: "Conciliação", icon: GitCompareArrows },
       { href: "/dashboard/financeiro/unicred-webhooks", label: "Webhooks Unicred", icon: Link2 },
@@ -155,6 +156,7 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
       { href: "/dashboard/financeiro/por-imovel", label: "Por imóvel", icon: Home },
       { href: "/dashboard/financeiro/plano-contas", label: "Plano de contas", icon: Scale },
       { href: "/dashboard/financeiro/indices-ipca", label: "IPCA", icon: TrendingUp },
+      { href: "/dashboard/financeiro/indices-igpm", label: "IGP-M", icon: TrendingUp },
     ],
   },
   { kind: "link", href: "/dashboard/clicksign", label: "Portal Clicksign", icon: FileText, roles: ["ADMIN"] },

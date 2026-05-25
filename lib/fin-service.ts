@@ -8,6 +8,10 @@ import {
   getFinIndicesIpcaSincronizarUrl,
   getFinIndicesIpcaUltimoUrl,
   getFinIndicesIpcaUrl,
+  getFinIndicesIgpmSincronizarUrl,
+  getFinIndicesIgpmUltimoUrl,
+  getFinIndicesIgpmUrl,
+  getFinReajusteSimularUrl,
   getFinLancamentoByIdUrl,
   getFinLancamentosListUrl,
   getFinPlanoContasSaldosUrl,
@@ -116,6 +120,25 @@ export interface IndiceEconomicoMensal {
 
 export type IndiceSyncExecucao = "INCREMENTAL" | "BACKFILL" | "MANUAL" | "AGENDADO";
 export type IndiceSyncStatus = "SUCESSO" | "ERRO" | "PARCIAL";
+
+export interface ReajusteSimulacaoResponse {
+  tipoIndice: string;
+  valorBase: number;
+  periodoReferencia: string;
+  mesesAcumulados: number;
+  percentualIndice: number | null;
+  percentualAplicado: number | null;
+  limiteReajusteAnual: number | null;
+  valorReajustado: number | null;
+  metodoCalculo: string;
+  avisos: string[];
+  detalheMensal: {
+    ano: number;
+    mes: number;
+    variacaoMensal: number | null;
+    variacao12Meses: number | null;
+  }[];
+}
 
 export interface IndiceEconomicoSyncResult {
   logId: string;
@@ -816,6 +839,43 @@ export const finService = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload ?? {}),
+    });
+    return parseJson(res);
+  },
+
+  async listIndicesIgpm(opts?: { desde?: string; ate?: string }): Promise<IndiceEconomicoMensal[]> {
+    const res = await apiFetch(getFinIndicesIgpmUrl(opts));
+    return parseJson(res);
+  },
+
+  async getIndiceIgpmUltimo(): Promise<IndiceEconomicoMensal> {
+    const res = await apiFetch(getFinIndicesIgpmUltimoUrl());
+    return parseJson(res);
+  },
+
+  async sincronizarIndicesIgpm(payload?: {
+    desde?: string;
+    ate?: string;
+  }): Promise<IndiceEconomicoSyncResult> {
+    const res = await apiFetch(getFinIndicesIgpmSincronizarUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload ?? {}),
+    });
+    return parseJson(res);
+  },
+
+  async simularReajusteIndice(payload: {
+    tipoIndice: "IGPM" | "IPCA";
+    valorBase: number;
+    periodoReferencia: string;
+    contratoId?: number;
+    mesesAcumulados?: number;
+  }): Promise<ReajusteSimulacaoResponse> {
+    const res = await apiFetch(getFinReajusteSimularUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
     return parseJson(res);
   },

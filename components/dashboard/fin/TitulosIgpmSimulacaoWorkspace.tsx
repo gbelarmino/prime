@@ -2,6 +2,6 @@
 
 import { TitulosIndiceSimulacaoWorkspace } from "@/components/dashboard/fin/TitulosIndiceSimulacaoWorkspace";
 
-export function TitulosIpcaSimulacaoWorkspace() {
-  return <TitulosIndiceSimulacaoWorkspace tipoIndice="IPCA" />;
+export function TitulosIgpmSimulacaoWorkspace() {
+  return <TitulosIndiceSimulacaoWorkspace tipoIndice="IGPM" />;
 }
