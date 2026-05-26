@@ -1,18 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Dropdown } from "primereact/dropdown";
-import { Button } from "primereact/button";
+import { Menu } from "primereact/menu";
+import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
+import { CheckCircle2, Clock, Save, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   DASHBOARD_DATATABLE_CLASS,
   DASHBOARD_DATATABLE_INSET_SHELL_CLASS,
+  dashboardActionMenuItem,
+  dashboardActionsMenuPt,
   dashboardCellMono,
   dashboardCellText,
   dashboardDataTablePt,
-  dashboardStatusBadge,
+  dashboardRowActionsCell,
 } from "@/lib/dashboard-datatable";
 import {
   finService,
@@ -47,29 +53,45 @@ function selectBeneficiarioTemplate(label: string | null | undefined) {
     return <span className="block truncate text-sm text-white/40">Selecione beneficiário</span>;
   }
   return (
-    <span
-      className="block min-w-0 max-w-full truncate font-mono text-[12px] tabular-nums text-white/85"
-      title={t}
-    >
+    <span className="block min-w-0 max-w-full truncate text-sm text-white/85" title={t}>
       {t}
+    </span>
+  );
+}
+
+const VINCULO_STATUS_ICON_SIZE = 24;
+
+function vinculoStatusIcon(configurado: boolean) {
+  const label = configurado ? "Configurado" : "Pendente";
+  const Icon = configurado ? CheckCircle2 : Clock;
+  return (
+    <span
+      className="inline-flex items-center justify-center"
+      title={label}
+      aria-label={label}
+    >
+      <Icon
+        size={VINCULO_STATUS_ICON_SIZE}
+        className={cn(
+          "shrink-0",
+          configurado ? "text-emerald-400" : "text-amber-400",
+        )}
+        aria-hidden
+      />
     </span>
   );
 }
 
 const TABLE_PT = dashboardDataTablePt({ density: "compact", paginator: true });
 
-const VINCULO_TONES: Record<string, string> = {
-  Configurado: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
-  Pendente: "border-amber-500/25 bg-amber-500/15 text-amber-300",
-};
-
 type RowDraft = EmpreendimentoConvenioItem & { draftConvenioId: string | null };
 
 export function EmpreendimentoConveniosPanel() {
   const [rows, setRows] = useState<RowDraft[]>([]);
   const [convenios, setConvenios] = useState<ConvenioBanco[]>([]);
-  const [loading, setLoading] = useState(true);
   const [savingNome, setSavingNome] = useState<string | null>(null);
+  const [selectedRow, setSelectedRow] = useState<RowDraft | null>(null);
+  const menuRef = useRef<Menu>(null);
 
   const convenioOptions = useMemo<ConvenioSelectOption[]>(
     () => convenioEmpreendimentoDropdownOptions(convenios),
@@ -85,7 +107,6 @@ export function EmpreendimentoConveniosPanel() {
   );
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const [lista, conv] = await Promise.all([
         finService.listEmpreendimentoConvenios(),
@@ -101,8 +122,6 @@ export function EmpreendimentoConveniosPanel() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao carregar vínculos.");
       setRows([]);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -161,6 +180,38 @@ export function EmpreendimentoConveniosPanel() {
     }
   };
 
+  const getRowActionItems = (row: RowDraft): MenuItem[] => {
+    const busy = savingNome === row.nomeEmpreendimento;
+    const podeSalvar = Boolean(row.draftConvenioId) && row.draftConvenioId !== row.convenioId;
+    const items: MenuItem[] = [
+      dashboardActionMenuItem({
+        label: "Salvar vínculo",
+        icon: <Save size={16} className="text-emerald-400 transition-transform group-hover:scale-110" />,
+        labelClassName: "text-emerald-300/90",
+        onClick: () => void salvar(row),
+        disabled: busy || !podeSalvar,
+      }),
+    ];
+    if (row.convenioId) {
+      items.push(
+        dashboardActionMenuItem({
+          label: "Remover vínculo",
+          icon: <Trash2 size={16} className="text-rose-400 transition-transform group-hover:scale-110" />,
+          labelClassName: "text-rose-300/90",
+          onClick: () => void remover(row),
+          disabled: busy,
+        }),
+      );
+    }
+    return items;
+  };
+
+  const actionBodyTemplate = (row: RowDraft) =>
+    dashboardRowActionsCell((e: MouseEvent<HTMLButtonElement>) => {
+      setSelectedRow(row);
+      menuRef.current?.toggle(e);
+    });
+
   return (
     <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
       <div>
@@ -176,7 +227,6 @@ export function EmpreendimentoConveniosPanel() {
       <div className={DASHBOARD_DATATABLE_INSET_SHELL_CLASS}>
         <DataTable
           value={rows}
-          loading={loading}
           paginator
           rows={12}
           className={DASHBOARD_DATATABLE_CLASS}
@@ -187,18 +237,20 @@ export function EmpreendimentoConveniosPanel() {
           <Column
             field="nomeEmpreendimento"
             header="Empreendimento"
+            style={{ width: "14%" }}
             body={(r: RowDraft) => dashboardCellText(r.nomeEmpreendimento)}
           />
           <Column
             header="Status"
-            body={(r: RowDraft) =>
-              dashboardStatusBadge(r.convenioId ? "Configurado" : "Pendente", VINCULO_TONES)
-            }
+            style={{ width: "4.5rem" }}
+            bodyClassName="text-center"
+            headerClassName="text-center"
+            body={(r: RowDraft) => vinculoStatusIcon(Boolean(r.convenioId))}
           />
           <Column
             header="Beneficiário"
-            style={{ width: "11rem", maxWidth: "11rem" }}
-            bodyClassName="min-w-0 overflow-hidden"
+            style={{ width: "22rem", minWidth: "20rem" }}
+            bodyClassName="min-w-0"
             body={(r: RowDraft) => (
               <Dropdown
                 value={r.draftConvenioId}
@@ -219,8 +271,8 @@ export function EmpreendimentoConveniosPanel() {
                   );
                 }}
                 placeholder="Selecione beneficiário"
-                className="w-full min-w-0 max-w-[11rem]"
-                panelClassName="max-w-[min(24rem,90vw)]"
+                className="w-full min-w-[18rem]"
+                panelClassName="max-w-[min(32rem,92vw)]"
                 valueTemplate={() =>
                   selectBeneficiarioTemplate(labelConvenioSelecionado(r.draftConvenioId))
                 }
@@ -232,56 +284,46 @@ export function EmpreendimentoConveniosPanel() {
           />
           <Column
             header="Agência"
+            style={{ width: "5rem" }}
             body={(r: RowDraft) =>
               cellOuTraco(convenioPorId(convenios, r.draftConvenioId)?.agencia)
             }
           />
           <Column
             header="Conta"
+            style={{ width: "6.5rem" }}
             body={(r: RowDraft) =>
               cellMonoOuTraco(convenioPorId(convenios, r.draftConvenioId)?.conta)
             }
           />
           <Column
             header="Var. carteira"
+            style={{ width: "7rem" }}
             body={(r: RowDraft) =>
-              cellMonoOuTraco(convenioPorId(convenios, r.draftConvenioId)?.variacaoCarteira)
+              cellOuTraco(convenioPorId(convenios, r.draftConvenioId)?.variacaoCarteira)
             }
           />
           <Column
             header="Cooperativa"
+            style={{ width: "5.5rem" }}
             body={(r: RowDraft) =>
               cellOuTraco(convenioPorId(convenios, r.draftConvenioId)?.cooperativa)
             }
           />
           <Column
             header="Ações"
-            style={{ width: "11rem" }}
-            body={(r: RowDraft) => (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  label="Salvar"
-                  size="small"
-                  loading={savingNome === r.nomeEmpreendimento}
-                  disabled={!r.draftConvenioId || r.draftConvenioId === r.convenioId}
-                  onClick={() => void salvar(r)}
-                />
-                {r.convenioId && (
-                  <Button
-                    type="button"
-                    label="Remover"
-                    size="small"
-                    severity="secondary"
-                    outlined
-                    loading={savingNome === r.nomeEmpreendimento}
-                    onClick={() => void remover(r)}
-                  />
-                )}
-              </div>
-            )}
+            align="right"
+            style={{ width: "5rem" }}
+            body={actionBodyTemplate}
           />
         </DataTable>
+
+        <Menu
+          model={selectedRow ? getRowActionItems(selectedRow) : []}
+          popup
+          ref={menuRef}
+          pt={dashboardActionsMenuPt()}
+        />
       </div>
     </div>
   );

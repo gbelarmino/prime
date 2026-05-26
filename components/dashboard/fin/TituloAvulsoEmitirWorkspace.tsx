@@ -14,7 +14,6 @@ import {
   type TituloContextoLote,
 } from "@/lib/fin-service";
 import {
-  convenioBeneficiarioLabel,
   convenioEmpreendimentoDropdownOptions,
 } from "@/lib/convenio-label";
 import { parseIsoDate } from "@/lib/fin-vencimento";

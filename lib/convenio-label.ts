@@ -41,10 +41,15 @@ export function convenioDropdownOptions(convenios: ConvenioBanco[]) {
   }));
 }
 
-/** Dropdown empreendimento → convênio: exibe só o beneficiário. */
+/** Nome exibido no select empreendimento → convênio (apenas nome do beneficiário). */
+export function convenioEmpreendimentoBeneficiarioNome(c: ConvenioBanco): string {
+  return c.nomeBeneficiario?.trim() || c.nome?.trim() || "Sem beneficiário";
+}
+
+/** Dropdown empreendimento → convênio: exibe só o nome do beneficiário. */
 export function convenioEmpreendimentoDropdownOptions(convenios: ConvenioBanco[]) {
   return filterConveniosAtivos(convenios).map((c) => ({
-    label: convenioBeneficiarioLabel(c),
+    label: convenioEmpreendimentoBeneficiarioNome(c),
     value: c.id,
   }));
 }

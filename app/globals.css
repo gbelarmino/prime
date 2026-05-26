@@ -20,6 +20,15 @@
 
   /* MultiSelect — distância entre checkbox e rótulo nos itens do painel */
   --aires-multiselect-checkbox-gap: 0.75rem;
+
+  /* InputSwitch — trilho “on” success (esmeralda), alinhado ao severity success do Prime */
+  --aires-inputswitch-off-bg: rgba(255, 255, 255, 0.12);
+  --aires-inputswitch-off-bg-hover: #424b57;
+  --aires-inputswitch-on-bg: #10b981;
+  --aires-inputswitch-on-bg-hover: #34d399;
+  --aires-inputswitch-thumb-off: rgba(255, 255, 255, 0.6);
+  --aires-inputswitch-thumb-on: #030712;
+  --aires-inputswitch-focus-ring: rgba(16, 185, 129, 0.25);
 }
 
 @theme inline {
@@ -161,8 +170,13 @@ body {
   opacity: 0.45;
 }
 
-/* Checkbox nativo HTML (ex.: toggles pontuais fora do PrimeReact) */
-input[type="checkbox"] {
+/*
+ * Checkbox nativo HTML — não aplicar a inputs do PrimeReact (InputSwitch/Checkbox),
+ * senão o switch fica com hitbox 1rem×1rem em vez do trilho inteiro.
+ */
+input[type="checkbox"]:not(.p-inputswitch-input):not(.p-checkbox-input):not(
+    .p-tristatecheckbox-input
+  ) {
   accent-color: var(--aires-checkbox-checked-bg);
   width: 1rem;
   height: 1rem;
@@ -279,32 +293,63 @@ input[type="checkbox"] {
 }
 
 /*
- * InputSwitch (PrimeReact Lara): o thumb é o ::before do .p-inputswitch-slider.
- * Com flex/grid ou line-height herdado, margin-top + top:50% por vezes desloca o círculo.
- * Centralização estável com translateY(-50%) e o mesmo deslocamento X do tema no ativo.
+ * InputSwitch (PrimeReact Lara)
+ * — thumb: ::before do .p-inputswitch-slider
+ * — hitbox: input cobre 100% do root (ver exclusão em input[type=checkbox] acima)
+ * — cor “on”: success (esmeralda) em todo o sistema
  */
 .p-inputswitch {
   line-height: 0;
   vertical-align: middle;
+  position: relative;
+  display: inline-block;
+  width: 3rem;
+  height: 1.75rem;
+}
+
+.p-inputswitch .p-inputswitch-input {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  z-index: 1 !important;
+  cursor: pointer !important;
+}
+
+.p-inputswitch .p-inputswitch-slider {
+  pointer-events: none;
+  background: var(--aires-inputswitch-off-bg) !important;
+}
+
+.p-inputswitch.p-highlight .p-inputswitch-slider {
+  background: var(--aires-inputswitch-on-bg) !important;
+}
+
+.p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:hover) .p-inputswitch-slider {
+  background: var(--aires-inputswitch-off-bg-hover) !important;
+}
+
+.p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:hover).p-highlight .p-inputswitch-slider {
+  background: var(--aires-inputswitch-on-bg-hover) !important;
+}
+
+.p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:focus-visible) .p-inputswitch-slider {
+  box-shadow: 0 0 0 0.2rem var(--aires-inputswitch-focus-ring) !important;
 }
 
 .p-inputswitch .p-inputswitch-slider:before {
   top: 50% !important;
   margin-top: 0 !important;
+  background: var(--aires-inputswitch-thumb-off) !important;
   transform: translateY(-50%) !important;
 }
 
 .p-inputswitch.p-highlight .p-inputswitch-slider:before {
+  background: var(--aires-inputswitch-thumb-on) !important;
   transform: translate(1.25rem, -50%) !important;
-}
-
-/* Gatilhos WhatsApp: trilho “on” em esmeralda (tema Lara usa azul por defeito) */
-.app-whatsapp-gatilhos .p-inputswitch.p-highlight .p-inputswitch-slider {
-  background: rgb(5 150 105) !important;
-}
-
-.app-whatsapp-gatilhos .p-inputswitch:not(.p-highlight) .p-inputswitch-slider {
-  background: rgba(255, 255, 255, 0.12) !important;
 }
 
 /* Tooltip Premium Styling */

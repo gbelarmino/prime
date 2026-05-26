@@ -44,19 +44,15 @@ const ATIVO_TONES: Record<string, string> = {
 
 export function ConveniosBancoList() {
   const [rows, setRows] = useState<ConvenioBanco[]>([]);
-  const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const lista = await finService.listConveniosGestao();
       setRows(lista);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao carregar convênios.");
       setRows([]);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -89,7 +85,6 @@ export function ConveniosBancoList() {
           label="Atualizar"
           severity="secondary"
           outlined
-          loading={loading}
           onClick={() => void load()}
         />
       </div>
@@ -97,7 +92,6 @@ export function ConveniosBancoList() {
       <DashboardDataTableShell className={DASHBOARD_DATATABLE_SHELL_CLASS}>
         <DataTable
           value={rows}
-          loading={loading}
           className={DASHBOARD_DATATABLE_CLASS}
           pt={TABLE_PT}
           emptyMessage="Nenhum convênio cadastrado."
