@@ -6,9 +6,23 @@ function tryGetFilenameFromDisposition(disposition: string | null): string | nul
   return m?.[1]?.trim() ?? null;
 }
 
+/** Status em que o boleto/PDF não deve ser oferecido (alinhado ao backend). */
+const STATUS_SEM_PDF_BOLETO = new Set([
+  "RASCUNHO",
+  "AGUARDANDO_REGISTRO",
+  "ERRO_REGISTRO",
+  "CANCELADO",
+  "BAIXA_SOLICITADA",
+  "PAGO",
+]);
+
 /** Asaas expõe URL externa; Unicred e demais usam PDF via API Aires. */
 export function labelAcaoBoletoPdf(urlBoleto?: string | null): string {
   return urlBoleto?.trim() ? "Abrir boleto" : "Baixar PDF";
+}
+
+export function podeBaixarPdfBoleto(status: string): boolean {
+  return !STATUS_SEM_PDF_BOLETO.has(status);
 }
 
 function abrirUrl(url: string): void {
@@ -30,8 +44,12 @@ function baixarBlob(blob: Blob, filename: string): void {
  */
 export async function baixarBoletoPdf(
   tituloId: string,
-  options: { urlBoleto?: string | null; pdfUrl: string },
+  options: { urlBoleto?: string | null; pdfUrl: string; status?: string },
 ): Promise<void> {
+  if (options.status && !podeBaixarPdfBoleto(options.status)) {
+    throw new Error("Boleto indisponível para download neste status.");
+  }
+
   const urlBoleto = options.urlBoleto?.trim();
   if (urlBoleto) {
     abrirUrl(urlBoleto);

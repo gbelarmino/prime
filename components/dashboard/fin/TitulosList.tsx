@@ -33,6 +33,7 @@ import {
   type TituloCobranca,
   type TituloContextoLote,
 } from "@/lib/fin-service";
+import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import {
   isParcelaReajuste,
   maxParcelasAteProximoReajuste,
@@ -476,12 +477,16 @@ export function TitulosList({
     setPage(e.page ?? 0);
   };
 
-  const baixarPdf = async (tituloId: string, urlBoleto?: string | null) => {
+  const baixarPdf = async (
+    tituloId: string,
+    urlBoleto?: string | null,
+    rowStatus?: TituloCobranca["status"],
+  ) => {
     setActionLoading(true);
     try {
-      await finService.downloadPdf(tituloId, urlBoleto);
-    } catch {
-      toast.error("Erro ao baixar PDF.");
+      await finService.downloadPdf(tituloId, urlBoleto, rowStatus);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF.");
     } finally {
       setActionLoading(false);
     }
@@ -580,14 +585,14 @@ export function TitulosList({
       );
     }
 
-    if (row.status !== "RASCUNHO") {
+    if (podeBaixarPdfBoleto(row.status)) {
       items.push(
         dashboardActionMenuItem({
           label: row.urlBoleto?.trim() ? "Abrir boleto" : "Baixar PDF",
           icon: (
             <Download size={16} className="text-amber-400 transition-transform group-hover:scale-110" />
           ),
-          onClick: () => void baixarPdf(row.id, row.urlBoleto),
+          onClick: () => void baixarPdf(row.id, row.urlBoleto, row.status),
           disabled: actionLoading,
         }),
       );

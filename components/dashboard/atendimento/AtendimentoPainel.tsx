@@ -44,6 +44,7 @@ import {
   type AtendimentoResumoFinanceiro,
   type AtendimentoTituloResumo,
 } from "@/lib/atendimento-service";
+import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import {
   DASHBOARD_DATATABLE_CLASS,
   DASHBOARD_TABVIEW_CLASS,
@@ -307,35 +308,42 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
     }
   };
 
-  const downloadPdf = async (tituloId: string) => {
+  const downloadPdf = async (tituloId: string, status: string) => {
     setActionLoading(true);
     try {
-      await atendimentoService.downloadPdf(tituloId);
-    } catch {
-      toast.error("Erro ao baixar PDF.");
+      await atendimentoService.downloadPdf(tituloId, { status });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF.");
     } finally {
       setActionLoading(false);
     }
   };
 
-  const getTituloActionItems = (row: AtendimentoTituloResumo): MenuItem[] => [
-    dashboardActionMenuItem({
-      label: "Ver detalhes",
-      icon: <Eye size={16} className="text-blue-400 transition-transform group-hover:scale-110" />,
-      onClick: () =>
-        router.push(
-          `/dashboard/atendimento/titulos/detalhe?id=${row.id}&contratoId=${contratoId}`,
-        ),
-    }),
-    dashboardActionMenuItem({
-      label: "Baixar PDF",
-      icon: (
-        <Download size={16} className="text-amber-400 transition-transform group-hover:scale-110" />
-      ),
-      onClick: () => void downloadPdf(row.id),
-      disabled: actionLoading,
-    }),
-  ];
+  const getTituloActionItems = (row: AtendimentoTituloResumo): MenuItem[] => {
+    const items: MenuItem[] = [
+      dashboardActionMenuItem({
+        label: "Ver detalhes",
+        icon: <Eye size={16} className="text-blue-400 transition-transform group-hover:scale-110" />,
+        onClick: () =>
+          router.push(
+            `/dashboard/atendimento/titulos/detalhe?id=${row.id}&contratoId=${contratoId}`,
+          ),
+      }),
+    ];
+    if (podeBaixarPdfBoleto(row.status)) {
+      items.push(
+        dashboardActionMenuItem({
+          label: "Baixar PDF",
+          icon: (
+            <Download size={16} className="text-amber-400 transition-transform group-hover:scale-110" />
+          ),
+          onClick: () => void downloadPdf(row.id, row.status),
+          disabled: actionLoading,
+        }),
+      );
+    }
+    return items;
+  };
 
   const acoesParcelaBody = (row: AtendimentoTituloResumo, comMemorial: boolean) => (
     <div className="flex items-center justify-end gap-1">

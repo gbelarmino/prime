@@ -172,9 +172,13 @@ export const atendimentoService = {
     return parseJson(res);
   },
 
-  async downloadPdf(tituloId: string, urlBoleto?: string | null): Promise<void> {
+  async downloadPdf(
+    tituloId: string,
+    options?: { urlBoleto?: string | null; status?: string },
+  ): Promise<void> {
     await baixarBoletoPdf(tituloId, {
-      urlBoleto,
+      urlBoleto: options?.urlBoleto,
+      status: options?.status,
       pdfUrl: getAtendimentoCobrancaPdfUrl(tituloId),
     });
   },

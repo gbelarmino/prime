@@ -660,8 +660,12 @@ export const finService = {
     return parseJson(res);
   },
 
-  async downloadPdf(id: string, urlBoleto?: string | null): Promise<void> {
-    await baixarBoletoPdf(id, { urlBoleto, pdfUrl: getFinTituloPdfUrl(id) });
+  async downloadPdf(
+    id: string,
+    urlBoleto?: string | null,
+    status?: TituloCobrancaStatus,
+  ): Promise<void> {
+    await baixarBoletoPdf(id, { urlBoleto, pdfUrl: getFinTituloPdfUrl(id), status });
   },
 
   /** Somente convênios ativos (seleção em títulos, conciliação, etc.). */

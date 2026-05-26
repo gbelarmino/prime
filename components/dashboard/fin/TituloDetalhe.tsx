@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { dashboardCellText, dashboardStatusBadge } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
-import { labelAcaoBoletoPdf } from "@/lib/baixar-boleto-pdf";
+import { labelAcaoBoletoPdf, podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import { atendimentoService } from "@/lib/atendimento-service";
 import {
   finService,
@@ -232,12 +232,15 @@ export function TituloDetalhe({
     setActionLoading(true);
     try {
       if (isAtendimentoView) {
-        await atendimentoService.downloadPdf(tituloId, titulo?.urlBoleto);
+        await atendimentoService.downloadPdf(tituloId, {
+          urlBoleto: titulo?.urlBoleto,
+          status: titulo?.status,
+        });
       } else {
-        await finService.downloadPdf(tituloId, titulo?.urlBoleto);
+        await finService.downloadPdf(tituloId, titulo?.urlBoleto, titulo?.status);
       }
-    } catch {
-      toast.error("Erro ao baixar PDF.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF.");
     } finally {
       setActionLoading(false);
     }
@@ -279,7 +282,7 @@ export function TituloDetalhe({
     titulo.status !== "CANCELADO" &&
     titulo.status !== "BAIXA_SOLICITADA";
   const podeSincronizar = titulo.status === "BAIXA_SOLICITADA";
-  const podePdf = titulo.status !== "RASCUNHO";
+  const podePdf = podeBaixarPdfBoleto(titulo.status);
 
   const contratoRef = formatContratoRef(titulo.numeroContrato, titulo.contratoId);
   const tituloTitulo = `Contrato ${contratoRef} · Parcela ${titulo.numeroParcela}`;

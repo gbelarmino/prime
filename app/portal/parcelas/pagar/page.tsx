@@ -80,11 +80,23 @@ function PortalParcelaPagarContent() {
     const token = getPortalToken();
     fetch(portalPdfBoletoUrl(id), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       .then(async (res) => {
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+          let detail = "Não foi possível abrir o PDF";
+          const text = await res.text().catch(() => "");
+          if (text.trim()) {
+            try {
+              const errBody = JSON.parse(text) as { message?: string };
+              if (errBody.message?.trim()) detail = errBody.message.trim();
+            } catch {
+              detail = text.trim();
+            }
+          }
+          throw new Error(detail);
+        }
         const blob = await res.blob();
         window.open(URL.createObjectURL(blob), "_blank");
       })
-      .catch(() => setErro("Não foi possível abrir o PDF"));
+      .catch((e) => setErro(e instanceof Error ? e.message : "Não foi possível abrir o PDF"));
   }
 
   const abas: { id: Aba; label: string; icon: string; show: boolean }[] = [
