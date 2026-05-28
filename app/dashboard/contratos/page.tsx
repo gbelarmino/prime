@@ -6,13 +6,15 @@ import Link from "next/link";
 import { Button } from "primereact/button";
 import { ContratosList } from "@/components/dashboard/ContratosList";
 import {
-  isAdmin as isAuthAdmin,
+  canRegistrarContratoLegado,
   isAdministrativo,
+  isAdmin as isAuthAdmin,
   isCorretor,
   isImobiliaria,
 } from "@/lib/auth-storage";
 
 export default function ContratosPage() {
+  const canRegistrarLegado = canRegistrarContratoLegado();
   const canCreateContrato =
     !isAdministrativo() && (isAuthAdmin() || isCorretor() || isImobiliaria());
 
@@ -32,9 +34,9 @@ export default function ContratosPage() {
           </p>
         </div>
 
-        {canCreateContrato && (
+        {(canCreateContrato || canRegistrarLegado) && (
           <div className="flex flex-wrap items-center gap-3">
-            {isAuthAdmin() && (
+            {canRegistrarLegado && (
               <Link href="/dashboard/contratos/legado" className="no-underline">
                 <Button className="bg-emerald-600 hover:bg-emerald-500 border-none rounded-full px-8 py-4 flex items-center gap-5 transition-all active:scale-95 shadow-2xl shadow-emerald-600/30 group">
                   <span className="text-sm font-black text-white uppercase tracking-widest">LEGADO</span>
@@ -44,6 +46,7 @@ export default function ContratosPage() {
                 </Button>
               </Link>
             )}
+            {canCreateContrato && (
             <Link href="/dashboard/contratos/novo" className="no-underline">
               <Button className="bg-blue-600 hover:bg-blue-500 border-none rounded-full px-8 py-4 flex items-center gap-5 transition-all active:scale-95 shadow-2xl shadow-blue-600/30 group">
                 <span className="text-sm font-black text-white uppercase tracking-widest">NOVO</span>
@@ -52,6 +55,7 @@ export default function ContratosPage() {
                 </div>
               </Button>
             </Link>
+            )}
           </div>
         )}
       </div>

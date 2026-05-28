@@ -30,7 +30,6 @@ const ADMINISTRATIVO_ALLOWED_PREFIXES = [
 const ADMINISTRATIVO_BLOCKED_CONTRATOS = [
   "/dashboard/contratos/novo",
   "/dashboard/contratos/edit",
-  "/dashboard/contratos/legado",
 ] as const;
 
 /** Token de demonstração — nunca aceite em produção. */
@@ -155,6 +154,11 @@ export function isAdministrativo(): boolean {
 /** Contratos: apenas listagem, resumo e PDF (sem criar/editar/aprovar). */
 export function isContratosReadOnly(): boolean {
   return isAdministrativo();
+}
+
+/** Registo de contrato já assinado (legado/atípico) — admin e administrativo. */
+export function canRegistrarContratoLegado(): boolean {
+  return isAdmin() || isAdministrativo();
 }
 
 function isAtendimentoPath(pathname: string): boolean {

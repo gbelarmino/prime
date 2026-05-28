@@ -34,7 +34,14 @@ import {
 } from "@/lib/api-config";
 import { apiFetch } from "@/lib/api-fetch";
 import { UFS_BRASIL } from "@/lib/ufs-brasil";
-import { getAuthToken, getUserEmail, isAdmin as isAuthAdmin, isCorretor as isAuthCorretor, isImobiliaria as isAuthImobiliaria } from "@/lib/auth-storage";
+import {
+  canRegistrarContratoLegado,
+  getAuthToken,
+  getUserEmail,
+  isAdmin as isAuthAdmin,
+  isCorretor as isAuthCorretor,
+  isImobiliaria as isAuthImobiliaria,
+} from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
 import {
   contratoHonorariosFormSchema,
@@ -88,7 +95,8 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
 
   const isLegado = mode === "legado";
   const isContratoLegado = isLegado || origemAssinatura === "LEGADO_MANUAL";
-  const canGerirPdfLegado = isLegado || (mode === "edit" && isAuthAdmin());
+  const canGerirPdfLegado =
+    isLegado || (mode === "edit" && canRegistrarContratoLegado());
 
   const {
     control,
@@ -126,8 +134,8 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
   const canEditAgendamentoParcelas = isAuthAdmin() || isCorretor || isImobiliaria;
 
   useEffect(() => {
-    if (isLegado && !isAuthAdmin()) {
-      toast.error("Apenas administradores podem registar contratos legados.");
+    if (isLegado && !canRegistrarContratoLegado()) {
+      toast.error("Sem permissão para registar contratos legados.");
       router.replace("/dashboard/contratos");
     }
   }, [isLegado, router]);

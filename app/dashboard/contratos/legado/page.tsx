@@ -3,7 +3,7 @@
 import { ContratoCadastroForm } from "@/components/dashboard/ContratoCadastroForm";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { isAdmin as isAuthAdmin } from "@/lib/auth-storage";
+import { canRegistrarContratoLegado } from "@/lib/auth-storage";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -11,7 +11,7 @@ export default function ContratoLegadoPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthAdmin()) {
+    if (!canRegistrarContratoLegado()) {
       router.replace("/dashboard/contratos");
     }
   }, [router]);
