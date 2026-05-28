@@ -1,10 +1,18 @@
 import type { IndiceEconomicoMensal, TituloCobranca } from "@/lib/fin-service";
 import { isParcelaReajuste } from "@/lib/fin-parcela-reajuste";
 import {
+  calcularVencimentosComPrimeiraParcelaDetalhe,
   calcularVencimentosParcelasDetalhe,
   formatIsoDate,
   parseIsoDate,
 } from "@/lib/fin-vencimento";
+import {
+  detalheReajusteParcela,
+  parcelaReajusteDoCiclo,
+  REAJUSTE_PERCENTUAL_FIXO,
+  type CondicoesValorNominal,
+  type IndiceMensalLookup,
+} from "@/lib/fin-valor-nominal";
 
 export type TipoIndiceSimulacao = "IPCA" | "IGPM";
 
@@ -16,6 +24,7 @@ export type IndiceSimulacaoParcela = {
   reajusteAplicadoNestaParcela: boolean;
   percentualFixoReajuste: number | null;
   indice12MesesReferencia: number | null;
+  mesesIndiceReferencia: number | null;
   percentualTotalReajuste: number | null;
   mesReferenciaIndice: string | null;
   tituloEmitido: TituloCobranca | null;
@@ -23,8 +32,8 @@ export type IndiceSimulacaoParcela = {
   divergencia: number | null;
 };
 
-/** Percentual fixo anual do contrato quando o índice não está no cadastro (ex.: 6%). */
-export const REAJUSTE_PERCENTUAL_FIXO_PADRAO = 6;
+/** Percentual fixo anual na emissão de títulos (6%, espelha backend). */
+export const REAJUSTE_PERCENTUAL_FIXO_PADRAO = REAJUSTE_PERCENTUAL_FIXO;
 
 export const INDICE_SERIE_INICIO_ANO_MES: Record<TipoIndiceSimulacao, string> = {
   IPCA: "2015-01",
@@ -66,67 +75,26 @@ function roundMoney(v: number): number {
   return Math.round(v * 100) / 100;
 }
 
-function calcularValorSimulado(
-  valorBase: number,
-  parcela: number,
-  vencimentos: Map<number, Date>,
-  indices: Map<number, IndiceEconomicoMensal>,
-  percentualFixoReajuste: number,
-): {
-  valor: number;
-  reajusteNesta: boolean;
-  percentualFixo: number | null;
-  indice12: number | null;
-  percentualTotal: number | null;
-  mesRef: number | null;
-} {
-  let valor = valorBase;
-  let reajusteNesta = false;
-  let percentualFixo: number | null = null;
-  let indice12: number | null = null;
-  let percentualTotal: number | null = null;
-  let mesRef: number | null = null;
-
-  for (let k = 1; ; k++) {
-    const parcelaReajuste = 13 + (k - 1) * 12;
-    if (parcelaReajuste > parcela) break;
-
-    const venc = vencimentos.get(parcelaReajuste);
-    if (!venc) break;
-
-    const refDate = subtractMonths(venc, 1);
-    const anoMes = anoMesFromDate(refDate);
-    const indice = indices.get(anoMes);
-    const variacao = indice?.variacao12Meses ?? null;
-
-    const taxaAplicada = percentualFixoReajuste + (variacao ?? 0);
-    valor = valor * (1 + taxaAplicada / 100);
-
-    if (parcela === parcelaReajuste) {
-      reajusteNesta = true;
-      percentualFixo = percentualFixoReajuste;
-      indice12 = variacao;
-      percentualTotal = taxaAplicada;
-      mesRef = anoMes;
-    }
-  }
-
-  return {
-    valor: roundMoney(valor),
-    reajusteNesta,
-    percentualFixo,
-    indice12,
-    percentualTotal,
-    mesRef,
-  };
-}
-
 function referenciaAntesPrimeiroVencimento(primeiroVencimento: Date): Date {
   return new Date(
     primeiroVencimento.getFullYear(),
     primeiroVencimento.getMonth(),
     primeiroVencimento.getDate() - 1,
   );
+}
+
+function buildIndiceLookup(indices: IndiceEconomicoMensal[]): IndiceMensalLookup {
+  const variacaoMensalPorAnoMes = new Map<number, number>();
+  const variacao12MesesPorAnoMes = new Map<number, number>();
+  for (const indice of indices) {
+    if (indice.variacaoMensal != null) {
+      variacaoMensalPorAnoMes.set(indice.anoMes, indice.variacaoMensal);
+    }
+    if (indice.variacao12Meses != null) {
+      variacao12MesesPorAnoMes.set(indice.anoMes, indice.variacao12Meses);
+    }
+  }
+  return { variacaoMensalPorAnoMes, variacao12MesesPorAnoMes };
 }
 
 export function resolverParcelaAtual(titulos: TituloCobranca[]): number {
@@ -138,23 +106,38 @@ export function resolverParcelaAtual(titulos: TituloCobranca[]): number {
 export function resolverParcelaLimiteMesAtual(opts: {
   titulos: TituloCobranca[];
   diaVencimentoMensal: number;
+  dataPrimeiraParcelaContrato?: string | null;
   referencia?: Date;
   maxParcelas?: number;
 }): number {
-  const { titulos, diaVencimentoMensal, referencia = new Date(), maxParcelas = 360 } = opts;
+  const {
+    titulos,
+    diaVencimentoMensal,
+    dataPrimeiraParcelaContrato,
+    referencia = new Date(),
+    maxParcelas = 360,
+  } = opts;
   if (titulos.length === 0) return 0;
 
   const sorted = [...titulos].sort((a, b) => a.numeroParcela - b.numeroParcela);
   const primeiro = sorted[0];
-  const primeiraData = parseIsoDate(primeiro.vencimento);
+  const primeiraData = dataPrimeiraParcelaContrato
+    ? parseIsoDate(dataPrimeiraParcelaContrato)
+    : parseIsoDate(primeiro.vencimento);
   const limiteAnoMes = anoMesFromDate(referencia);
   const tituloPorParcela = new Map(sorted.map((t) => [t.numeroParcela, t]));
 
-  const detalhes = calcularVencimentosParcelasDetalhe(
-    diaVencimentoMensal,
-    referenciaAntesPrimeiroVencimento(primeiraData),
-    maxParcelas,
-  );
+  const detalhes = dataPrimeiraParcelaContrato
+    ? calcularVencimentosComPrimeiraParcelaDetalhe(
+        primeiraData,
+        diaVencimentoMensal,
+        maxParcelas,
+      )
+    : calcularVencimentosParcelasDetalhe(
+        diaVencimentoMensal,
+        referenciaAntesPrimeiroVencimento(parseIsoDate(primeiro.vencimento)),
+        maxParcelas,
+      );
 
   let ultima = 0;
   for (let parcela = 1; parcela <= detalhes.length; parcela++) {
@@ -169,10 +152,8 @@ export function resolverParcelaLimiteMesAtual(opts: {
   return ultima;
 }
 
-export function resolverPercentualFixoReajuste(percentualCorrecao?: number | null): number {
-  if (percentualCorrecao != null && Number.isFinite(percentualCorrecao)) {
-    return percentualCorrecao;
-  }
+/** @deprecated Emissão usa 6% fixo; mantido para compatibilidade de UI legada. */
+export function resolverPercentualFixoReajuste(_percentualCorrecao?: number | null): number {
   return REAJUSTE_PERCENTUAL_FIXO_PADRAO;
 }
 
@@ -181,23 +162,30 @@ export function simularParcelasIndice(opts: {
   diaVencimentoMensal: number;
   parcelaAtual: number;
   indices: IndiceEconomicoMensal[];
-  percentualCorrecao?: number | null;
+  condicoes: CondicoesValorNominal;
+  dataPrimeiraParcelaContrato?: string | null;
 }): IndiceSimulacaoParcela[] {
-  const { titulos, diaVencimentoMensal, parcelaAtual, indices, percentualCorrecao } = opts;
+  const {
+    titulos,
+    diaVencimentoMensal,
+    parcelaAtual,
+    indices,
+    condicoes,
+    dataPrimeiraParcelaContrato,
+  } = opts;
   if (parcelaAtual < 1 || titulos.length === 0) return [];
-
-  const percentualFixoReajuste = resolverPercentualFixoReajuste(percentualCorrecao);
 
   const sorted = [...titulos].sort((a, b) => a.numeroParcela - b.numeroParcela);
   const primeiro = sorted[0];
-  const valorBase = primeiro.valorNominal;
-  const primeiraData = parseIsoDate(primeiro.vencimento);
+  const dataPrimeiraParcela = dataPrimeiraParcelaContrato
+    ? parseIsoDate(dataPrimeiraParcelaContrato)
+    : parseIsoDate(primeiro.vencimento);
   const tituloPorParcela = new Map(sorted.map((t) => [t.numeroParcela, t]));
-  const indicesMap = indicesPorAnoMes(indices);
+  const lookup = buildIndiceLookup(indices);
 
-  const detalhes = calcularVencimentosParcelasDetalhe(
+  const detalhes = calcularVencimentosComPrimeiraParcelaDetalhe(
+    dataPrimeiraParcela,
     diaVencimentoMensal,
-    referenciaAntesPrimeiroVencimento(primeiraData),
     parcelaAtual,
   );
 
@@ -207,16 +195,24 @@ export function simularParcelasIndice(opts: {
     if (emitido) {
       vencimentos.set(parcela, parseIsoDate(emitido.vencimento));
     } else {
-      vencimentos.set(parcela, detalhes[parcela - 1]?.vencimento ?? primeiraData);
+      vencimentos.set(parcela, detalhes[parcela - 1]?.vencimento ?? dataPrimeiraParcela);
     }
   }
 
   const resultados: IndiceSimulacaoParcela[] = [];
   for (let parcela = 1; parcela <= parcelaAtual; parcela++) {
-    const { valor, reajusteNesta, percentualFixo, indice12, percentualTotal, mesRef } =
-      calcularValorSimulado(valorBase, parcela, vencimentos, indicesMap, percentualFixoReajuste);
+    const detalhe = detalheReajusteParcela(
+      condicoes,
+      parcela,
+      dataPrimeiraParcela,
+      diaVencimentoMensal,
+      lookup,
+    );
+    const reajusteNesta =
+      parcela >= 13 && parcela === parcelaReajusteDoCiclo(parcela);
     const emitido = tituloPorParcela.get(parcela) ?? null;
     const valorEmitido = emitido?.valorNominal ?? null;
+    const valor = detalhe.valorNominal;
     const divergencia = valorEmitido != null ? roundMoney(valorEmitido - valor) : null;
 
     resultados.push({
@@ -225,10 +221,14 @@ export function simularParcelasIndice(opts: {
       valorSimulado: valor,
       parcelaReajuste: isParcelaReajuste(parcela),
       reajusteAplicadoNestaParcela: reajusteNesta,
-      percentualFixoReajuste: percentualFixo,
-      indice12MesesReferencia: indice12,
-      percentualTotalReajuste: percentualTotal,
-      mesReferenciaIndice: mesRef != null ? formatAnoMesLabel(mesRef) : null,
+      percentualFixoReajuste: reajusteNesta ? REAJUSTE_PERCENTUAL_FIXO : null,
+      indice12MesesReferencia: reajusteNesta ? detalhe.ipcaAcumulado : null,
+      mesesIndiceReferencia: reajusteNesta ? detalhe.mesesIpcaReferencia : null,
+      percentualTotalReajuste: reajusteNesta ? detalhe.percentualTotalReajuste : null,
+      mesReferenciaIndice:
+        reajusteNesta && detalhe.anoMesReferencia != null
+          ? formatAnoMesLabel(detalhe.anoMesReferencia)
+          : null,
       tituloEmitido: emitido,
       valorEmitido,
       divergencia,
@@ -243,17 +243,27 @@ export function periodoIndiceParaSimulacao(
   parcelaAtual: number,
   tipoIndice: TipoIndiceSimulacao,
   referencia: Date = new Date(),
+  quantidadeParcelasFracionadas?: number | null,
 ): { desde: string; ate: string } {
   const inicio = parseIsoDate(primeiraParcelaVencimento);
-  const fimEstimado = subtractMonths(inicio, -(parcelaAtual + 14));
+  const mesesLookback = Math.max(14, (quantidadeParcelasFracionadas ?? 0) + 2);
+  const fimEstimado = subtractMonths(inicio, -(parcelaAtual + mesesLookback));
   const fmt = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   const ateCalculado = fmt(fimEstimado);
   const ateMesAtual = fmt(referencia);
-  const desdeCalculado = fmt(subtractMonths(inicio, 2));
+  const desdeCalculado = fmt(subtractMonths(inicio, mesesLookback));
   const serieInicio = INDICE_SERIE_INICIO_ANO_MES[tipoIndice];
   return {
     desde: desdeCalculado < serieInicio ? serieInicio : desdeCalculado,
     ate: ateCalculado <= ateMesAtual ? ateCalculado : ateMesAtual,
   };
+}
+
+export function resumoBasesContrato(condicoes: CondicoesValorNominal): string {
+  const qtd = condicoes.quantidadeParcelasFracionadas ?? 0;
+  if (qtd > 0 && condicoes.valorFracionadoVendedora != null) {
+    return `1–${qtd}: fracionado · ${qtd + 1}+: parcela cheia`;
+  }
+  return "parcela cheia em todas as faixas";
 }

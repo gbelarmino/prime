@@ -188,6 +188,9 @@ export interface TituloContextoLote {
   parcelaReajusteLimite: number;
   maxParcelasPermitidas: number;
   percentualCorrecao?: number | null;
+  quantidadeParcelasFracionadas?: number | null;
+  valorFracionadoVendedora?: number | null;
+  valorParcela?: number | null;
   convenioId?: string | null;
   convenioNome?: string | null;
   avisoConvenio?: string | null;

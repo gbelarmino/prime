@@ -1,0 +1,322 @@
+/**
+ * Espelha {@code TituloValorNominalCalculator} (aires-api): trilho fracionado,
+ * reajuste 6% + IPCA (teto 12%) nas parcelas 13, 25, 37…
+ */
+
+import {
+  calcularVencimentosComPrimeiraParcelaDetalhe,
+  parseIsoDate,
+} from "@/lib/fin-vencimento";
+
+export const REAJUSTE_PERCENTUAL_FIXO = 6;
+export const REAJUSTE_PERCENTUAL_TETO = 12;
+
+export type CondicoesValorNominal = {
+  quantidadeParcelasFracionadas: number | null;
+  valorFracionadoVendedora: number | null;
+  valorParcela: number;
+};
+
+export type IndiceMensalLookup = {
+  /** anoMes → variação mensal em % (ex.: 0.45) */
+  variacaoMensalPorAnoMes: Map<number, number>;
+  /** anoMes → variação 12 meses em % quando disponível */
+  variacao12MesesPorAnoMes: Map<number, number>;
+};
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function subtractMonths(date: Date, months: number): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setMonth(d.getMonth() - months);
+  return d;
+}
+
+function quantidadeFracionadas(ch: CondicoesValorNominal): number {
+  const qtd = ch.quantidadeParcelasFracionadas;
+  return qtd != null && qtd > 0 ? qtd : 0;
+}
+
+export function parcelaReajusteDoCiclo(numeroParcela: number): number {
+  if (numeroParcela < 13) {
+    throw new Error("Parcela deve ser >= 13.");
+  }
+  return Math.floor((numeroParcela - 1) / 12) * 12 + 1;
+}
+
+export function mesesIpcaParaReajuste(
+  parcelaReajuste: number,
+  qtdFracionadas: number,
+): number {
+  if (parcelaReajuste === 25) {
+    return qtdFracionadas > 0 ? qtdFracionadas : 12;
+  }
+  return 12;
+}
+
+export function valorBaseSemReajuste(
+  numeroParcela: number,
+  qtdFracionadas: number,
+  fracionado: number | null,
+  valorParcela: number,
+): number {
+  if (
+    qtdFracionadas > 0 &&
+    numeroParcela <= qtdFracionadas &&
+    fracionado != null
+  ) {
+    return roundMoney(fracionado);
+  }
+  return roundMoney(valorParcela);
+}
+
+function anoMesFromDate(date: Date): number {
+  return date.getFullYear() * 100 + (date.getMonth() + 1);
+}
+
+function subtractAnoMes(anoMes: number, meses: number): number {
+  const year = Math.floor(anoMes / 100);
+  const month = anoMes % 100;
+  const d = new Date(year, month - 1, 1);
+  d.setMonth(d.getMonth() - meses);
+  return d.getFullYear() * 100 + (d.getMonth() + 1);
+}
+
+/** Fração decimal acumulada (ex.: 0.045 = 4,5%). */
+export function acumularVariacaoFraction(
+  lookup: IndiceMensalLookup,
+  fimInclusiveAnoMes: number,
+  meses: number,
+): number {
+  if (meses === 12) {
+    const v12 = lookup.variacao12MesesPorAnoMes.get(fimInclusiveAnoMes);
+    if (v12 != null) {
+      return v12 / 100;
+    }
+  }
+
+  let acumulado = 1;
+  for (let i = 0; i < meses; i++) {
+    const anoMes = subtractAnoMes(fimInclusiveAnoMes, meses - 1 - i);
+    const mensal = lookup.variacaoMensalPorAnoMes.get(anoMes);
+    if (mensal == null) {
+      return 0;
+    }
+    acumulado *= 1 + mensal / 100;
+  }
+  return acumulado - 1;
+}
+
+function anoMesReferenciaVencimento(vencimento: Date): number {
+  return anoMesFromDate(subtractMonths(vencimento, 1));
+}
+
+export function aplicarReajuste(
+  base: number,
+  vencimento: Date,
+  mesesIpca: number,
+  lookup: IndiceMensalLookup,
+): { valor: number; ipcaAcumulado: number; percentualTotal: number } {
+  const referenciaFim = anoMesReferenciaVencimento(vencimento);
+  const ipca = acumularVariacaoFraction(lookup, referenciaFim, mesesIpca);
+  let total = REAJUSTE_PERCENTUAL_FIXO / 100 + ipca;
+  if (total > REAJUSTE_PERCENTUAL_TETO / 100) {
+    total = REAJUSTE_PERCENTUAL_TETO / 100;
+  }
+  return {
+    valor: roundMoney(base * (1 + total)),
+    ipcaAcumulado: ipca * 100,
+    percentualTotal: total * 100,
+  };
+}
+
+function vencimentoProjetado(
+  numeroParcela: number,
+  dataPrimeiraParcela: Date,
+  diaVencimento: number,
+): Date {
+  if (numeroParcela < 1) {
+    throw new Error("Número da parcela deve ser >= 1.");
+  }
+  const detalhes = calcularVencimentosComPrimeiraParcelaDetalhe(
+    dataPrimeiraParcela,
+    diaVencimento,
+    numeroParcela,
+  );
+  return detalhes[numeroParcela - 1]!.vencimento;
+}
+
+function valorNaParcelaReajuste(
+  ch: CondicoesValorNominal,
+  parcelaReajuste: number,
+  vencimentoPorParcela: (n: number) => Date,
+  lookup: IndiceMensalLookup,
+  cache: Map<number, number>,
+): number {
+  const cached = cache.get(parcelaReajuste);
+  if (cached != null) {
+    return cached;
+  }
+
+  const qtdFracionadas = quantidadeFracionadas(ch);
+  const fracionado = ch.valorFracionadoVendedora;
+  const valorParcela = ch.valorParcela;
+  const vencimento = vencimentoPorParcela(parcelaReajuste);
+  const mesesIpca = mesesIpcaParaReajuste(parcelaReajuste, qtdFracionadas);
+
+  let resultado: number;
+  if (parcelaReajuste === 13) {
+    const base =
+      13 <= qtdFracionadas && fracionado != null ? fracionado : valorParcela;
+    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup).valor;
+  } else if (parcelaReajuste === 25) {
+    resultado = aplicarReajuste(
+      valorParcela,
+      vencimento,
+      mesesIpca,
+      lookup,
+    ).valor;
+  } else {
+    const parcelaAnterior = parcelaReajuste - 12;
+    const base = valorNaParcelaReajuste(
+      ch,
+      parcelaAnterior,
+      vencimentoPorParcela,
+      lookup,
+      cache,
+    );
+    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup).valor;
+  }
+
+  cache.set(parcelaReajuste, resultado);
+  return resultado;
+}
+
+export function calcularValorNominalParcela(
+  ch: CondicoesValorNominal,
+  numeroParcela: number,
+  dataPrimeiraParcela: Date,
+  diaVencimento: number,
+  lookup: IndiceMensalLookup,
+): number {
+  if (ch.valorParcela == null || Number.isNaN(ch.valorParcela)) {
+    throw new Error("Contrato sem valor de parcela configurado.");
+  }
+  const qtdFracionadas = quantidadeFracionadas(ch);
+  if (
+    qtdFracionadas > 0 &&
+    numeroParcela <= qtdFracionadas &&
+    ch.valorFracionadoVendedora == null
+  ) {
+    throw new Error(
+      `Contrato sem valor fracionado vendedora para parcelas 1–${qtdFracionadas}.`,
+    );
+  }
+
+  const vencimentoPorParcela = (n: number) =>
+    vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento);
+
+  if (numeroParcela < 13) {
+    return valorBaseSemReajuste(
+      numeroParcela,
+      qtdFracionadas,
+      ch.valorFracionadoVendedora,
+      ch.valorParcela,
+    );
+  }
+
+  const parcelaReajusteCiclo = parcelaReajusteDoCiclo(numeroParcela);
+  const cache = new Map<number, number>();
+  return valorNaParcelaReajuste(
+    ch,
+    parcelaReajusteCiclo,
+    vencimentoPorParcela,
+    lookup,
+    cache,
+  );
+}
+
+export function detalheReajusteParcela(
+  ch: CondicoesValorNominal,
+  numeroParcela: number,
+  dataPrimeiraParcela: Date,
+  diaVencimento: number,
+  lookup: IndiceMensalLookup,
+): {
+  valorNominal: number;
+  parcelaReajusteCiclo: number | null;
+  mesesIpcaReferencia: number | null;
+  ipcaAcumulado: number | null;
+  percentualTotalReajuste: number | null;
+  anoMesReferencia: number | null;
+} {
+  const vencimentoPorParcela = (n: number) =>
+    vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento);
+
+  if (numeroParcela < 13) {
+    return {
+      valorNominal: calcularValorNominalParcela(
+        ch,
+        numeroParcela,
+        dataPrimeiraParcela,
+        diaVencimento,
+        lookup,
+      ),
+      parcelaReajusteCiclo: null,
+      mesesIpcaReferencia: null,
+      ipcaAcumulado: null,
+      percentualTotalReajuste: null,
+      anoMesReferencia: null,
+    };
+  }
+
+  const parcelaReajusteCiclo = parcelaReajusteDoCiclo(numeroParcela);
+  const qtdFracionadas = quantidadeFracionadas(ch);
+  const mesesIpca = mesesIpcaParaReajuste(parcelaReajusteCiclo, qtdFracionadas);
+  const vencimento = vencimentoPorParcela(parcelaReajusteCiclo);
+  const anoMesReferencia = anoMesReferenciaVencimento(vencimento);
+
+  const cache = new Map<number, number>();
+  const valorNominal = valorNaParcelaReajuste(
+    ch,
+    parcelaReajusteCiclo,
+    vencimentoPorParcela,
+    lookup,
+    cache,
+  );
+
+  let base: number;
+  if (parcelaReajusteCiclo === 13) {
+    base =
+      13 <= qtdFracionadas && ch.valorFracionadoVendedora != null
+        ? ch.valorFracionadoVendedora
+        : ch.valorParcela;
+  } else if (parcelaReajusteCiclo === 25) {
+    base = ch.valorParcela;
+  } else {
+    base = valorNaParcelaReajuste(
+      ch,
+      parcelaReajusteCiclo - 12,
+      vencimentoPorParcela,
+      lookup,
+      cache,
+    );
+  }
+
+  const reajuste = aplicarReajuste(base, vencimento, mesesIpca, lookup);
+
+  return {
+    valorNominal,
+    parcelaReajusteCiclo,
+    mesesIpcaReferencia: mesesIpca,
+    ipcaAcumulado: reajuste.ipcaAcumulado,
+    percentualTotalReajuste: reajuste.percentualTotal,
+    anoMesReferencia,
+  };
+}
+
+export function parseDataPrimeiraParcela(iso: string): Date {
+  return parseIsoDate(iso);
+}

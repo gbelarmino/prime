@@ -9,7 +9,7 @@ import {
   formatPercentualIndice,
   periodoIndiceParaSimulacao,
   resolverParcelaLimiteMesAtual,
-  resolverPercentualFixoReajuste,
+  resumoBasesContrato,
   simularParcelasIndice,
   type IndiceSimulacaoParcela,
   type TipoIndiceSimulacao,
@@ -205,7 +205,13 @@ function LinhaSimulacao({
             <span className="block text-violet-300/75">
               {formatPercentualIndice(item.percentualFixoReajuste)} fixo
               {item.indice12MesesReferencia != null
-                ? ` + ${labelIndice} ${formatPercentualIndice(item.indice12MesesReferencia)}`
+                ? ` + ${labelIndice} ${formatPercentualIndice(item.indice12MesesReferencia)}${
+                    item.mesesIndiceReferencia != null && item.mesesIndiceReferencia !== 12
+                      ? ` (${item.mesesIndiceReferencia} meses)`
+                      : item.mesesIndiceReferencia === 12
+                        ? " (12 meses)"
+                        : ""
+                  }`
                 : ` + ${labelIndice} —`}
             </span>
             {item.mesReferenciaIndice ? (
@@ -242,15 +248,13 @@ function LinhaSimulacao({
 
 function ListaSimulacaoIndice({
   simulacao,
-  valorBase,
+  condicoesResumo,
   primeiraVencimento,
-  percentualFixoReajuste,
   labelIndice,
 }: {
   simulacao: IndiceSimulacaoParcela[];
-  valorBase: number;
+  condicoesResumo: string;
   primeiraVencimento: string;
-  percentualFixoReajuste: number;
   labelIndice: string;
 }) {
   if (simulacao.length === 0) {
@@ -265,9 +269,9 @@ function ListaSimulacaoIndice({
   return (
     <>
       <p className="mb-3 px-4 text-[11px] text-white/40">
-        Base: {formatMoney(valorBase)} · 1º vencimento {formatDate(primeiraVencimento)} · até o mês
-        atual · reajuste anual {formatPercentualIndice(percentualFixoReajuste)} + {labelIndice} 12
-        meses (parcelas 13, 25, 37…)
+        {condicoesResumo} · 1º vencimento {formatDate(primeiraVencimento)} · até o mês atual ·
+        reajuste 6% + {labelIndice} (teto 12%) nas parcelas 13, 25, 37… · 25ª usa {labelIndice}{" "}
+        do período fracionado quando aplicável
       </p>
       <table className="w-full text-left text-xs">
         <thead className="sticky top-0 bg-[#071c33] text-[10px] font-bold uppercase tracking-widest text-white/40">
@@ -371,33 +375,54 @@ export function TitulosIndiceSimulacaoWorkspace({
     }
   }, [empreendimento, quadra, lote]);
 
-  const percentualFixoReajuste = useMemo(
-    () => resolverPercentualFixoReajuste(contexto?.percentualCorrecao),
-    [contexto?.percentualCorrecao],
-  );
+  const condicoes = useMemo(() => {
+    if (contexto?.valorParcela == null) return null;
+    return {
+      quantidadeParcelasFracionadas: contexto.quantidadeParcelasFracionadas ?? null,
+      valorFracionadoVendedora: contexto.valorFracionadoVendedora ?? null,
+      valorParcela: contexto.valorParcela,
+    };
+  }, [contexto]);
+
+  const condicoesResumo = useMemo(() => {
+    if (!condicoes) return "";
+    const partes = [
+      resumoBasesContrato(condicoes),
+      condicoes.valorFracionadoVendedora != null
+        ? `fracionado ${formatMoney(condicoes.valorFracionadoVendedora)}`
+        : null,
+      `parcela ${formatMoney(condicoes.valorParcela)}`,
+    ].filter(Boolean);
+    return partes.join(" · ");
+  }, [condicoes]);
 
   const parcelaAtual = useMemo(() => {
     if (!contexto || titulos.length === 0) return 0;
     return resolverParcelaLimiteMesAtual({
       titulos,
       diaVencimentoMensal: contexto.diaVencimentoMensal,
+      dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
     });
   }, [titulos, contexto]);
 
   const primeiraParcela = titulos[0] ?? null;
 
   useEffect(() => {
-    if (!pesquisado || !primeiraParcela || !contexto || parcelaAtual < 1) {
+    if (!pesquisado || !primeiraParcela || !contexto || !condicoes || parcelaAtual < 1) {
       setSimulacao([]);
       return;
     }
 
     let cancelled = false;
     setSimulacaoLoading(true);
+    const dataPrimeira =
+      contexto.dataPrimeiraParcelaContrato ?? primeiraParcela.vencimento;
     const periodo = periodoIndiceParaSimulacao(
-      primeiraParcela.vencimento,
+      dataPrimeira,
       parcelaAtual,
       tipoIndice,
+      new Date(),
+      condicoes.quantidadeParcelasFracionadas,
     );
 
     void listarIndices(tipoIndice, periodo)
@@ -409,7 +434,8 @@ export function TitulosIndiceSimulacaoWorkspace({
             diaVencimentoMensal: contexto.diaVencimentoMensal,
             parcelaAtual,
             indices,
-            percentualCorrecao: contexto.percentualCorrecao,
+            condicoes,
+            dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
           }),
         );
       })
@@ -431,6 +457,7 @@ export function TitulosIndiceSimulacaoWorkspace({
     titulos,
     contexto,
     parcelaAtual,
+    condicoes,
     primeiraParcela,
     tipoIndice,
     ui.erroIndices,
@@ -530,9 +557,10 @@ export function TitulosIndiceSimulacaoWorkspace({
             ) : (
               <ListaSimulacaoIndice
                 simulacao={simulacao}
-                valorBase={primeiraParcela?.valorNominal ?? 0}
-                primeiraVencimento={primeiraParcela?.vencimento ?? ""}
-                percentualFixoReajuste={percentualFixoReajuste}
+                condicoesResumo={condicoesResumo}
+                primeiraVencimento={
+                  contexto?.dataPrimeiraParcelaContrato ?? primeiraParcela?.vencimento ?? ""
+                }
                 labelIndice={ui.labelIndice}
               />
             )}
