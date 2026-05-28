@@ -114,7 +114,7 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     href: "/dashboard/crm/funil",
     label: "Funil CRM",
     icon: Kanban,
-    roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
+    roles: ["ADMIN"],
   },
   { kind: "link", href: "/dashboard/imobiliarias", label: "Imobiliárias", icon: Building2, roles: ["ADMIN"] },
   {

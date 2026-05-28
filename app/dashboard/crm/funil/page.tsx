@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { CrmFunilKanban } from "@/components/dashboard/CrmFunilKanban";
+import { isAdmin } from "@/lib/auth-storage";
 import { isCrmFunilEnabled } from "@/lib/crm-service";
 
 export default function CrmFunilPage() {
@@ -11,6 +12,10 @@ export default function CrmFunilPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (!isAdmin()) {
+      router.replace("/dashboard/inicio");
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {

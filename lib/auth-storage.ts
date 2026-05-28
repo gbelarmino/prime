@@ -20,12 +20,13 @@ const WHATSAPP_CONEXAO_PATH = "/dashboard/whatsapp/conexao";
 const ADMINISTRATIVO_ALLOWED_PREFIXES = [
   WELCOME_DASHBOARD_PATH,
   "/dashboard/clientes",
-  "/dashboard/crm/funil",
   "/dashboard/imoveis",
   "/dashboard/contratos",
   ATENDIMENTO_PATH_PREFIX,
   FINANCEIRO_PATH_PREFIX,
 ] as const;
+
+const CRM_PATH_PREFIX = "/dashboard/crm";
 
 const ADMINISTRATIVO_BLOCKED_CONTRATOS = [
   "/dashboard/contratos/novo",
@@ -222,6 +223,9 @@ export function canAccessDashboardPath(pathname: string, role?: string | null): 
   }
   const auditoriaPrefix = "/dashboard/auditoria";
   if (pathname === auditoriaPrefix || pathname.startsWith(`${auditoriaPrefix}/`)) {
+    return r === "ADMIN";
+  }
+  if (pathname === CRM_PATH_PREFIX || pathname.startsWith(`${CRM_PATH_PREFIX}/`)) {
     return r === "ADMIN";
   }
   return true;
