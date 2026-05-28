@@ -108,14 +108,41 @@ export function calcularVencimentosParcelas(
   );
 }
 
+function vencimentoAjustadoNoMes(ano: number, mes: number, diaContrato: number): Date {
+  const lastDay = new Date(ano, mes, 0).getDate();
+  const diaEfetivo = Math.min(diaContrato, lastDay);
+  return ajustarParaProximoDiaUtil(new Date(ano, mes - 1, diaEfetivo));
+}
+
+function sameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/** Dia do contrato no mês, deslocado para segunda se cair em sábado ou domingo. */
+export function vencimentoCorrespondeAoDiaContrato(vencimento: Date, diaContrato: number): boolean {
+  if (diaContrato < 1 || diaContrato > 31) return false;
+  const v = new Date(vencimento.getFullYear(), vencimento.getMonth(), vencimento.getDate());
+  const noMes = vencimentoAjustadoNoMes(v.getFullYear(), v.getMonth() + 1, diaContrato);
+  if (sameCalendarDay(v, noMes)) return true;
+  const mesAnterior = new Date(v.getFullYear(), v.getMonth() - 1, 1);
+  const noMesAnterior = vencimentoAjustadoNoMes(
+    mesAnterior.getFullYear(),
+    mesAnterior.getMonth() + 1,
+    diaContrato,
+  );
+  return sameCalendarDay(v, noMesAnterior);
+}
+
 export function isVencimentoValidoParaContrato(vencimento: Date, diaContrato: number): boolean {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const v = new Date(vencimento.getFullYear(), vencimento.getMonth(), vencimento.getDate());
   if (v.getTime() <= hoje.getTime()) return false;
-  const lastDay = new Date(v.getFullYear(), v.getMonth() + 1, 0).getDate();
-  const diaEfetivo = Math.min(diaContrato, lastDay);
-  return v.getDate() === diaEfetivo;
+  return vencimentoCorrespondeAoDiaContrato(vencimento, diaContrato);
 }
 
 export function parseIsoDate(iso: string): Date {
