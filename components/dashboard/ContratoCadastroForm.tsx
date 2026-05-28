@@ -19,6 +19,7 @@ import {
   getContratantesListUrl,
   getContratoHonorariosByIdUrl,
   getContratoHonorariosUrl,
+  getContratoProximoNumeroUrl,
   getContratoHonorariosPdfAssinadoUrl,
   getContratoHonorariosPdfAssinadoUploadUrl,
   getContratoRegistrarLegadoUrl,
@@ -199,10 +200,8 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
         const r5 = await apiFetch(getParametroByNomeUrl("NUMERACAO_AUTOMATICA"), { headers, credentials: "omit" });
         if (r5.ok) {
           const data = (await r5.json()) as { valor: string };
-          console.log("Parâmetro NUMERACAO_AUTOMATICA:", data.valor);
           setIsAutomatico(data.valor === "S");
         } else {
-          console.log("Erro ao buscar parâmetro, assumindo Manual (N). Status:", r5.status);
           setIsAutomatico(false);
         }
       } catch {
@@ -229,6 +228,38 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
       setValue("corretorId", "");
     }
   }, [imobiliariaId, corretores, getValues, setValue]);
+
+  // Numeração automática: pré-visualizar seq/quadra+lote ao selecionar o lote
+  useEffect(() => {
+    if (!isAutomatico || mode !== "create" || !imovelId) {
+      if (isAutomatico && mode === "create" && !imovelId) {
+        setValue("numeroContrato", "");
+      }
+      return;
+    }
+
+    const fetchPreview = async () => {
+      const token = getAuthToken();
+      try {
+        const res = await apiFetch(getContratoProximoNumeroUrl(Number(imovelId)), {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: "omit",
+          skipLoading: true,
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { numeroContrato?: string };
+          setValue("numeroContrato", data.numeroContrato ?? "");
+        }
+      } catch {
+        // preview opcional — gravação continua gerando no backend
+      }
+    };
+
+    void fetchPreview();
+  }, [isAutomatico, mode, imovelId, setValue]);
 
   // Fetch Preço do Lote when Imovel is selected
   useEffect(() => {
@@ -797,7 +828,13 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                   <InputText 
                     {...field} 
                     readOnly={isAutomatico} 
-                    placeholder={isAutomatico && mode === "create" ? "Gerado automaticamente" : "Digite o número"}
+                    placeholder={
+                      isAutomatico && mode === "create"
+                        ? imovelId
+                          ? "Gerando número…"
+                          : "Selecione o lote para gerar o número"
+                        : "Digite o número"
+                    }
                     className={cn("w-full tabular-nums", { 
                       "opacity-70 cursor-default bg-white/5": isAutomatico,
                       "p-invalid": errors.numeroContrato 

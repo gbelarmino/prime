@@ -23,11 +23,12 @@ import { Dropdown } from "primereact/dropdown";
 import { 
   getCorretorByIdUrl, 
   getCorretorUrl, 
+  getImobiliariaMeUrl,
   getImobiliariasListUrl, 
   isApiConfigured 
 } from "@/lib/api-config";
 import { apiFetch } from "@/lib/api-fetch";
-import { getAuthToken } from "@/lib/auth-storage";
+import { getAuthToken, isImobiliaria as isAuthImobiliaria } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
 import {
   emptyCorretorFormValues,
@@ -69,19 +70,28 @@ export function CorretorForm({ mode, entityId }: CorretorFormProps) {
     const fetchImobiliarias = async () => {
       try {
         const token = getAuthToken();
-        const res = await apiFetch(getImobiliariasListUrl(0, 500), {
-          headers: {
-            Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
+        const headers = {
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+        const url = isAuthImobiliaria()
+          ? getImobiliariaMeUrl()
+          : getImobiliariasListUrl(0, 500);
+        const res = await apiFetch(url, { headers });
         if (res.ok) {
-          const data = await res.json();
-          const options = (data.content || []).map((imob: ImobiliariaApiResponse) => ({
-            label: imob.razaoSocial,
-            value: String(imob.id)
-          }));
-          setImobiliarias(options);
+          if (isAuthImobiliaria()) {
+            const imob = (await res.json()) as ImobiliariaApiResponse;
+            const opt = { label: imob.razaoSocial, value: String(imob.id) };
+            setImobiliarias([opt]);
+            reset((prev) => ({ ...prev, imobiliariaId: opt.value }));
+          } else {
+            const data = await res.json();
+            const options = (data.content || []).map((imob: ImobiliariaApiResponse) => ({
+              label: imob.razaoSocial,
+              value: String(imob.id),
+            }));
+            setImobiliarias(options);
+          }
         }
       } catch (err) {
         console.error("Erro ao carregar imobiliárias", err);
@@ -90,7 +100,7 @@ export function CorretorForm({ mode, entityId }: CorretorFormProps) {
       }
     };
     fetchImobiliarias();
-  }, []);
+  }, [reset]);
 
   // Carregar dados do Corretor se for edição
   useEffect(() => {
@@ -277,6 +287,7 @@ export function CorretorForm({ mode, entityId }: CorretorFormProps) {
                     {...field}
                     options={imobiliarias}
                     placeholder="Selecione a imobiliária"
+                    disabled={isAuthImobiliaria() || loadingImobiliarias}
                     className={cn(
                       "w-full bg-white/5 border-white/10 text-white rounded-2xl h-[58px] transition-all focus:border-blue-500/50 hover:border-white/20",
                       { "border-rose-500/50": fieldState.error }

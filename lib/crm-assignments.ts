@@ -1,10 +1,11 @@
 import { apiFetch } from "@/lib/api-fetch";
 import {
   getCorretoresListUrl,
+  getImobiliariaMeUrl,
   getImobiliariasListUrl,
   isApiConfigured,
 } from "@/lib/api-config";
-import { getAuthToken } from "@/lib/auth-storage";
+import { getAuthToken, isImobiliaria as isAuthImobiliaria } from "@/lib/auth-storage";
 import { fetchCampanhas } from "@/lib/crm-service";
 import type { CorretorApiResponse } from "@/lib/validations/corretor";
 
@@ -45,8 +46,15 @@ export async function loadCampanhasAtivas(): Promise<CampanhaOption[]> {
 
 export async function loadImobiliariasOptions(): Promise<ImobiliariaOption[]> {
   if (!isApiConfigured()) return [];
+  const headers = await authHeaders();
+  if (isAuthImobiliaria()) {
+    const res = await apiFetch(getImobiliariaMeUrl(), { headers, skipLoading: true });
+    if (!res.ok) return [];
+    const imob = (await res.json()) as { id: number; razaoSocial: string };
+    return [{ id: imob.id, label: imob.razaoSocial }];
+  }
   const res = await apiFetch(getImobiliariasListUrl(0, 500), {
-    headers: await authHeaders(),
+    headers,
     skipLoading: true,
   });
   if (!res.ok) return [];

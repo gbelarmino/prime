@@ -237,6 +237,14 @@ export function getContratoHonorariosUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.contratosHonorarios);
 }
 
+/** GET — pré-visualização do número automático (seq/quadra+lote) no formulário de criação. */
+export function getContratoProximoNumeroUrl(imovelId: number): string {
+  const base = getContratoHonorariosUrl();
+  if (!base) return "";
+  const params = new URLSearchParams({ imovelId: String(imovelId) });
+  return `${base}/proximo-numero?${params.toString()}`;
+}
+
 /** POST multipart — registo de contrato legado/atípico (admin): partes `dados` (JSON) + `file` (PDF). */
 export function getContratoRegistrarLegadoUrl(): string {
   const base = getContratoHonorariosUrl();
