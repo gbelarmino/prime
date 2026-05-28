@@ -128,6 +128,13 @@ export function getImobiliariaByIdUrl(id: number): string {
   return `${base}/${id}`;
 }
 
+/** Imobiliária do usuário autenticado (perfil IMOBILIARIA). */
+export function getImobiliariaMeUrl(): string {
+  const base = getImobiliariaUrl();
+  if (!base) return "";
+  return `${base}/me`;
+}
+
 // ---------------------------------------------------------------------------
 // Corretores
 // ---------------------------------------------------------------------------

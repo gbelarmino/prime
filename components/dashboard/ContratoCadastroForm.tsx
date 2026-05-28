@@ -23,6 +23,7 @@ import {
   getContratoHonorariosPdfAssinadoUploadUrl,
   getContratoRegistrarLegadoUrl,
   getCorretoresListUrl,
+  getImobiliariaMeUrl,
   getImobiliariasListUrl,
   getImoveisListUrl,
   getImovelByIdUrl,
@@ -91,6 +92,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
   const [origemAssinatura, setOrigemAssinatura] = useState<string | null>(null);
   const [linkPdfAssinado, setLinkPdfAssinado] = useState<string | null>(null);
   const [contratoStatusOriginal, setContratoStatusOriginal] = useState<number | null>(null);
+  const [minhaImobiliariaOpt, setMinhaImobiliariaOpt] = useState<ImobOpt | null>(null);
   const skipNextFetchRef = useRef(false);
 
   const isLegado = mode === "legado";
@@ -156,9 +158,15 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
       try {
         const situacaoFiltro = mode === "create" ? 1 : undefined;
 
-        const [r1, r2, r3, r4] = await Promise.all([
+        const imobListPromise = isImobiliaria
+          ? apiFetch(getImobiliariaMeUrl(), { headers, credentials: "omit" })
+          : isCorretor
+            ? Promise.resolve(null)
+            : apiFetch(getImobiliariasListUrl(0, 500), { headers, credentials: "omit" });
+
+        const [r1, rImob, r3, r4] = await Promise.all([
           apiFetch(getContratantesListUrl(0, 500), { headers, credentials: "omit" }),
-          apiFetch(getImobiliariasListUrl(0, 500), { headers, credentials: "omit" }),
+          imobListPromise,
           apiFetch(getCorretoresListUrl(0, 500), { headers, credentials: "omit" }),
           apiFetch(getImoveisQuadrasUrl(situacaoFiltro), { headers, credentials: "omit" }),
         ]);
@@ -167,9 +175,16 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           const p = (await r1.json()) as SpringPage<{ id: number; nome: string }>;
           setClientes((p.content ?? []).map(c => ({ ...c, id: String(c.id) })));
         }
-        if (r2.ok) {
-          const p = (await r2.json()) as SpringPage<{ id: number; razaoSocial: string; email?: string }>;
-          setImobiliarias((p.content ?? []).map(i => ({ ...i, id: String(i.id) })));
+        if (rImob?.ok) {
+          if (isImobiliaria) {
+            const i = (await rImob.json()) as { id: number; razaoSocial: string; email?: string };
+            const opt: ImobOpt = { id: String(i.id), razaoSocial: i.razaoSocial, email: i.email };
+            setImobiliarias([opt]);
+            setMinhaImobiliariaOpt(opt);
+          } else {
+            const p = (await rImob.json()) as SpringPage<{ id: number; razaoSocial: string; email?: string }>;
+            setImobiliarias((p.content ?? []).map(i => ({ ...i, id: String(i.id) })));
+          }
         }
         if (r3.ok) {
           const p = (await r3.json()) as SpringPage<{ id: number; nome: string; imobiliariaId: number; email?: string }>;
@@ -196,7 +211,14 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
         setOptsLoading(false);
       }
     })();
-  }, [mode]);
+  }, [mode, isImobiliaria, isCorretor]);
+
+  // Perfil imobiliária: imobiliária fixa (create, edit e legado); corretor livre na lista filtrada
+  useEffect(() => {
+    if (!isImobiliaria || !minhaImobiliariaOpt) return;
+    if (mode === "edit" && loadState !== "idle") return;
+    setValue("imobiliariaId", minhaImobiliariaOpt.id, { shouldValidate: true });
+  }, [isImobiliaria, minhaImobiliariaOpt, mode, loadState, setValue]);
 
   // Filter Corretores by Imobiliaria
   useEffect(() => {
@@ -385,10 +407,9 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
     }
   }, [dataAssinatura, mode, setValue]);
 
-  // Auth-based Auto-fill (create mode only — edit mode loads from API)
+  // Auth-based auto-fill: corretor pré-seleciona a si mesmo (somente criação)
   useEffect(() => {
-    if (mode !== "create" || optsLoading) return;
-    if (!isCorretor && !isImobiliaria) return;
+    if (mode !== "create" || optsLoading || !isCorretor) return;
 
     const email = getUserEmail();
     if (!email) return;
@@ -400,37 +421,35 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
     };
 
     void (async () => {
-      if (isImobiliaria) {
-        // Busca a imobiliária pelo e-mail do usuário logado
-        const url = getImobiliariasListUrl(0, 200);
-        try {
-          const res = await apiFetch(url, { headers, credentials: "omit" });
-          if (res.ok) {
-            const page = (await res.json()) as { content: { id: number; razaoSocial: string; email?: string }[] };
-            const found = page.content.find((i) => i.email?.toLowerCase() === email.toLowerCase());
-            if (found) {
-              setValue("imobiliariaId", String(found.id), { shouldValidate: true });
+      const url = getCorretoresListUrl(0, 200, email);
+      try {
+        const res = await apiFetch(url, { headers, credentials: "omit" });
+        if (res.ok) {
+          const page = (await res.json()) as {
+            content: {
+              id: number;
+              nome: string;
+              imobiliariaId: number;
+              imobiliariaRazaoSocial?: string;
+              email?: string;
+            }[];
+          };
+          const found = page.content.find((c) => c.email?.toLowerCase() === email.toLowerCase())
+            ?? page.content[0];
+          if (found) {
+            setValue("imobiliariaId", String(found.imobiliariaId), { shouldValidate: true });
+            setValue("corretorId", String(found.id), { shouldValidate: true });
+            if (found.imobiliariaRazaoSocial) {
+              setImobiliarias([{
+                id: String(found.imobiliariaId),
+                razaoSocial: found.imobiliariaRazaoSocial,
+              }]);
             }
           }
-        } catch { /* silencia */ }
-      } else if (isCorretor) {
-        // Busca o corretor pelo e-mail do usuário logado via API
-        const url = getCorretoresListUrl(0, 200, email);
-        try {
-          const res = await apiFetch(url, { headers, credentials: "omit" });
-          if (res.ok) {
-            const page = (await res.json()) as { content: { id: number; nome: string; imobiliariaId: number; email?: string }[] };
-            const found = page.content.find((c) => c.email?.toLowerCase() === email.toLowerCase())
-              ?? page.content[0]; // fallback: primeiro resultado da busca pelo e-mail
-            if (found) {
-              setValue("imobiliariaId", String(found.imobiliariaId), { shouldValidate: true });
-              setValue("corretorId", String(found.id), { shouldValidate: true });
-            }
-          }
-        } catch { /* silencia */ }
-      }
+        }
+      } catch { /* silencia */ }
     })();
-  }, [mode, optsLoading, setValue, isCorretor, isImobiliaria]);
+  }, [mode, optsLoading, setValue, isCorretor]);
 
 
   async function openPdfAssinado() {
@@ -701,9 +720,8 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 render={({ field }) => (
                   <Dropdown
                     {...field}
-                    options={corretores.filter(c => !isCorretor
-                      ? String(c.imobiliariaId) === String(imobiliariaId)
-                      : true
+                    options={corretores.filter((c) =>
+                      String(c.imobiliariaId) === String(imobiliariaId),
                     )}
                     optionLabel="nome"
                     optionValue="id"
