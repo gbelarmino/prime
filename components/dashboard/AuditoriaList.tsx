@@ -36,6 +36,8 @@ const MODULO_TONES: Record<string, string> = {
   CONTRATO: "border-amber-500/20 text-amber-400 bg-amber-500/5",
   FIN: "border-emerald-500/20 text-emerald-400 bg-emerald-500/5",
   ATENDIMENTO: "border-blue-500/20 text-blue-400 bg-blue-500/5",
+  TENANT: "border-fuchsia-500/20 text-fuchsia-400 bg-fuchsia-500/5",
+  CRM: "border-rose-500/20 text-rose-400 bg-rose-500/5",
 };
 
 const MODULO_LABELS: Record<string, string> = {
@@ -45,6 +47,8 @@ const MODULO_LABELS: Record<string, string> = {
   CONTRATO: "Contrato",
   FIN: "Financeiro",
   ATENDIMENTO: "Atendimento",
+  TENANT: "Organização",
+  CRM: "CRM",
 };
 
 const TABLE_PT = {

@@ -1,6 +1,7 @@
 export type UsuarioAtividadeApi = {
   id: number;
   dataHora: string;
+  tenantId?: number | null;
   usuarioId: number | null;
   usuarioEmail: string | null;
   usuarioRole: string | null;
@@ -26,6 +27,8 @@ export const MODULO_AUDITORIA_OPTIONS = [
   { label: "Contratos", value: "CONTRATO" },
   { label: "Financeiro", value: "FIN" },
   { label: "Atendimento", value: "ATENDIMENTO" },
+  { label: "Organização", value: "TENANT" },
+  { label: "CRM", value: "CRM" },
 ] as const;
 
 export const ACAO_AUDITORIA_LABELS: Record<string, string> = {
