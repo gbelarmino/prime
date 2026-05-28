@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { finService } from "@/lib/fin-service";
+import { getTenantId } from "@/lib/auth-storage";
 import { subscribeRealtime } from "@/lib/realtime-socket";
 import { isUnicredWebhookPendentesEvent } from "@/lib/unicred-webhook-realtime";
 
@@ -47,6 +48,8 @@ export function useUnicredWebhookPendentes(enabled: boolean) {
 
     const unsubscribeWs = subscribeRealtime((data) => {
       if (!isUnicredWebhookPendentesEvent(data)) return;
+      const localTenantId = getTenantId();
+      if (localTenantId != null && data.tenantId !== localTenantId) return;
       setPendentes(data.pendentes);
     });
 

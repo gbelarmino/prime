@@ -70,6 +70,7 @@ import {
   useUnicredWebhookPendentes,
 } from "@/hooks/use-unicred-webhook-pendentes";
 import { useRealtimeSocketKeeper } from "@/hooks/use-realtime-socket-keeper";
+import { useCrmFunilEnabled } from "@/hooks/use-crm-funil-enabled";
 
 type MenuIcon = ComponentType<{ size?: number; className?: string }>;
 
@@ -202,7 +203,11 @@ function menuChildVisible(
   return Boolean(role && child.roles.includes(role));
 }
 
-function menuItemVisible(item: MenuLinkItem | MenuGroupItem, role: string | null) {
+function menuItemVisible(
+  item: MenuLinkItem | MenuGroupItem,
+  role: string | null,
+  crmFunilEnabled: boolean | null,
+) {
   if (role === "ATENDIMENTO") {
     if (item.kind === "group" && item.prefix === ATENDIMENTO_MENU_PREFIX) {
       return true;
@@ -220,7 +225,14 @@ function menuItemVisible(item: MenuLinkItem | MenuGroupItem, role: string | null
     return true;
   }
   if (!item.roles) return true;
-  return Boolean(role && item.roles.includes(role));
+  if (!role || !item.roles.includes(role)) return false;
+  if (
+    item.kind === "link" &&
+    (item.href === "/dashboard/crm/funil" || item.href.startsWith("/dashboard/crm/"))
+  ) {
+    return crmFunilEnabled === true;
+  }
+  return true;
 }
 
 function MenuDangerBadge({ count }: { count: number }) {
@@ -390,6 +402,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const isSidebarOpen = expanded || peeking;
   const homeHref = role ? getDefaultDashboardPath(role) : ADMIN_DASHBOARD_HOME;
   const finMenuEnabled = mounted && role === "ADMIN";
+  const crmFunilEnabled = useCrmFunilEnabled(mounted && role === "ADMIN");
   const { pendentes: unicredWebhookPendentes } = useUnicredWebhookPendentes(finMenuEnabled);
   useRealtimeSocketKeeper(mounted);
 
@@ -536,7 +549,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-6 flex flex-col gap-2 overflow-y-auto">
-          {MENU_ITEMS.filter((item) => menuItemVisible(item, role)).map((item) =>
+          {MENU_ITEMS.filter((item) => menuItemVisible(item, role, crmFunilEnabled)).map((item) =>
             item.kind === "link" ? (
               <div key={item.href} onClick={() => setMobileMenuOpen(false)}>
                 <SidebarItem
