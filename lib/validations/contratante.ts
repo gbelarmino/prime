@@ -72,12 +72,12 @@ export const conjugeFormSchema = z
   });
 
 export type ContratanteFormSchemaOptions = {
-  /** Quando false (ex.: perfil admin), a data de nascimento pode ficar em branco. */
+  /** Quando true, exige data de nascimento preenchida. */
   requireDataNascimento?: boolean;
 };
 
 export function getContratanteFormSchema(options: ContratanteFormSchemaOptions = {}) {
-  const requireDataNascimento = options.requireDataNascimento !== false;
+  const requireDataNascimento = options.requireDataNascimento === true;
 
   return z.object({
   nome: z.string().min(3, "Nome é obrigatório.").max(150, "Nome muito longo."),
@@ -141,7 +141,7 @@ export function getContratanteFormSchema(options: ContratanteFormSchemaOptions =
 });
 }
 
-/** Schema padrão (data de nascimento obrigatória). */
+/** Schema padrão (data de nascimento opcional). */
 export const contratanteFormSchema = getContratanteFormSchema();
 
 export type ContratanteFormValues = z.infer<typeof contratanteFormSchema>;

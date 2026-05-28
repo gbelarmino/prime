@@ -17,7 +17,7 @@ import {
   isApiConfigured 
 } from "@/lib/api-config";
 import { apiFetch } from "@/lib/api-fetch";
-import { getAuthToken, isAdmin as isAuthAdmin } from "@/lib/auth-storage";
+import { getAuthToken } from "@/lib/auth-storage";
 import {
   getContratanteFormSchema,
   contratanteToApiPayload,
@@ -47,11 +47,7 @@ export function ClienteCadastroForm({ mode, clientId }: ClienteCadastroFormProps
 
   useEffect(() => setMounted(true), []);
 
-  const isAdmin = isAuthAdmin();
-  const formSchema = useMemo(
-    () => getContratanteFormSchema({ requireDataNascimento: !isAdmin }),
-    [isAdmin],
-  );
+  const formSchema = useMemo(() => getContratanteFormSchema(), []);
 
   const form = useForm<ContratanteFormValues>({
     resolver: zodResolver(formSchema),
@@ -252,7 +248,7 @@ export function ClienteCadastroForm({ mode, clientId }: ClienteCadastroFormProps
               transition={{ duration: 0.4, ease: "circOut" }}
             >
               {stepId === "pessoais" && (
-                <DadosPessoais dataNascimentoObrigatoria={!isAdmin} />
+                <DadosPessoais dataNascimentoObrigatoria={false} />
               )}
               {stepId === "endereco" && <EnderecoContato />}
               {stepId === "conjuge" && <DadosConjuge />}

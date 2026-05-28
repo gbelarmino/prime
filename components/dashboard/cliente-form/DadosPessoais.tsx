@@ -26,7 +26,7 @@ type DadosPessoaisProps = {
   dataNascimentoObrigatoria?: boolean;
 };
 
-export function DadosPessoais({ dataNascimentoObrigatoria = true }: DadosPessoaisProps) {
+export function DadosPessoais({ dataNascimentoObrigatoria = false }: DadosPessoaisProps) {
   const { register, control, formState: { errors }, setValue } = useFormContext<ContratanteFormValues>();
 
   const inputClass = "w-full bg-white/5 border-white/10 text-white rounded-xl py-3 px-4 focus:border-blue-500 transition-all";
