@@ -3,9 +3,10 @@ import Link from "next/link";
 import { UsuariosList } from "@/components/dashboard/UsuariosList";
 import { Button } from "primereact/button";
 import { Plus, ShieldCheck } from "lucide-react";
+import { pageTitle } from "@/lib/app-brand";
 
 export const metadata: Metadata = {
-  title: "Usuários | Aires Prime",
+  title: pageTitle("Usuários"),
   description: "Gerenciamento de usuários e níveis de acesso.",
 };
 

@@ -10,6 +10,7 @@ import { isAdmin as isAuthAdmin, getDefaultDashboardPath } from "@/lib/auth-stor
 import Link from "next/link";
 import { DashboardTimeline } from "@/components/dashboard/DashboardTimeline";
 import { DashboardStatsCarouselGrid } from "@/components/dashboard/DashboardStatsCarouselGrid";
+import { APP_BRAND_NAME } from "@/lib/app-brand";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function DashboardPage() {
             <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
             Painel de Controle • {admin ? "Administrador" : "Corretor"}
           </div>
-          <h1 className="text-4xl font-bold text-white mt-1 font-[family-name:var(--font-playfair)]">Aires Command Center</h1>
+          <h1 className="text-4xl font-bold text-white mt-1 font-[family-name:var(--font-playfair)]">{APP_BRAND_NAME}</h1>
           <p className="text-white/40 mt-1">Gestão estratégica e inteligência de vendas em tempo real.</p>
         </div>
         <div className="flex gap-3">

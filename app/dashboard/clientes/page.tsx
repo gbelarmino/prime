@@ -3,9 +3,10 @@ import Link from "next/link";
 import { ClientesList } from "@/components/dashboard/ClientesList";
 import { Button } from "primereact/button";
 import { Plus } from "lucide-react";
+import { pageTitle } from "@/lib/app-brand";
 
 export const metadata: Metadata = {
-  title: "Clientes | Aires Prime",
+  title: pageTitle("Clientes"),
   description: "Gerenciamento de clientes e contratantes.",
 };
 

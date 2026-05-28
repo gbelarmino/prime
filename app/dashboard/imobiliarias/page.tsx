@@ -3,9 +3,10 @@ import Link from "next/link";
 import { ImobiliariasList } from "@/components/dashboard/ImobiliariasList";
 import { Button } from "primereact/button";
 import { Building2, Plus } from "lucide-react";
+import { pageTitle } from "@/lib/app-brand";
 
 export const metadata: Metadata = {
-  title: "Imobiliárias | Aires Prime",
+  title: pageTitle("Imobiliárias"),
   description: "Gerenciamento de imobiliárias parceiras.",
 };
 

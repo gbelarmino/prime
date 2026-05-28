@@ -45,6 +45,7 @@ export const ACAO_AUDITORIA_LABELS: Record<string, string> = {
   "CONTRATO.CANCELAR": "Contrato cancelado",
   "CONTRATO.REGISTRO_LEGADO": "Contrato legado registado",
   "CONTRATO.PDF_LEGADO": "PDF legado atualizado",
+  "CONTRATO.STATUS_ALTERAR": "Status do contrato alterado",
   "TITULO.CRIAR": "Título criado",
   "TITULO.REGISTRAR": "Título registrado",
   "TITULO.CANCELAR": "Título cancelado",

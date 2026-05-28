@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ClienteCadastroForm } from "@/components/dashboard/ClienteCadastroForm";
+import { pageTitle } from "@/lib/app-brand";
 
 export const metadata: Metadata = {
-  title: "Novo Cliente | Aires Prime",
+  title: pageTitle("Novo Cliente"),
   description: "Cadastro de contratante.",
 };
 

@@ -368,7 +368,7 @@ export function ConciliacaoDiariaWorkspace() {
                     <WorkflowStep
                       step={1}
                       title="Sistema"
-                      description="Pagamentos e tarifas registrados no Aires na data."
+                      description="Pagamentos e tarifas registrados no sistema na data."
                       done={temSistema}
                       active={!temSistema}
                     >

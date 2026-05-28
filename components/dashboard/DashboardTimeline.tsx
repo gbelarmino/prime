@@ -12,6 +12,7 @@ import {
   Banknote,
   Clock,
   User,
+  UserPlus,
   ArrowRight,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-fetch";
@@ -43,6 +44,7 @@ const iconMap: Record<string, any> = {
   Send,
   FileSignature,
   Banknote,
+  UserPlus,
 };
 
 export function DashboardTimeline() {
@@ -168,7 +170,8 @@ export function DashboardTimeline() {
                 emerald: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
                 rose: "text-rose-400 bg-rose-500/10 border-rose-500/20",
                 amber: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                gray: "text-white/40 bg-white/5 border-white/10"
+                gray: "text-white/40 bg-white/5 border-white/10",
+                violet: "text-violet-400 bg-violet-500/10 border-violet-500/20",
               };
               const corEstilo = corMap[atividade.cor] || corMap.blue;
 
@@ -218,6 +221,14 @@ export function DashboardTimeline() {
                           className="flex items-center gap-1 text-[10px] font-bold text-emerald-400/40 hover:text-emerald-400 uppercase tracking-widest transition-all"
                         >
                           Ver título <ArrowRight size={10} />
+                        </a>
+                      )}
+                      {atividade.referenciaTipo === "LEAD" && atividade.referenciaId != null && (
+                        <a
+                          href="/dashboard/crm/funil"
+                          className="flex items-center gap-1 text-[10px] font-bold text-violet-400/40 hover:text-violet-400 uppercase tracking-widest transition-all"
+                        >
+                          Funil CRM <ArrowRight size={10} />
                         </a>
                       )}
                     </div>

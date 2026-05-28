@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { GlobalSpinner } from "@/components/ui/GlobalSpinner";
 import { PrimeEnvLoader } from "@/components/PrimeEnvLoader";
 import { primeEnvBootstrapScript } from "@/lib/prime-env-bootstrap";
+import { APP_BRAND_NAME } from "@/lib/app-brand";
 
 // PrimeReact Styles
 import "primereact/resources/themes/lara-dark-blue/theme.css";
@@ -23,8 +24,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aires - Prime",
-  description: "Sistema de Gestão Imobiliária com PrimeReact",
+  title: APP_BRAND_NAME,
+  description: "Sistema de gestão imobiliária — DOMUS Participações",
 };
 
 export default function RootLayout({

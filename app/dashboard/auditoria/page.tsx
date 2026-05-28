@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { AuditoriaList } from "@/components/dashboard/AuditoriaList";
 import { ScrollText } from "lucide-react";
+import { pageTitle } from "@/lib/app-brand";
 
 export const metadata: Metadata = {
-  title: "Auditoria | Aires Prime",
+  title: pageTitle("Auditoria"),
   description: "Log de atividades dos utilizadores no painel.",
 };
 

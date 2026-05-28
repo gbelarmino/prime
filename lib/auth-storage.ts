@@ -4,6 +4,11 @@ import { readPrimeEnv } from "@/lib/runtime-env";
 const TOKEN_KEY = "aires_auth_token";
 const ROLE_KEY = "aires_auth_role";
 const EMAIL_KEY = "aires_auth_email";
+const TENANT_ID_KEY = "aires_tenant_id";
+const TENANT_SLUG_KEY = "aires_tenant_slug";
+
+/** Header enviado à API (Fase 0 multi-tenant). */
+export const TENANT_HEADER = "X-Tenant-Id";
 
 export const ADMIN_DASHBOARD_HOME = "/dashboard";
 export const WELCOME_DASHBOARD_PATH = "/dashboard/inicio";
@@ -15,6 +20,7 @@ const WHATSAPP_CONEXAO_PATH = "/dashboard/whatsapp/conexao";
 const ADMINISTRATIVO_ALLOWED_PREFIXES = [
   WELCOME_DASHBOARD_PATH,
   "/dashboard/clientes",
+  "/dashboard/crm/funil",
   "/dashboard/imoveis",
   "/dashboard/contratos",
   ATENDIMENTO_PATH_PREFIX,
@@ -69,16 +75,55 @@ export function getUserRole(): string | null {
   }
 }
 
-export function setAuthSession(token: string, role: string, email?: string): void {
+export function getTenantId(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(TENANT_ID_KEY);
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getTenantSlug(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(TENANT_SLUG_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthSession(
+  token: string,
+  role: string,
+  email?: string,
+  tenantId?: number | null,
+  tenantSlug?: string | null,
+): void {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(ROLE_KEY, role);
   if (email) localStorage.setItem(EMAIL_KEY, email);
+  if (tenantId != null) {
+    localStorage.setItem(TENANT_ID_KEY, String(tenantId));
+  } else {
+    localStorage.removeItem(TENANT_ID_KEY);
+  }
+  if (tenantSlug) {
+    localStorage.setItem(TENANT_SLUG_KEY, tenantSlug);
+  } else {
+    localStorage.removeItem(TENANT_SLUG_KEY);
+  }
 }
 
 export function clearAuthSession(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(EMAIL_KEY);
+  localStorage.removeItem(TENANT_ID_KEY);
+  localStorage.removeItem(TENANT_SLUG_KEY);
 }
 
 export function isAuthenticated(): boolean {

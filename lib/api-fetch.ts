@@ -1,5 +1,5 @@
 import { loadingState } from "./loading-store";
-import { clearAuthSession, getAuthToken } from "./auth-storage";
+import { clearAuthSession, getAuthToken, getTenantId, TENANT_HEADER } from "./auth-storage";
 
 /**
  * Wrapper sobre o fetch nativo que:
@@ -21,6 +21,11 @@ export async function apiFetch(
   
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const tenantId = getTenantId();
+  if (tenantId != null && !headers.has(TENANT_HEADER)) {
+    headers.set(TENANT_HEADER, String(tenantId));
   }
 
   // Remove skipLoading from finalInit to avoid passing it to native fetch

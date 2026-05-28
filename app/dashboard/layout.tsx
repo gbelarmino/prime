@@ -41,6 +41,7 @@ import {
   ScrollText,
   TrendingUp,
   Calculator,
+  Kanban,
 } from "lucide-react";
 import { Menu } from "primereact/menu";
 import { AppLogo } from "@/components/AppLogo";
@@ -63,10 +64,12 @@ import { UsuarioPerfilModal } from "@/components/dashboard/UsuarioPerfilModal";
 import { MenuItem } from "primereact/menuitem";
 import { NotificationBell } from "@/components/notification-bell";
 import { WhatsAppHeaderStatus } from "@/components/dashboard/whatsapp/WhatsAppHeaderStatus";
+import { TenantSwitcher } from "@/components/dashboard/TenantSwitcher";
 import {
   FIN_UNICRED_WEBHOOKS_PATH,
   useUnicredWebhookPendentes,
 } from "@/hooks/use-unicred-webhook-pendentes";
+import { useRealtimeSocketKeeper } from "@/hooks/use-realtime-socket-keeper";
 
 type MenuIcon = ComponentType<{ size?: number; className?: string }>;
 
@@ -104,6 +107,13 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     href: "/dashboard/clientes",
     label: "Clientes",
     icon: Contact,
+    roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
+  },
+  {
+    kind: "link",
+    href: "/dashboard/crm/funil",
+    label: "Funil CRM",
+    icon: Kanban,
     roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
   },
   { kind: "link", href: "/dashboard/imobiliarias", label: "Imobiliárias", icon: Building2, roles: ["ADMIN"] },
@@ -381,6 +391,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const homeHref = role ? getDefaultDashboardPath(role) : ADMIN_DASHBOARD_HOME;
   const finMenuEnabled = mounted && role === "ADMIN";
   const { pendentes: unicredWebhookPendentes } = useUnicredWebhookPendentes(finMenuEnabled);
+  useRealtimeSocketKeeper(mounted);
 
   if (!mounted) return null;
 
@@ -487,24 +498,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           !mobileMenuOpen && (isSidebarOpen ? "w-64" : "w-20")
         )}
       >
-        {/* Logo Section */}
-        <div className="h-20 flex items-center justify-between px-4 border-b border-white/5">
-          <Link href={homeHref} className="flex items-center gap-3 overflow-hidden">
-            <AppLogo boxClassName="w-10 h-10 shrink-0" />
-            {(isSidebarOpen || mobileMenuOpen) && (
-              <div className="flex flex-col animate-in slide-in-from-left-2 duration-300">
-                <span className="text-lg font-bold tracking-tight font-[family-name:var(--font-playfair)] leading-none">Aires</span>
-                <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">Prime UI</span>
-              </div>
-            )}
-          </Link>
-          {/* Botão fechar apenas no mobile */}
-          <button 
-            className="md:hidden p-2 text-white/40 hover:text-white"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            <X size={20} />
-          </button>
+        {/* Logo + organização (tenant) */}
+        <div className="min-h-[5.5rem] flex flex-col justify-center gap-2 px-3 py-3 border-b border-white/5">
+          <div className="flex min-h-[70px] w-full items-center justify-between gap-2">
+            <Link href={homeHref} className="flex shrink-0 items-center">
+              <AppLogo
+                boxClassName={cn(
+                  "shrink-0",
+                  isSidebarOpen || mobileMenuOpen ? "w-[70px] h-[70px]" : "w-14 h-14",
+                )}
+              />
+            </Link>
+            <div className="flex min-w-0 items-center justify-end gap-2">
+              <button
+                className="md:hidden shrink-0 p-2 text-white/40 hover:text-white"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+          {!(isSidebarOpen || mobileMenuOpen) && (
+            <div className="h-0" />
+          )}
         </div>
 
         {/* Toggle Button - Apenas Desktop */}
@@ -589,6 +605,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-1 mr-2">
+            <TenantSwitcher className="mr-2" />
             <button className="p-2 text-white/40 hover:text-white transition-colors rounded-full">
               <Mail size={22} />
             </button>

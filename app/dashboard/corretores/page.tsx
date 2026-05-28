@@ -3,9 +3,10 @@ import Link from "next/link";
 import { CorretoresList } from "@/components/dashboard/CorretoresList";
 import { Button } from "primereact/button";
 import { Plus, Users } from "lucide-react";
+import { pageTitle } from "@/lib/app-brand";
 
 export const metadata: Metadata = {
-  title: "Corretores | Aires Prime",
+  title: pageTitle("Corretores"),
   description: "Gerenciamento de corretores cadastrados.",
 };
 

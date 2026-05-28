@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { AtendimentoBusca } from "@/components/dashboard/atendimento/AtendimentoBusca";
+import { pageTitle } from "@/lib/app-brand";
 
 export const metadata: Metadata = {
-  title: "Consulta | Atendimento | Aires Prime",
+  title: pageTitle("Consulta · Atendimento"),
   description: "Busca multicritério de contratos para atendimento ao cliente.",
 };
 

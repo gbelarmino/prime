@@ -9,6 +9,7 @@ import { InputText } from "primereact/inputtext";
 import { Password } from "primereact/password";
 import { Checkbox } from "primereact/checkbox";
 import { AppLogo } from "@/components/AppLogo";
+import { APP_BRAND_NAME } from "@/lib/app-brand";
 import { getLoginUrl } from "@/lib/api-config";
 import { ensureApiBaseUrl } from "@/lib/runtime-env";
 import { setAuthSession, resolvePostLoginPath } from "@/lib/auth-storage";
@@ -52,8 +53,14 @@ function LoginContent() {
           return;
         }
 
-        setAuthSession(data.accessToken, data.role || "ADMIN", data.email);
-        toast.success(`Bem-vindo ao Aires Prime!`);
+        setAuthSession(
+          data.accessToken,
+          data.role || "ADMIN",
+          data.email,
+          data.tenantId ?? null,
+          data.tenantSlug ?? null,
+        );
+        toast.success(`Bem-vindo à ${APP_BRAND_NAME}!`);
         const role = data.role || "ADMIN";
         router.push(resolvePostLoginPath(requestedNext, role));
       } else {
@@ -72,9 +79,8 @@ function LoginContent() {
         
         {/* Lado Esquerdo - Branding */}
         <div className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-600/20 to-emerald-600/20 border-r border-white/10">
-          <div className="flex items-center gap-3">
-            <AppLogo boxClassName="w-12 h-12" />
-            <span className="text-2xl font-bold text-white tracking-tight font-[family-name:var(--font-playfair)]">Aires Prime</span>
+          <div className="flex items-center justify-center">
+            <AppLogo boxClassName="w-[180px] h-[180px]" />
           </div>
           
           <div>
@@ -94,8 +100,7 @@ function LoginContent() {
         {/* Lado Direito - Form */}
         <div className="p-8 md:p-12 flex flex-col justify-center">
           <div className="md:hidden flex flex-col items-center mb-8">
-            <AppLogo boxClassName="w-16 h-16 mb-4" />
-            <h2 className="text-2xl font-bold text-white font-[family-name:var(--font-playfair)]">Aires Prime</h2>
+            <AppLogo boxClassName="w-60 h-60 mb-4" />
           </div>
 
           <div className="mb-10 text-center md:text-left">

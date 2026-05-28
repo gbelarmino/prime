@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { getUserEmail, getUserRole } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
+import { APP_BRAND_NAME } from "@/lib/app-brand";
 
 type QuickLink = {
   href: string;
@@ -103,7 +104,7 @@ export function DashboardBoasVindas() {
     <div className="flex flex-col gap-10 p-4 md:p-8 max-w-[900px] mx-auto">
       <header className="px-2">
         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-blue-400 mb-2">
-          Aires Prime
+          {APP_BRAND_NAME}
         </p>
         <h1 className="text-3xl md:text-4xl font-bold text-white font-[family-name:var(--font-playfair)]">
           Bem-vindo

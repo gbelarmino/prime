@@ -9,7 +9,7 @@ export default function PortalLandingPage() {
     <PortalAuthShell
       badge="Acesso restrito"
       title="Entre na sua conta"
-      subtitle="Use seu CPF e o código enviado ao celular cadastrado no Aires."
+      subtitle="Use seu CPF e o código enviado ao celular cadastrado na DOMUS."
     >
       <PortalLoginForm />
     </PortalAuthShell>

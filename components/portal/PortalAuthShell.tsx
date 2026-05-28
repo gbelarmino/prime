@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AppLogo } from "@/components/AppLogo";
+import { APP_BRAND_NAME } from "@/lib/app-brand";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
@@ -34,7 +35,9 @@ export function PortalAuthShell({
           <div className="flex items-center gap-3">
             <AppLogo boxClassName="w-12 h-12 ring-2 ring-[var(--portal-accent)]/30 rounded-xl" />
             <div>
-              <span className="block text-lg font-semibold text-[var(--portal-text)]">Aires</span>
+              <span className="block text-sm font-semibold leading-snug text-[var(--portal-text)]">
+                {APP_BRAND_NAME}
+              </span>
               <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--portal-text-faint)]">
                 Portal do comprador
               </span>
@@ -69,7 +72,9 @@ export function PortalAuthShell({
           </ul>
         </div>
 
-        <p className="relative z-10 text-xs text-[var(--portal-text-faint)]">© {year} Aires</p>
+        <p className="relative z-10 text-xs text-[var(--portal-text-faint)]">
+          © {year} {APP_BRAND_NAME}
+        </p>
       </aside>
 
       <main className="flex-1 flex flex-col justify-center px-5 py-10 sm:px-10 lg:px-14">

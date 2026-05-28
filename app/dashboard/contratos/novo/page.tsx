@@ -1,9 +1,10 @@
 import { ContratoCadastroForm } from "@/components/dashboard/ContratoCadastroForm";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { pageTitle } from "@/lib/app-brand";
 
 export const metadata = {
-  title: "Novo Contrato | Aires Prime",
+  title: pageTitle("Novo Contrato"),
 };
 
 export default function NovoContratoPage() {

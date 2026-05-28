@@ -33,6 +33,18 @@ const API_PATHS = {
   finReajusteSimular: "/api/fin/reajuste/simular",
   atendimento: "/api/atendimento",
   auditoria: "/api/auditoria",
+  tenantsMe: "/api/tenants/me",
+  authSwitchTenant: "/api/auth/switch-tenant",
+  crmLeads: "/api/crm/leads",
+  crmLeadsKanban: "/api/crm/leads/kanban",
+  crmFunilEtapas: "/api/crm/funil/etapas",
+  crmFunilEventos: "/api/crm/funil/eventos",
+  crmFunilAcoesTipos: "/api/crm/funil/acoes-tipos",
+  crmFunilCardAcoes: "/api/crm/funil/card-acoes",
+  crmFunilGatilhos: "/api/crm/funil/gatilhos",
+  crmCampanhas: "/api/crm/campanhas",
+  crmCaptacaoPublica: "/api/public/crm/captacao",
+  tenantsMeFeatures: "/api/tenants/me/features",
 } as const;
 
 function normalizeApiBaseUrl(raw: string): string {
@@ -1081,4 +1093,76 @@ export function getAuditoriaAtividadesUrl(
   if (query?.dataInicio) params.set("dataInicio", query.dataInicio);
   if (query?.dataFim) params.set("dataFim", query.dataFim);
   return `${base}/atividades?${params.toString()}`;
+}
+
+export function getCrmLeadsKanbanUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.crmLeadsKanban);
+}
+
+export function getCrmLeadsUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.crmLeads);
+}
+
+export function getCrmLeadByIdUrl(id: number): string {
+  return `${getCrmLeadsUrl()}/${id}`;
+}
+
+export function getCrmLeadInteracoesUrl(id: number): string {
+  return `${getCrmLeadByIdUrl(id)}/interacoes`;
+}
+
+export function getCrmLeadQualificacaoUrl(id: number): string {
+  return `${getCrmLeadByIdUrl(id)}/qualificacao`;
+}
+
+export function getCrmLeadMoverEtapaUrl(id: number): string {
+  return `${getCrmLeadByIdUrl(id)}/mover-etapa`;
+}
+
+export function getCrmLeadConverterUrl(id: number): string {
+  return `${getCrmLeadByIdUrl(id)}/converter`;
+}
+
+export function getCrmLeadAtribuicaoUrl(id: number): string {
+  return `${getCrmLeadByIdUrl(id)}/atribuicao`;
+}
+
+export function getCrmFunilEtapasUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.crmFunilEtapas);
+}
+
+export function getCrmFunilEventosUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.crmFunilEventos);
+}
+
+export function getCrmFunilAcoesTiposUrl(evento?: string): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.crmFunilAcoesTipos);
+  if (!base) return "";
+  if (!evento?.trim()) return base;
+  return `${base}?evento=${encodeURIComponent(evento.trim())}`;
+}
+
+export function getCrmFunilCardAcoesUrl(evento?: string, config = false): string {
+  const path = config ? `${API_PATHS.crmFunilCardAcoes}/config` : API_PATHS.crmFunilCardAcoes;
+  const base = withBase(getApiBaseUrl(), path);
+  if (!base) return "";
+  if (!evento?.trim()) return base;
+  return `${base}?evento=${encodeURIComponent(evento.trim())}`;
+}
+
+export function getCrmFunilGatilhosUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.crmFunilGatilhos);
+}
+
+export function getCrmCampanhasUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.crmCampanhas);
+}
+
+export function getCrmCaptacaoPublicUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.crmCaptacaoPublica);
+}
+
+export function getTenantFeatureUrl(chave: string): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.tenantsMeFeatures);
+  return `${base}?chave=${encodeURIComponent(chave)}`;
 }

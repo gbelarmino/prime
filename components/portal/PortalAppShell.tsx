@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AppLogo } from "@/components/AppLogo";
+import { APP_BRAND_NAME } from "@/lib/app-brand";
 import { clearPortalSession, getPortalNome } from "@/lib/portal-auth-storage";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +44,7 @@ export function PortalAppShell({ children }: { children: React.ReactNode }) {
           </span>
           <div className="min-w-0">
             <p className="text-sm font-medium truncate">{nome || "Comprador"}</p>
-            <p className="text-xs text-[var(--portal-text-faint)]">Portal Aires</p>
+            <p className="text-xs text-[var(--portal-text-faint)]">Portal {APP_BRAND_NAME}</p>
           </div>
         </div>
         <nav className="flex-1 px-3 space-y-1">

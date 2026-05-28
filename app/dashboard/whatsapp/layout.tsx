@@ -31,7 +31,7 @@ export default function WhatsAppLayout({ children }: { children: React.ReactNode
             <p className="text-sm font-semibold text-emerald-400/90 mt-2 tracking-tight">{section}</p>
           ) : null}
           <p className="text-white/40 mt-1 max-w-xl">
-            Automação de mensagens (contratos, notificações) com a mesma identidade visual do painel Aires.
+            Automação de mensagens (contratos, notificações) com a mesma identidade visual do painel DOMUS.
           </p>
         </div>
       </div>
