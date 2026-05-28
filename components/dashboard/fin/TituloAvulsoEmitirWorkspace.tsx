@@ -143,7 +143,11 @@ export function TituloAvulsoEmitirWorkspace() {
         setContexto(ctx);
         setNumeroParcela(ctx.numeroParcela);
         setValorNominal(ctx.valorNominal);
-        setVencimento(parseIsoDate(ctx.vencimentoSugerido));
+        const vencIso =
+          ctx.primeiroTituloLote && ctx.dataPrimeiraParcelaContrato
+            ? ctx.dataPrimeiraParcelaContrato
+            : ctx.vencimentoSugerido;
+        setVencimento(parseIsoDate(vencIso));
         if (ctx.convenioId) {
           setSelectedConvenioId(ctx.convenioId);
         }
@@ -390,7 +394,11 @@ export function TituloAvulsoEmitirWorkspace() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className={FORM_LABEL_CLASS}>Vencimento</label>
+              <label className={FORM_LABEL_CLASS}>
+                {contexto?.primeiroTituloLote && numeroParcela === 1
+                  ? "Data da 1ª parcela"
+                  : "Vencimento"}
+              </label>
               <Calendar
                 value={vencimento}
                 onChange={(e) => setVencimento(e.value ?? null)}

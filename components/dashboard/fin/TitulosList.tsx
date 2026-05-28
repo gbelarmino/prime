@@ -6,6 +6,7 @@ import { DataTable, type DataTablePageEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { InputNumber } from "primereact/inputnumber";
+import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
@@ -41,6 +42,7 @@ import {
   ultimaParcelaEmitivelEmLote,
 } from "@/lib/fin-parcela-reajuste";
 import {
+  calcularVencimentosComPrimeiraParcelaDetalhe,
   calcularVencimentosParcelasDetalhe,
   diaSemanaCurto,
   formatIsoDate,
@@ -155,6 +157,7 @@ export function TitulosList({
   const [contexto, setContexto] = useState<TituloContextoLote | null>(null);
   const [contextoLoading, setContextoLoading] = useState(false);
   const [quantidadeParcelas, setQuantidadeParcelas] = useState<number>(1);
+  const [dataPrimeiraParcela, setDataPrimeiraParcela] = useState<Date | null>(null);
   const [novoTituloStep, setNovoTituloStep] = useState<NovoTituloStep>("form");
   const [registrarDialogOpen, setRegistrarDialogOpen] = useState(false);
   const [tituloParaRegistrar, setTituloParaRegistrar] = useState<TituloCobranca | null>(null);
@@ -169,6 +172,7 @@ export function TitulosList({
     setLotes([]);
     setContexto(null);
     setQuantidadeParcelas(1);
+    setDataPrimeiraParcela(null);
     setNovoTituloStep("form");
   }, []);
 
@@ -390,6 +394,11 @@ export function TitulosList({
         setQuantidadeParcelas((q) =>
           maxPermitidas === 0 ? 0 : Math.min(Math.max(1, q), maxPermitidas),
         );
+        if (ctx.primeiroTituloLote && ctx.dataPrimeiraParcelaContrato) {
+          setDataPrimeiraParcela(parseIsoDate(ctx.dataPrimeiraParcelaContrato));
+        } else {
+          setDataPrimeiraParcela(null);
+        }
       })
       .catch((e) => {
         setContexto(null);
@@ -419,12 +428,21 @@ export function TitulosList({
     const qtd = Math.min(maxParcelasPermitidas, Math.floor(quantidadeParcelas));
     const parcelaInicial = contexto.numeroParcela;
     const parcelaFinal = parcelaInicial + qtd - 1;
-    const vencimentos = calcularVencimentosParcelasDetalhe(
-      contexto.diaVencimentoMensal,
-      new Date(),
-      qtd,
-    );
-    const itens = vencimentos.map((detalhe, index) => ({
+
+    const vencimentosDetalhe =
+      contexto.primeiroTituloLote && dataPrimeiraParcela
+        ? calcularVencimentosComPrimeiraParcelaDetalhe(
+            dataPrimeiraParcela,
+            contexto.diaVencimentoMensal,
+            qtd,
+          )
+        : calcularVencimentosParcelasDetalhe(
+            contexto.diaVencimentoMensal,
+            parseIsoDate(contexto.referenciaVencimento ?? contexto.vencimentoSugerido),
+            qtd,
+          );
+
+    const itens = vencimentosDetalhe.map((detalhe, index) => ({
       parcela: parcelaInicial + index,
       vencimento: formatIsoDate(detalhe.vencimento),
       vencimentoBruto: formatIsoDate(detalhe.vencimentoBruto),
@@ -437,12 +455,19 @@ export function TitulosList({
     const itensExcedentes: typeof itens = [];
     if (qtd === maxParcelasPermitidas && parcelaFinal < parcelaReajusteLimite) {
       for (let parcela = parcelaFinal + 1; parcela <= parcelaReajusteLimite; parcela++) {
-        const offset = parcela - parcelaInicial;
-        const detalhe = calcularVencimentosParcelasDetalhe(
-          contexto.diaVencimentoMensal,
-          new Date(),
-          offset + 1,
-        ).at(-1);
+        const offset = parcela - parcelaInicial + 1;
+        const detalhe =
+          contexto.primeiroTituloLote && dataPrimeiraParcela
+            ? calcularVencimentosComPrimeiraParcelaDetalhe(
+                dataPrimeiraParcela,
+                contexto.diaVencimentoMensal,
+                offset,
+              ).at(-1)
+            : calcularVencimentosParcelasDetalhe(
+                contexto.diaVencimentoMensal,
+                parseIsoDate(contexto.referenciaVencimento ?? contexto.vencimentoSugerido),
+                offset,
+              ).at(-1);
         if (!detalhe) continue;
         itensExcedentes.push({
           parcela,
@@ -471,7 +496,14 @@ export function TitulosList({
       itensExcedentes,
       itensRevisao: [...itens, ...itensExcedentes],
     };
-  }, [contexto, quantidadeParcelas, maxParcelasPermitidas, parcelaReajusteLimite, ultimaParcelaEmitivel]);
+  }, [
+    contexto,
+    dataPrimeiraParcela,
+    quantidadeParcelas,
+    maxParcelasPermitidas,
+    parcelaReajusteLimite,
+    ultimaParcelaEmitivel,
+  ]);
 
   const onPage = (e: DataTablePageEvent) => {
     setPage(e.page ?? 0);
@@ -646,6 +678,10 @@ export function TitulosList({
       toast.error(contexto.avisoConvenio);
       return null;
     }
+    if (contexto.primeiroTituloLote && !dataPrimeiraParcela) {
+      toast.error("Informe a data da 1ª parcela.");
+      return null;
+    }
     if (maxParcelasPermitidas < 1) {
       toast.error(
         `A parcela ${parcelaReajusteLimite} exige reajuste IPCA antes da emissão. Gere essa parcela individualmente após o reajuste.`,
@@ -675,6 +711,9 @@ export function TitulosList({
       const resultado = await finService.criarTitulosEmLote({
         contratoId: contexto.contratoId,
         quantidadeParcelas: qtd,
+        ...(contexto.primeiroTituloLote && dataPrimeiraParcela
+          ? { dataPrimeiraParcela: formatIsoDate(dataPrimeiraParcela) }
+          : {}),
       });
       setPage(0);
       setStatusFilter("RASCUNHO");
@@ -1001,7 +1040,8 @@ export function TitulosList({
                     contextoLoading ||
                     !!contexto?.avisoConvenio ||
                     maxParcelasPermitidas < 1 ||
-                    quantidadeParcelas < 1
+                    quantidadeParcelas < 1 ||
+                    (contexto?.primeiroTituloLote && !dataPrimeiraParcela)
                   }
                   onClick={irParaConfirmacao}
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
@@ -1149,6 +1189,25 @@ export function TitulosList({
                   disabled
                 />
               </div>
+              {contexto.primeiroTituloLote ? (
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+                    Data da 1ª parcela
+                  </label>
+                  <p className="text-xs text-white/40">
+                    Valor do contrato; pode ajustar antes de gerar. As parcelas seguintes vencem no dia{" "}
+                    {contexto.diaVencimentoMensal} de cada mês (dia útil se cair em fim de semana).
+                  </p>
+                  <Calendar
+                    value={dataPrimeiraParcela}
+                    onChange={(e) => setDataPrimeiraParcela(e.value ?? null)}
+                    dateFormat="dd/mm/yy"
+                    showIcon
+                    className="w-full"
+                    inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25"
+                  />
+                </div>
+              ) : null}
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
                   Quantidade de parcelas

@@ -182,6 +182,9 @@ export interface TituloContextoLote {
   valorNominal: number;
   diaVencimentoMensal: number;
   vencimentoSugerido: string;
+  primeiroTituloLote: boolean;
+  dataPrimeiraParcelaContrato: string;
+  referenciaVencimento: string;
   parcelaReajusteLimite: number;
   maxParcelasPermitidas: number;
   percentualCorrecao?: number | null;
@@ -234,6 +237,7 @@ export interface TituloCobrancaLoteCreate {
   contratoId: number;
   convenioId?: string;
   quantidadeParcelas: number;
+  dataPrimeiraParcela?: string;
 }
 
 export interface TituloCobrancaLoteResult {

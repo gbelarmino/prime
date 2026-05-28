@@ -59,6 +59,39 @@ export function calcularVencimentosParcelasDetalhe(
   return vencimentos;
 }
 
+/** 1ª parcela na data informada; demais no dia de vencimento mensal do contrato. */
+export function calcularVencimentosComPrimeiraParcelaDetalhe(
+  dataPrimeiraParcela: Date,
+  diaVencimento: number,
+  quantidade: number,
+): VencimentoParcelaDetalhe[] {
+  if (quantidade < 1) return [];
+  const vencimentos: VencimentoParcelaDetalhe[] = [];
+  const brutoPrimeira = new Date(
+    dataPrimeiraParcela.getFullYear(),
+    dataPrimeiraParcela.getMonth(),
+    dataPrimeiraParcela.getDate(),
+  );
+  const vencPrimeira = ajustarParaProximoDiaUtil(brutoPrimeira);
+  vencimentos.push({
+    vencimento: vencPrimeira,
+    vencimentoBruto: brutoPrimeira,
+    ajustadoPorDiaUtil: formatIsoDate(brutoPrimeira) !== formatIsoDate(vencPrimeira),
+  });
+  let cursor = vencPrimeira;
+  for (let i = 1; i < quantidade; i++) {
+    const bruto = calcularProximoVencimentoBruto(diaVencimento, cursor);
+    const venc = ajustarParaProximoDiaUtil(bruto);
+    vencimentos.push({
+      vencimento: venc,
+      vencimentoBruto: bruto,
+      ajustadoPorDiaUtil: formatIsoDate(bruto) !== formatIsoDate(venc),
+    });
+    cursor = venc;
+  }
+  return vencimentos;
+}
+
 /** Rótulo curto do dia da semana do vencimento bruto (ex.: "sáb."). */
 export function diaSemanaCurto(data: Date): string {
   const nome = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
