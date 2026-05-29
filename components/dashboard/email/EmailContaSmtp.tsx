@@ -101,8 +101,22 @@ export function EmailContaSmtp() {
       toast.error("Indique o e-mail de destino do teste");
       return;
     }
+    if (!form.nomeRemetente.trim() || !form.emailRemetente.trim() || !form.usuarioSmtp.trim() || !form.hostSmtp.trim()) {
+      toast.error("Preencha nome, e-mail e utilizador SMTP antes do teste");
+      return;
+    }
+    if (!meta.senhaConfigurada && !form.senhaSmtp.trim()) {
+      toast.error("Indique a senha SMTP na primeira configuração");
+      return;
+    }
     setTesting(true);
     try {
+      await emailService.saveSmtpConfig({
+        ...form,
+        ativo: form.ativo ? "S" : "N",
+        senhaSmtp: form.senhaSmtp.trim() || undefined,
+        replyTo: form.replyTo.trim() || null,
+      });
       await emailService.testeSmtp(dest);
       toast.success("E-mail de teste enviado");
       void load();
@@ -190,6 +204,9 @@ export function EmailContaSmtp() {
         <Button label="Guardar configuração" icon={<Mail className="h-4 w-4" />} loading={saving} onClick={() => void handleSave()} />
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <p className="mb-3 text-sm text-white/50">
+            Guarda automaticamente a configuração acima antes de enviar.
+          </p>
           <p className="mb-3 text-sm font-semibold text-white/80">Teste de conectividade</p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <InputText
