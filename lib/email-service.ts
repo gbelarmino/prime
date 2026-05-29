@@ -88,9 +88,10 @@ export interface EmailFilaItem {
 export interface ContratanteListItem {
   id: number;
   nome: string;
-  cpf?: string;
-  telefone?: string;
-  email?: string;
+  cpf?: string | null;
+  cidade?: string | null;
+  email?: string | null;
+  telefoneCelular1?: string | null;
 }
 
 export interface EmailEventoTesteItem {
