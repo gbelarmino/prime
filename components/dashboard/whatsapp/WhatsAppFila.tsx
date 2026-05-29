@@ -128,8 +128,8 @@ export function WhatsAppFila() {
         statusFilter || undefined,
       );
       setPageData(data);
-    } catch {
-      toast.error("Erro ao carregar fila WhatsApp.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao carregar fila WhatsApp.");
       setPageData(null);
     } finally {
       setLoading(false);

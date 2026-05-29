@@ -305,7 +305,16 @@ export const whatsappService = {
 
   async listFila(page = 0, size = 25, status?: string): Promise<SpringPage<WhatsAppFilaItem>> {
     const res = await apiFetch(getWhatsAppFilaUrl(page, size, status));
-    if (!res.ok) throw new Error("Erro ao listar fila WhatsApp");
+    if (!res.ok) {
+      let msg = "Erro ao listar fila WhatsApp";
+      try {
+        const j = (await res.json()) as { message?: string };
+        if (j?.message) msg = j.message;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
     return res.json();
   },
 
