@@ -306,6 +306,9 @@ export function WhatsAppStatus() {
   };
 
   const selectedRow = linhas.find((l) => l.accountId === selectedAccountId);
+  const linhaPadrao = linhas.find((l) => l.padrao);
+  const conectadoNaoPadrao =
+    conn === "open" && selectedRow && !selectedRow.padrao && linhaPadrao != null;
 
 
   const synced =
@@ -474,6 +477,24 @@ export function WhatsAppStatus() {
             <RefreshCw className="h-4 w-4" />
             Tentar outra vez
           </button>
+        </div>
+      ) : null}
+
+      {conectadoNaoPadrao ? (
+        <div
+          role="status"
+          className="rounded-2xl border border-amber-500/30 bg-amber-950/25 px-5 py-4 text-sm text-amber-100/90"
+        >
+          <p>
+            <strong className="font-semibold text-amber-200">{selectedRow?.nome}</strong> está conectada, mas os
+            gatilhos automáticos enviam pela linha padrão{" "}
+            <strong className="font-semibold text-amber-200">{linhaPadrao?.nome}</strong> (
+            <span className="font-mono text-xs">{linhaPadrao?.accountId}</span>).
+          </p>
+          <p className="mt-2 text-xs text-amber-200/70">
+            Para usar este número nos envios: marque esta linha como padrão (lista acima) ou escolha-a em Gatilhos →
+            evento (ex. Cobrança parcela).
+          </p>
         </div>
       ) : null}
 

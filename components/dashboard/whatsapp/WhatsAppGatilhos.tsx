@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { whatsappService, WhatsAppGatilho, WhatsAppTemplate } from "@/lib/whatsapp-service";
+import { whatsappService, WhatsAppGatilho, WhatsAppLinha, WhatsAppTemplate } from "@/lib/whatsapp-service";
 import { Dropdown } from "primereact/dropdown";
 import { InputSwitch } from "primereact/inputswitch";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ type EventoCatalogoRow = { label: string; value: string };
 export function WhatsAppGatilhos() {
   const [gatilhos, setGatilhos] = useState<WhatsAppGatilho[]>([]);
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [linhas, setLinhas] = useState<WhatsAppLinha[]>([]);
   const [eventosCatalogo, setEventosCatalogo] = useState<EventoCatalogoRow[]>([]);
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -24,13 +25,15 @@ export function WhatsAppGatilhos() {
   const fetchData = async () => {
     setFetching(true);
     try {
-      const [gData, tData, catData] = await Promise.all([
+      const [gData, tData, catData, lData] = await Promise.all([
         whatsappService.listGatilhos(),
         whatsappService.listTemplates(),
         whatsappService.listEventosCatalogo(),
+        whatsappService.listLinhas(),
       ]);
       setGatilhos(gData);
       setTemplates(tData);
+      setLinhas(lData.filter((l) => l.ativo));
       setEventosCatalogo(
         catData.map((e) => ({
           label: e.descricao,
@@ -49,14 +52,29 @@ export function WhatsAppGatilhos() {
     return gatilhos.find((g) => g.evento === evento) ?? { evento, ativo: "N" };
   };
 
-  const handleUpdateGatilho = async (evento: string, templateId: string | null, ativo: boolean) => {
+  const linhaOptions = [
+    { label: "Linha padrão (automático)", value: null as string | null },
+    ...linhas.map((l) => ({
+      label: `${l.nome} (${l.accountId})${l.padrao ? " · padrão" : ""}`,
+      value: l.id,
+    })),
+  ];
+
+  const handleUpdateGatilho = async (
+    evento: string,
+    templateId: string | null,
+    linhaId: string | null,
+    ativo: boolean,
+  ) => {
     const existing = gatilhos.find((g) => g.evento === evento);
     const template = templates.find((t) => t.id === templateId);
+    const linha = linhaId ? linhas.find((l) => l.id === linhaId) ?? existing?.linha : null;
 
     const payload: WhatsAppGatilho = {
       ...existing,
       evento,
       template: template || undefined,
+      linha: linha ?? null,
       ativo: ativo ? "S" : "N",
     };
 
@@ -85,7 +103,7 @@ export function WhatsAppGatilhos() {
       surface="plain"
       eyebrow="Automação"
       title="Gatilhos por evento"
-      description="Ligue cada evento do sistema a um modelo. As alterações são gravadas ao mudar o modelo ou o interruptor."
+      description="Ligue cada evento do sistema a um modelo e à linha WhatsApp de envio. Sem linha explícita, usa a linha marcada como padrão na página Conexão."
       actions={
         <button
           type="button"
@@ -156,6 +174,36 @@ export function WhatsAppGatilhos() {
                   <div className="flex flex-col gap-1.5">
                     <label
                       className="text-[9px] font-bold uppercase leading-none tracking-[0.2em] text-white/35"
+                      htmlFor={`lin-${evt.value}`}
+                    >
+                      Linha
+                    </label>
+                    <Dropdown
+                      inputId={`lin-${evt.value}`}
+                      value={g.linha?.id ?? null}
+                      options={linhaOptions}
+                      optionLabel="label"
+                      optionValue="value"
+                      onChange={(e) =>
+                        void handleUpdateGatilho(evt.value, g.template?.id || null, e.value, g.ativo === "S")
+                      }
+                      placeholder="Linha padrão"
+                      disabled={isSaving}
+                      className="w-full border-white/10 bg-white/[0.05] text-white"
+                      pt={{
+                        root: {
+                          className:
+                            "flex h-11 w-full items-center rounded-xl border border-white/10 bg-white/[0.05] text-white",
+                        },
+                        input: { className: "text-sm text-white/90" },
+                        panel: { className: "border border-white/10 bg-[#071C33]" },
+                        item: { className: "text-sm text-white/75 hover:bg-white/[0.06]" },
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      className="text-[9px] font-bold uppercase leading-none tracking-[0.2em] text-white/35"
                       htmlFor={`tpl-${evt.value}`}
                     >
                       Modelo
@@ -166,7 +214,7 @@ export function WhatsAppGatilhos() {
                       options={templates}
                       optionLabel="nome"
                       optionValue="id"
-                      onChange={(e) => void handleUpdateGatilho(evt.value, e.value, g.ativo === "S")}
+                      onChange={(e) => void handleUpdateGatilho(evt.value, e.value, g.linha?.id ?? null, g.ativo === "S")}
                       placeholder="Selecione um modelo"
                       disabled={isSaving}
                       className="w-full border-white/10 bg-white/[0.05] text-white"
@@ -188,31 +236,64 @@ export function WhatsAppGatilhos() {
                     <InputSwitch
                       checked={active}
                       disabled={isSaving}
-                      onChange={(e) => void handleUpdateGatilho(evt.value, g.template?.id || null, e.value)}
+                      onChange={(e) =>
+                        void handleUpdateGatilho(evt.value, g.template?.id || null, g.linha?.id ?? null, e.value)
+                      }
                     />
                   </div>
                 </div>
 
                 {/* Desktop: grelha — rótulos na mesma linha, controlos alinhados ao centro vertical */}
-                <div className="hidden w-full min-w-0 sm:grid sm:w-auto sm:grid-cols-[minmax(12rem,16rem)_3.25rem] sm:gap-x-6 sm:gap-y-2">
+                <div className="hidden w-full min-w-0 sm:grid sm:w-auto sm:grid-cols-[minmax(10rem,13rem)_minmax(12rem,16rem)_3.25rem] sm:gap-x-4 sm:gap-y-2">
                   <label
                     className="col-start-1 row-start-1 self-end pb-1 text-[9px] font-bold uppercase leading-none tracking-[0.2em] text-white/35"
+                    htmlFor={`lin-${evt.value}-desktop`}
+                  >
+                    Linha
+                  </label>
+                  <label
+                    className="col-start-2 row-start-1 self-end pb-1 text-[9px] font-bold uppercase leading-none tracking-[0.2em] text-white/35"
                     htmlFor={`tpl-${evt.value}-desktop`}
                   >
                     Modelo
                   </label>
-                  <span className="col-start-2 row-start-1 self-end pb-1 text-center text-[9px] font-bold uppercase leading-none tracking-[0.2em] text-white/35">
+                  <span className="col-start-3 row-start-1 self-end pb-1 text-center text-[9px] font-bold uppercase leading-none tracking-[0.2em] text-white/35">
                     Ativo
                   </span>
 
                   <div className="col-start-1 row-start-2 min-w-0 self-center">
+                    <Dropdown
+                      inputId={`lin-${evt.value}-desktop`}
+                      value={g.linha?.id ?? null}
+                      options={linhaOptions}
+                      optionLabel="label"
+                      optionValue="value"
+                      onChange={(e) =>
+                        void handleUpdateGatilho(evt.value, g.template?.id || null, e.value, g.ativo === "S")
+                      }
+                      placeholder="Linha padrão"
+                      disabled={isSaving}
+                      className="w-full border-white/10 bg-white/[0.05] text-white"
+                      pt={{
+                        root: {
+                          className:
+                            "flex h-11 w-full min-w-[10rem] max-w-[13rem] items-center rounded-xl border border-white/10 bg-white/[0.05] text-white",
+                        },
+                        input: { className: "text-sm text-white/90" },
+                        panel: { className: "border border-white/10 bg-[#071C33]" },
+                        item: { className: "text-sm text-white/75 hover:bg-white/[0.06]" },
+                      }}
+                    />
+                  </div>
+
+                  <div className="col-start-2 row-start-2 min-w-0 self-center">
                     <Dropdown
                       inputId={`tpl-${evt.value}-desktop`}
                       value={g.template?.id}
                       options={templates}
                       optionLabel="nome"
                       optionValue="id"
-                      onChange={(e) => void handleUpdateGatilho(evt.value, e.value, g.ativo === "S")}
+                      onChange={(e) => void handleUpdateGatilho(evt.value, e.value, g.linha?.id ?? null, g.ativo === "S")}
                       placeholder="Selecione um modelo"
                       disabled={isSaving}
                       className="w-full border-white/10 bg-white/[0.05] text-white"
@@ -227,11 +308,13 @@ export function WhatsAppGatilhos() {
                       }}
                     />
                   </div>
-                  <div className="col-start-2 row-start-2 flex justify-center self-center">
+                  <div className="col-start-3 row-start-2 flex justify-center self-center">
                     <InputSwitch
                       checked={active}
                       disabled={isSaving}
-                      onChange={(e) => void handleUpdateGatilho(evt.value, g.template?.id || null, e.value)}
+                      onChange={(e) =>
+                        void handleUpdateGatilho(evt.value, g.template?.id || null, g.linha?.id ?? null, e.value)
+                      }
                     />
                   </div>
                 </div>

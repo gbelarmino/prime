@@ -38,6 +38,8 @@ export interface WhatsAppGatilho {
   id?: string;
   evento: string;
   template?: WhatsAppTemplate;
+  /** null/undefined = linha padrão ao enfileirar */
+  linha?: WhatsAppLinha | null;
   ativo: string;
   dataAlteracao?: string;
 }
@@ -243,10 +245,17 @@ export const whatsappService = {
   },
 
   async saveGatilho(gatilho: WhatsAppGatilho): Promise<WhatsAppGatilho> {
+    const body = {
+      id: gatilho.id ?? null,
+      evento: gatilho.evento,
+      templateId: gatilho.template?.id ?? null,
+      linhaId: gatilho.linha?.id ?? null,
+      ativo: gatilho.ativo,
+    };
     const res = await apiFetch(getWhatsAppGatilhosUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(gatilho)
+      body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error("Erro ao salvar gatilho do WhatsApp");
     return res.json();
