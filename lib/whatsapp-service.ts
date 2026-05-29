@@ -164,7 +164,16 @@ export const whatsappService = {
 
   async deleteLinha(id: string): Promise<void> {
     const res = await apiFetch(getWhatsAppLinhaUrl(id), { method: "DELETE" });
-    if (!res.ok) throw new Error("Erro ao remover linha WhatsApp");
+    if (!res.ok) {
+      let msg = "Erro ao remover linha WhatsApp";
+      try {
+        const j = (await res.json()) as { message?: string };
+        if (j?.message) msg = j.message;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
   },
 
   async getStatus(accountId?: string | null, options?: { skipLoading?: boolean }) {
