@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "@/lib/api-config";
 import { apiFetch } from "@/lib/api-fetch";
 import { setAuthSession } from "@/lib/auth-storage";
+import { resetRealtimeSocketAuthBlock } from "@/lib/realtime-socket";
 
 export type TenantResumo = {
   id: number;
@@ -60,5 +61,6 @@ export async function switchTenant(tenantId: number): Promise<boolean> {
     data.tenantId,
     data.tenantSlug,
   );
+  resetRealtimeSocketAuthBlock();
   return true;
 }

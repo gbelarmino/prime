@@ -251,3 +251,27 @@ export function getUserEmail(): string | null {
     return null;
   }
 }
+
+/** Decodifica payload JWT (sem validar assinatura — uso client-side para exp/sub). */
+export function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** Token staff válido para API/WebSocket (não demo, não portal, não expirado). */
+export function isStaffTokenUsable(token: string | null | undefined): boolean {
+  if (!token || token === DEMO_TOKEN) return false;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return false;
+  const sub = typeof payload.sub === "string" ? payload.sub : "";
+  if (!sub || sub.startsWith("portal:")) return false;
+  const exp = payload.exp;
+  if (typeof exp === "number" && Date.now() >= exp * 1000) return false;
+  return true;
+}

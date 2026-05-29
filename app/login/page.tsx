@@ -13,6 +13,7 @@ import { APP_BRAND_NAME } from "@/lib/app-brand";
 import { getLoginUrl } from "@/lib/api-config";
 import { ensureApiBaseUrl } from "@/lib/runtime-env";
 import { setAuthSession, resolvePostLoginPath } from "@/lib/auth-storage";
+import { resetRealtimeSocketAuthBlock } from "@/lib/realtime-socket";
 import { cn } from "@/lib/utils";
 import { loadingState } from "@/lib/loading-store";
 
@@ -60,6 +61,7 @@ function LoginContent() {
           data.tenantId ?? null,
           data.tenantSlug ?? null,
         );
+        resetRealtimeSocketAuthBlock();
         toast.success(`Bem-vindo à ${APP_BRAND_NAME}!`);
         const role = data.role || "ADMIN";
         router.push(resolvePostLoginPath(requestedNext, role));

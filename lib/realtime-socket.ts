@@ -1,28 +1,29 @@
 "use client";
 
-import { getAuthToken, getTenantId } from "@/lib/auth-storage";
+import { getAuthToken, getTenantId, isStaffTokenUsable } from "@/lib/auth-storage";
 import { getNotificacaoWsUrl } from "@/lib/api-config";
 
 export type RealtimeMessage = Record<string, unknown> & { type?: string };
 
 type Listener = (message: RealtimeMessage) => void;
 
-const DEMO_TOKEN = "demo-token";
-
 let ws: WebSocket | null = null;
 const listeners = new Set<Listener>();
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let subscriberCount = 0;
+/** Evita reconectar em loop com o mesmo token rejeitado no handshake. */
+let lastRejectedToken: string | null = null;
 
 function buildWsUrl(): string {
   const base = getNotificacaoWsUrl();
   if (!base) return "";
 
   const token = getAuthToken();
-  if (!token || token === DEMO_TOKEN) return "";
+  if (!isStaffTokenUsable(token)) return "";
+  if (token === lastRejectedToken) return "";
 
   const params = new URLSearchParams();
-  params.set("token", token);
+  params.set("token", token!);
   const tenantId = getTenantId();
   if (tenantId != null) {
     params.set("tenantId", String(tenantId));
@@ -30,14 +31,31 @@ function buildWsUrl(): string {
   return `${base}?${params.toString()}`;
 }
 
+function scheduleReconnect() {
+  if (reconnectTimer || subscriberCount <= 0) return;
+  if (!isStaffTokenUsable(getAuthToken())) return;
+  if (getAuthToken() === lastRejectedToken) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, 5000);
+}
+
 function connect() {
+  const token = getAuthToken();
   const url = buildWsUrl();
-  if (!url) return;
+  if (!url || !token) return;
   if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
     return;
   }
 
+  let opened = false;
   ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    opened = true;
+    lastRejectedToken = null;
+  };
 
   ws.onmessage = (event) => {
     try {
@@ -51,9 +69,10 @@ function connect() {
 
   ws.onclose = () => {
     ws = null;
-    if (subscriberCount > 0) {
-      reconnectTimer = setTimeout(connect, 5000);
+    if (!opened && token) {
+      lastRejectedToken = token;
     }
+    scheduleReconnect();
   };
 
   ws.onerror = () => {
@@ -82,4 +101,9 @@ export function subscribeRealtime(listener: Listener): () => void {
       }
     }
   };
+}
+
+/** Limpa bloqueio após novo login (token diferente). */
+export function resetRealtimeSocketAuthBlock(): void {
+  lastRejectedToken = null;
 }
