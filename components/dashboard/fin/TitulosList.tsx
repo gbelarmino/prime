@@ -12,7 +12,7 @@ import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
-import { Ban, Download, Eye, FileCheck, RefreshCw } from "lucide-react";
+import { Ban, Download, Eye, FileCheck, MessageCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import {
@@ -28,11 +28,15 @@ import {
 } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
+import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegistrarLoteDialog";
+import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import {
   finService,
   formatContratoRef,
   type TituloCobranca,
   type TituloContextoLote,
+  type TituloRegistrarLoteResult,
+  type TituloWhatsAppCobrancaLoteResult,
 } from "@/lib/fin-service";
 import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import {
@@ -73,6 +77,7 @@ const STATUS_TONES: Record<string, string> = {
 };
 
 const PAGE_SIZE = 20;
+const LOTE_MAX = 50;
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
 const FILTER_INPUT_CLASS = "w-full rounded-xl border-white/10 bg-white/5 text-white";
 const FILTRO_TODOS = "";
@@ -119,6 +124,18 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
+function tituloRegistravel(status: TituloCobranca["status"]): boolean {
+  return status === "RASCUNHO" || status === "ERRO_REGISTRO";
+}
+
+function tituloElegivelWhatsApp(status: TituloCobranca["status"]): boolean {
+  return status === "EMITIDO";
+}
+
+function tituloSelecionavel(status: TituloCobranca["status"]): boolean {
+  return tituloRegistravel(status) || tituloElegivelWhatsApp(status);
+}
+
 export function TitulosList({
   showNovo = false,
   onShowNovoChange,
@@ -163,6 +180,24 @@ export function TitulosList({
   const [tituloParaRegistrar, setTituloParaRegistrar] = useState<TituloCobranca | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [tituloParaCancelar, setTituloParaCancelar] = useState<TituloCobranca | null>(null);
+  const [selectedTitulos, setSelectedTitulos] = useState<TituloCobranca[]>([]);
+  const [registrarLoteDialogOpen, setRegistrarLoteDialogOpen] = useState(false);
+  const [registrarLoteResultado, setRegistrarLoteResultado] =
+    useState<TituloRegistrarLoteResult | null>(null);
+  const [whatsappLoteDialogOpen, setWhatsappLoteDialogOpen] = useState(false);
+  const [whatsappLoteResultado, setWhatsappLoteResultado] =
+    useState<TituloWhatsAppCobrancaLoteResult | null>(null);
+  const [selecionandoTodos, setSelecionandoTodos] = useState(false);
+
+  const titulosRegistraveisSelecionados = useMemo(
+    () => selectedTitulos.filter((t) => tituloRegistravel(t.status)),
+    [selectedTitulos],
+  );
+
+  const titulosWhatsAppSelecionados = useMemo(
+    () => selectedTitulos.filter((t) => tituloElegivelWhatsApp(t.status)),
+    [selectedTitulos],
+  );
 
   const resetNovoForm = useCallback(() => {
     setSelectedEmpreendimento(null);
@@ -236,6 +271,7 @@ export function TitulosList({
 
   useEffect(() => {
     setPage(0);
+    setSelectedTitulos([]);
   }, [
     statusFilter,
     filterContrato,
@@ -245,6 +281,10 @@ export function TitulosList({
     filterQuadra,
     filterLote,
   ]);
+
+  useEffect(() => {
+    setSelectedTitulos([]);
+  }, [page]);
 
   useEffect(() => {
     setEmpreendimentosLoading(true);
@@ -549,6 +589,188 @@ export function TitulosList({
     }
   };
 
+  const abrirRegistrarLote = () => {
+    if (titulosRegistraveisSelecionados.length === 0) {
+      toast.info("Selecione títulos em rascunho ou com erro de registro.");
+      return;
+    }
+    if (titulosRegistraveisSelecionados.length > LOTE_MAX) {
+      toast.error(`Selecione no máximo ${LOTE_MAX} títulos por operação.`);
+      return;
+    }
+    setRegistrarLoteResultado(null);
+    setRegistrarLoteDialogOpen(true);
+  };
+
+  const fecharRegistrarLoteDialog = () => {
+    setRegistrarLoteDialogOpen(false);
+    setRegistrarLoteResultado(null);
+    if (registrarLoteResultado && registrarLoteResultado.registrados > 0) {
+      setSelectedTitulos([]);
+      void load(true);
+    }
+  };
+
+  const confirmarRegistrarLote = async () => {
+    if (titulosRegistraveisSelecionados.length === 0) return;
+    setActionLoading(true);
+    try {
+      const resultado = await finService.registrarTitulosEmLote(
+        titulosRegistraveisSelecionados.map((t) => t.id),
+      );
+      setRegistrarLoteResultado(resultado);
+      if (resultado.falhas === 0) {
+        toast.success(`${resultado.registrados} título(s) registrado(s) e emitido(s).`);
+      } else if (resultado.registrados > 0) {
+        toast.warning(
+          `${resultado.registrados} registrado(s), ${resultado.falhas} falha(s). Veja o detalhe.`,
+        );
+      } else {
+        toast.error("Nenhum título foi registrado.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao registrar em lote.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const carregarTitulosPorIds = async (
+    ids: string[],
+    filtroStatus: (status: TituloCobranca["status"]) => boolean,
+  ): Promise<TituloCobranca[]> => {
+    const mapaPagina = new Map((pageData?.content ?? []).map((t) => [t.id, t]));
+    const faltantes = ids.filter((id) => !mapaPagina.has(id));
+    let extras: TituloCobranca[] = [];
+    if (faltantes.length > 0) {
+      extras = await Promise.all(faltantes.map((id) => finService.getTitulo(id)));
+    }
+    const porId = new Map<string, TituloCobranca>();
+    for (const t of [...(pageData?.content ?? []), ...extras]) {
+      if (filtroStatus(t.status)) {
+        porId.set(t.id, t);
+      }
+    }
+    return ids.map((id) => porId.get(id)).filter((t): t is TituloCobranca => t != null);
+  };
+
+  const selecionarTodosDoFiltro = async () => {
+    setSelecionandoTodos(true);
+    try {
+      const { ids, total } = await finService.listTitulosIdsElegiveisRegistro(
+        buildListFilters(),
+        { skipLoading: true },
+      );
+      if (total === 0) {
+        toast.info("Nenhum rascunho elegível no filtro atual.");
+        setSelectedTitulos([]);
+        return;
+      }
+      if (total > LOTE_MAX) {
+        toast.error(
+          `O filtro retornou ${total} títulos. Refine os filtros para no máximo ${LOTE_MAX}.`,
+        );
+        return;
+      }
+      const selecionados = await carregarTitulosPorIds(ids, tituloRegistravel);
+      setSelectedTitulos(selecionados);
+      toast.success(`${selecionados.length} título(s) selecionado(s).`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao listar títulos elegíveis.");
+    } finally {
+      setSelecionandoTodos(false);
+    }
+  };
+
+  const selecionarTodosWhatsAppDoFiltro = async () => {
+    setSelecionandoTodos(true);
+    try {
+      const { ids, total } = await finService.listTitulosIdsElegiveisWhatsApp(
+        buildListFilters(),
+        { skipLoading: true },
+      );
+      if (total === 0) {
+        toast.info("Nenhum título emitido elegível para WhatsApp no filtro atual.");
+        setSelectedTitulos([]);
+        return;
+      }
+      if (total > LOTE_MAX) {
+        toast.error(
+          `O filtro retornou ${total} títulos. Refine os filtros para no máximo ${LOTE_MAX}.`,
+        );
+        return;
+      }
+      const selecionados = await carregarTitulosPorIds(ids, tituloElegivelWhatsApp);
+      setSelectedTitulos(selecionados);
+      toast.success(`${selecionados.length} título(s) selecionado(s) para WhatsApp.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao listar títulos elegíveis.");
+    } finally {
+      setSelecionandoTodos(false);
+    }
+  };
+
+  const enviarWhatsApp = async (row: TituloCobranca) => {
+    setActionLoading(true);
+    try {
+      const resultado = await finService.enfileirarWhatsAppCobrancaParcela(row.id);
+      if (resultado.enfileirado) {
+        toast.success("Cobrança enfileirada para envio por WhatsApp.");
+      } else {
+        toast.warning(resultado.mensagem ?? "Não foi possível enfileirar o envio.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enfileirar WhatsApp.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const abrirWhatsAppLote = () => {
+    if (titulosWhatsAppSelecionados.length === 0) {
+      toast.info("Selecione títulos na situação Emitido.");
+      return;
+    }
+    if (titulosWhatsAppSelecionados.length > LOTE_MAX) {
+      toast.error(`Selecione no máximo ${LOTE_MAX} títulos por operação.`);
+      return;
+    }
+    setWhatsappLoteResultado(null);
+    setWhatsappLoteDialogOpen(true);
+  };
+
+  const fecharWhatsAppLoteDialog = () => {
+    setWhatsappLoteDialogOpen(false);
+    setWhatsappLoteResultado(null);
+    if (whatsappLoteResultado && whatsappLoteResultado.enfileirados > 0) {
+      setSelectedTitulos([]);
+    }
+  };
+
+  const confirmarWhatsAppLote = async () => {
+    if (titulosWhatsAppSelecionados.length === 0) return;
+    setActionLoading(true);
+    try {
+      const resultado = await finService.enfileirarWhatsAppCobrancaParcelaEmLote(
+        titulosWhatsAppSelecionados.map((t) => t.id),
+      );
+      setWhatsappLoteResultado(resultado);
+      if (resultado.falhas === 0) {
+        toast.success(`${resultado.enfileirados} envio(s) enfileirado(s) na fila do WhatsApp.`);
+      } else if (resultado.enfileirados > 0) {
+        toast.warning(
+          `${resultado.enfileirados} enfileirado(s), ${resultado.falhas} falha(s). Veja o detalhe.`,
+        );
+      } else {
+        toast.error("Nenhum envio foi enfileirado.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enfileirar WhatsApp em lote.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const abrirCancelar = (row: TituloCobranca) => {
     setTituloParaCancelar(row);
     setCancelDialogOpen(true);
@@ -604,7 +826,7 @@ export function TitulosList({
       }),
     ];
 
-    if (row.status === "RASCUNHO") {
+    if (row.status === "RASCUNHO" || row.status === "ERRO_REGISTRO") {
       items.push(
         dashboardActionMenuItem({
           label: "Registrar",
@@ -625,6 +847,22 @@ export function TitulosList({
             <Download size={16} className="text-amber-400 transition-transform group-hover:scale-110" />
           ),
           onClick: () => void baixarPdf(row.id, row.urlBoleto, row.status),
+          disabled: actionLoading,
+        }),
+      );
+    }
+
+    if (tituloElegivelWhatsApp(row.status)) {
+      items.push(
+        dashboardActionMenuItem({
+          label: "Enviar WhatsApp",
+          icon: (
+            <MessageCircle
+              size={16}
+              className="text-emerald-400 transition-transform group-hover:scale-110"
+            />
+          ),
+          onClick: () => void enviarWhatsApp(row),
           disabled: actionLoading,
         }),
       );
@@ -900,6 +1138,64 @@ export function TitulosList({
           ) : null}
         </div>
 
+        {selectedTitulos.length > 0 ? (
+          <div className="flex flex-col gap-3 rounded-[1.25rem] border border-emerald-500/20 bg-emerald-500/[0.06] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-white/70">
+              <span className="font-bold text-emerald-300">{selectedTitulos.length}</span> título
+              {selectedTitulos.length === 1 ? "" : "s"} selecionado
+              {selectedTitulos.length === 1 ? "" : "s"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedTitulos([])}
+                disabled={actionLoading || selecionandoTodos}
+                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/60 transition hover:bg-white/10 disabled:opacity-50"
+              >
+                Limpar
+              </button>
+              <button
+                type="button"
+                onClick={() => void selecionarTodosDoFiltro()}
+                disabled={actionLoading || selecionandoTodos}
+                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition hover:bg-white/10 disabled:opacity-50"
+              >
+                {selecionandoTodos ? "A carregar…" : "Rascunhos do filtro"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void selecionarTodosWhatsAppDoFiltro()}
+                disabled={actionLoading || selecionandoTodos}
+                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition hover:bg-white/10 disabled:opacity-50"
+              >
+                {selecionandoTodos ? "A carregar…" : "Emitidos (WhatsApp)"}
+              </button>
+              <button
+                type="button"
+                onClick={abrirRegistrarLote}
+                disabled={
+                  actionLoading || selecionandoTodos || titulosRegistraveisSelecionados.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:opacity-50"
+              >
+                <FileCheck size={14} />
+                Registrar em lote
+              </button>
+              <button
+                type="button"
+                onClick={abrirWhatsAppLote}
+                disabled={
+                  actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-emerald-200 transition hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                <MessageCircle size={14} />
+                Enviar WhatsApp
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <DashboardDataTableShell>
           <DataTable
             value={pageData?.content ?? []}
@@ -917,7 +1213,19 @@ export function TitulosList({
             className={DASHBOARD_DATATABLE_CLASS}
             pt={TABLE_PT}
             rowHover
+            selection={selectedTitulos}
+            selectionMode="checkbox"
+            onSelectionChange={(e) => {
+              const next = (e.value ?? []) as TituloCobranca[];
+              if (next.length > LOTE_MAX) {
+                toast.error(`Selecione no máximo ${LOTE_MAX} títulos por operação.`);
+                return;
+              }
+              setSelectedTitulos(next.filter((t) => tituloSelecionavel(t.status)));
+            }}
+            isDataSelectable={(e) => tituloSelecionavel((e.data as TituloCobranca).status)}
           >
+            <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
             {!embedded ? (
               <Column
                 header="Contrato"
@@ -991,6 +1299,24 @@ export function TitulosList({
           }
           convenioNome={tituloParaRegistrar?.convenioNome}
           onConfirm={() => void confirmarRegistrar()}
+          loading={actionLoading}
+        />
+
+        <TituloRegistrarLoteDialog
+          visible={registrarLoteDialogOpen}
+          onHide={fecharRegistrarLoteDialog}
+          titulos={titulosRegistraveisSelecionados}
+          resultado={registrarLoteResultado}
+          onConfirm={() => void confirmarRegistrarLote()}
+          loading={actionLoading}
+        />
+
+        <TituloWhatsAppLoteDialog
+          visible={whatsappLoteDialogOpen}
+          onHide={fecharWhatsAppLoteDialog}
+          titulos={titulosWhatsAppSelecionados}
+          resultado={whatsappLoteResultado}
+          onConfirm={() => void confirmarWhatsAppLote()}
           loading={actionLoading}
         />
       </div>

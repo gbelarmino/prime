@@ -666,6 +666,48 @@ export function getFinTitulosLoteUrl(): string {
   return `${getFinTitulosUrl()}/lote`;
 }
 
+export function getFinTitulosRegistrarLoteUrl(): string {
+  return `${getFinTitulosUrl()}/registrar/lote`;
+}
+
+export function getFinTitulosWhatsAppCobrancaParcelaLoteUrl(): string {
+  return `${getFinTitulosUrl()}/whatsapp/cobranca-parcela/lote`;
+}
+
+export function getFinTitulosIdsElegiveisWhatsAppUrl(opts?: FinTitulosListFilters): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  const params = new URLSearchParams();
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
+  if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
+  if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
+  if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
+  if (opts?.lote != null) params.set("lote", String(opts.lote));
+  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
+  if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
+  if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  const qs = params.toString();
+  return qs ? `${base}/ids-elegiveis-whatsapp?${qs}` : `${base}/ids-elegiveis-whatsapp`;
+}
+
+export function getFinTitulosIdsElegiveisRegistroUrl(opts?: FinTitulosListFilters): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  const params = new URLSearchParams();
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
+  if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
+  if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
+  if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
+  if (opts?.lote != null) params.set("lote", String(opts.lote));
+  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
+  if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
+  if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  const qs = params.toString();
+  return qs ? `${base}/ids-elegiveis-registro?${qs}` : `${base}/ids-elegiveis-registro`;
+}
+
 export type FinTitulosListFilters = {
   status?: string;
   contratoId?: number;
@@ -741,6 +783,10 @@ export function getFinTituloAvulsoUrl(): string {
 
 export function getFinTituloRegistrarUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/registrar`;
+}
+
+export function getFinTituloWhatsAppCobrancaParcelaUrl(id: string): string {
+  return `${getFinTituloByIdUrl(id)}/whatsapp/cobranca-parcela`;
 }
 
 export function getFinTituloCancelarUrl(id: string): string {

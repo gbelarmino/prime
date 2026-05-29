@@ -40,8 +40,13 @@ import {
   getFinTituloLiquidarUrl,
   getFinTituloPdfUrl,
   getFinTituloRegistrarUrl,
+  getFinTituloWhatsAppCobrancaParcelaUrl,
+  getFinTitulosIdsElegiveisWhatsAppUrl,
+  getFinTitulosWhatsAppCobrancaParcelaLoteUrl,
   getFinTitulosListUrl,
   getFinTitulosLoteUrl,
+  getFinTitulosIdsElegiveisRegistroUrl,
+  getFinTitulosRegistrarLoteUrl,
   getFinTitulosUrl,
   getFinTituloAvulsoUrl,
   getFinTituloContextoLoteUrl,
@@ -99,6 +104,45 @@ export interface TituloHistoricoItem {
   usuarioId?: number | null;
   usuarioNome?: string | null;
   eventoEm: string;
+}
+
+export interface TituloRegistrarLoteItem {
+  tituloId: string;
+  sucesso: boolean;
+  mensagem?: string | null;
+  titulo?: TituloCobranca | null;
+}
+
+export interface TituloRegistrarLoteResult {
+  total: number;
+  registrados: number;
+  falhas: number;
+  itens: TituloRegistrarLoteItem[];
+}
+
+export interface TituloIdsElegiveisRegistro {
+  ids: string[];
+  total: number;
+}
+
+export interface TituloWhatsAppCobrancaResult {
+  enfileirado: boolean;
+  filaId?: number | null;
+  mensagem?: string | null;
+}
+
+export interface TituloWhatsAppCobrancaLoteItem {
+  tituloId: string;
+  enfileirado: boolean;
+  filaId?: number | null;
+  mensagem?: string | null;
+}
+
+export interface TituloWhatsAppCobrancaLoteResult {
+  total: number;
+  enfileirados: number;
+  falhas: number;
+  itens: TituloWhatsAppCobrancaLoteItem[];
 }
 
 export interface ConvenioBanco {
@@ -632,6 +676,89 @@ export const finService = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
+    });
+    return parseJson(res);
+  },
+
+  async listTitulosIdsElegiveisRegistro(
+    filters?: {
+      status?: string;
+      contratoId?: number;
+      imovelId?: number;
+      empreendimento?: string;
+      quadra?: string;
+      lote?: number;
+      contrato?: string;
+      nome?: string;
+      cpf?: string;
+    },
+    options?: FinFetchOptions,
+  ): Promise<TituloIdsElegiveisRegistro> {
+    const url = getFinTitulosIdsElegiveisRegistroUrl({
+      status: filters?.status,
+      contratoId: filters?.contratoId,
+      imovelId: filters?.imovelId,
+      empreendimento: filters?.empreendimento,
+      quadra: filters?.quadra,
+      lote: filters?.lote,
+      contrato: filters?.contrato,
+      nome: filters?.nome,
+      cpf: filters?.cpf,
+    });
+    const res = await apiFetch(url, { skipLoading: options?.skipLoading });
+    return parseJson(res);
+  },
+
+  async registrarTitulosEmLote(tituloIds: string[]): Promise<TituloRegistrarLoteResult> {
+    const res = await apiFetch(getFinTitulosRegistrarLoteUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tituloIds }),
+    });
+    return parseJson(res);
+  },
+
+  async enfileirarWhatsAppCobrancaParcela(id: string): Promise<TituloWhatsAppCobrancaResult> {
+    const res = await apiFetch(getFinTituloWhatsAppCobrancaParcelaUrl(id), { method: "POST" });
+    return parseJson(res);
+  },
+
+  async listTitulosIdsElegiveisWhatsApp(
+    filters?: {
+      status?: string;
+      contratoId?: number;
+      imovelId?: number;
+      empreendimento?: string;
+      quadra?: string;
+      lote?: number;
+      contrato?: string;
+      nome?: string;
+      cpf?: string;
+    },
+    options?: FinFetchOptions,
+  ): Promise<TituloIdsElegiveisRegistro> {
+    const url = getFinTitulosIdsElegiveisWhatsAppUrl({
+      status: filters?.status,
+      contratoId: filters?.contratoId,
+      imovelId: filters?.imovelId,
+      empreendimento: filters?.empreendimento,
+      quadra: filters?.quadra,
+      lote: filters?.lote,
+      contrato: filters?.contrato,
+      nome: filters?.nome,
+      cpf: filters?.cpf,
+    });
+    const res = await apiFetch(url, { skipLoading: options?.skipLoading });
+    return parseJson(res);
+  },
+
+  async enfileirarWhatsAppCobrancaParcelaEmLote(
+    tituloIds: string[],
+  ): Promise<TituloWhatsAppCobrancaLoteResult> {
+    const res = await apiFetch(getFinTitulosWhatsAppCobrancaParcelaLoteUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tituloIds }),
     });
     return parseJson(res);
   },
