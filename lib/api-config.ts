@@ -20,6 +20,7 @@ const API_PATHS = {
   notificacoes: "/api/notificacoes",
   parametros: "/api/parametros",
   whatsapp: "/api/whatsapp",
+  email: "/api/email",
   finTitulos: "/api/fin/titulos",
   finLancamentos: "/api/fin/lancamentos",
   finPorImovel: "/api/fin/por-imovel",
@@ -650,6 +651,70 @@ export function getWhatsAppFilaReprocessarUrl(filaId: number): string {
 
 export function getWhatsAppFilaCancelarUrl(filaId: number): string {
   const base = getWhatsAppUrl();
+  if (!base) return "";
+  return `${base}/fila/${filaId}/cancelar`;
+}
+
+// ---------------------------------------------------------------------------
+// E-mail (SMTP / gatilhos)
+// ---------------------------------------------------------------------------
+
+export function getEmailUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.email);
+}
+
+export function getEmailSmtpUrl(): string {
+  return `${getEmailUrl()}/smtp`;
+}
+
+export function getEmailSmtpTesteUrl(): string {
+  return `${getEmailUrl()}/smtp/teste`;
+}
+
+export function getEmailEnvioTesteUrl(): string {
+  return `${getEmailUrl()}/envio-teste`;
+}
+
+export function getEmailTemplatesUrl(): string {
+  return `${getEmailUrl()}/templates`;
+}
+
+export function getEmailGatilhosUrl(): string {
+  return `${getEmailUrl()}/gatilhos`;
+}
+
+export function getEmailEventosCatalogoUrl(): string {
+  return `${getEmailUrl()}/eventos-catalogo`;
+}
+
+export function getEmailEventoPlaceholdersUrl(codigo: string): string {
+  const c = encodeURIComponent(codigo.trim());
+  return `${getEmailUrl()}/eventos-catalogo/${c}/placeholders`;
+}
+
+export function getEmailTesteEventoUrl(evento: string): string {
+  return `${getEmailUrl()}/teste-eventos/${encodeURIComponent(evento.trim())}`;
+}
+
+export function getEmailFilaUrl(page = 0, size = 25, status?: string): string {
+  const base = getEmailUrl();
+  if (!base) return "";
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  if (status?.trim()) params.set("status", status.trim());
+  return `${base}/fila?${params.toString()}`;
+}
+
+export function getEmailFilaReprocessarUrl(filaId: number): string {
+  const base = getEmailUrl();
+  if (!base) return "";
+  return `${base}/fila/${filaId}/reprocessar`;
+}
+
+export function getEmailFilaCancelarUrl(filaId: number): string {
+  const base = getEmailUrl();
   if (!base) return "";
   return `${base}/fila/${filaId}/cancelar`;
 }

@@ -93,6 +93,7 @@ type MenuGroupItem = {
 
 const ATENDIMENTO_MENU_PREFIX = "/dashboard/atendimento";
 const WHATSAPP_MENU_PREFIX = "/dashboard/whatsapp";
+const EMAIL_MENU_PREFIX = "/dashboard/email";
 
 const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
   { kind: "link", href: ADMIN_DASHBOARD_HOME, label: "Início", icon: Home, roles: ["ADMIN"] },
@@ -191,6 +192,21 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
       { href: "/dashboard/whatsapp/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
       { href: "/dashboard/whatsapp/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
       { href: "/dashboard/whatsapp/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN"] },
+    ],
+  },
+  {
+    kind: "group",
+    label: "E-mail",
+    icon: Mail,
+    roles: ["ADMIN"],
+    prefix: EMAIL_MENU_PREFIX,
+    children: [
+      { href: "/dashboard/email/conta", label: "Conta SMTP", icon: Mail, roles: ["ADMIN"] },
+      { href: "/dashboard/email/modelos", label: "Modelos de e-mail", icon: FileText, roles: ["ADMIN"] },
+      { href: "/dashboard/email/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
+      { href: "/dashboard/email/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
+      { href: "/dashboard/email/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
+      { href: "/dashboard/email/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN"] },
     ],
   },
 ];
