@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { RefreshCw, Search, UserCheck, Users, X } from "lucide-react";
 import {
   whatsappService,
+  WHATSAPP_TITULO_COBRANCA_TESTE_ID,
   type ContratanteListItem,
   type EventoSistemaCatalogo,
   type WhatsAppGatilho,
@@ -324,6 +325,14 @@ export function WhatsAppTesteEventos() {
                       {!pronto ? (
                         <p className="pt-1 text-xs leading-relaxed text-amber-300/80">
                           Configure gatilho activo e modelo em Gatilhos automáticos.
+                        </p>
+                      ) : null}
+                      {ev.codigo === "COBRANCA_PARCELA" && pronto ? (
+                        <p className="pt-1 text-xs leading-relaxed text-white/40">
+                          Anexo: PDF do título{" "}
+                          <span className="font-mono text-[10px] text-white/55">
+                            {WHATSAPP_TITULO_COBRANCA_TESTE_ID}
+                          </span>
                         </p>
                       ) : null}
                     </div>

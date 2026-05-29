@@ -116,6 +116,9 @@ export interface ContratanteListItem {
   telefoneCelular1: string | null;
 }
 
+/** Título cujo PDF é anexado no teste de COBRANCA_PARCELA. */
+export const WHATSAPP_TITULO_COBRANCA_TESTE_ID = "7089f832-12cc-4648-b5ba-94ecc8033f55";
+
 export const whatsappService = {
   async listLinhas(): Promise<WhatsAppLinha[]> {
     const res = await apiFetch(getWhatsAppLinhasUrl());
@@ -293,11 +296,18 @@ export const whatsappService = {
   async dispararTesteEvento(
     evento: string,
     contratanteIds: number[],
+    options?: { tituloCobrancaId?: string | null },
   ): Promise<WhatsAppEventoTesteResult> {
+    const body: { contratanteIds: number[]; tituloCobrancaId?: string } = {
+      contratanteIds,
+    };
+    if (evento === "COBRANCA_PARCELA") {
+      body.tituloCobrancaId = options?.tituloCobrancaId ?? WHATSAPP_TITULO_COBRANCA_TESTE_ID;
+    }
     const res = await apiFetch(getWhatsAppTesteEventoUrl(evento), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contratanteIds }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       let msg = "Erro ao disparar evento";
