@@ -243,3 +243,11 @@ export function contratoToApiPayload(values: ContratoHonorariosFormValues): Reco
     condicoes,
   };
 }
+
+/** Payload aninhado `condicoes` para aditivo / versão de condições. */
+export function condicoesToApiPayload(
+  values: ContratoHonorariosFormValues,
+): Record<string, unknown> {
+  const full = contratoToApiPayload(values);
+  return full.condicoes as Record<string, unknown>;
+}

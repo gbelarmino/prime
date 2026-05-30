@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Percent
 } from "lucide-react";
+import Link from "next/link";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { Divider } from "primereact/divider";
 import { Button } from "primereact/button";
@@ -24,6 +25,11 @@ import { apiFetch } from "@/lib/api-fetch";
 import { getContratoHonorariosByIdUrl } from "@/lib/api-config";
 import { cn } from "@/lib/utils";
 import type { ContratoHonorariosApiResponse } from "@/lib/validations/contrato-honorarios";
+import { canAccessContratoRenegociacao } from "@/lib/auth-storage";
+import {
+  buildRenegociacaoDashboardUrl,
+  MODALIDADE_ATALHO_ADITIVO,
+} from "@/lib/renegociacao-routes";
 
 type Props = {
   contratoId: number | null;
@@ -271,6 +277,27 @@ export function ContratoViewModal({ contratoId, onClose }: Props) {
           )}
 
           <div className="flex justify-end gap-3 pt-4 pb-8">
+            {data.status === "8" && canAccessContratoRenegociacao() && contratoId && (
+              <>
+                <Link
+                  href={buildRenegociacaoDashboardUrl({ contratoId })}
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-2xl font-bold bg-violet-600/20 border border-violet-500/30 text-violet-300 hover:bg-violet-600/30 transition-all no-underline text-sm"
+                  onClick={onClose}
+                >
+                  Renegociar
+                </Link>
+                <Link
+                  href={buildRenegociacaoDashboardUrl({
+                    contratoId,
+                    modalidade: MODALIDADE_ATALHO_ADITIVO,
+                  })}
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-2xl font-bold bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30 transition-all no-underline text-sm"
+                  onClick={onClose}
+                >
+                  Aditivo (saldo devedor)
+                </Link>
+              </>
+            )}
             <Button 
               label="Fechar" 
               onClick={onClose} 

@@ -376,6 +376,101 @@ export function getContratoHonorariosPdfAssinadoUploadUrl(id: number): string {
   return `${base}/${id}/pdf-assinado`;
 }
 
+/** Base REST de versões de condições financeiras (aditivo). */
+export function getContratoCondicoesBaseUrl(contratoId: number): string {
+  const base = getContratoHonorariosUrl();
+  if (!base) return "";
+  return `${base}/${contratoId}/condicoes`;
+}
+
+export function getContratoCondicoesVersoesUrl(contratoId: number): string {
+  const b = getContratoCondicoesBaseUrl(contratoId);
+  return b ? `${b}/versoes` : "";
+}
+
+export function getContratoCondicoesSimularUrl(contratoId: number): string {
+  const b = getContratoCondicoesBaseUrl(contratoId);
+  return b ? `${b}/simular` : "";
+}
+
+export function getContratoCondicoesRascunhoUrl(contratoId: number): string {
+  const b = getContratoCondicoesBaseUrl(contratoId);
+  return b ? `${b}/rascunho` : "";
+}
+
+export function getContratoCondicoesAprovarReducaoUrl(contratoId: number, versaoId: number): string {
+  const b = getContratoCondicoesBaseUrl(contratoId);
+  return b ? `${b}/${versaoId}/aprovar-reducao` : "";
+}
+
+export function getContratoCondicoesAditivoPdfUrl(contratoId: number, versaoId: number): string {
+  const b = getContratoCondicoesBaseUrl(contratoId);
+  return b ? `${b}/${versaoId}/aditivo-pdf` : "";
+}
+
+export function getContratoCondicoesPublicarUrl(contratoId: number, versaoId: number): string {
+  const b = getContratoCondicoesBaseUrl(contratoId);
+  return b ? `${b}/${versaoId}/publicar` : "";
+}
+
+// ---------------------------------------------------------------------------
+// Renegociação (módulo unificado — OpenAPI docs/modulo-renegociacao/openapi.yaml)
+// ---------------------------------------------------------------------------
+
+export function getRenegociacaoBaseUrl(contratoId: number): string {
+  const base = getContratoHonorariosUrl();
+  if (!base) return "";
+  return `${base}/${contratoId}/renegociacoes`;
+}
+
+export function getRenegociacaoSimularUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/simular` : "";
+}
+
+export function getRenegociacaoCancelarUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/cancelar` : "";
+}
+
+export function getRenegociacaoPropostaUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/proposta` : "";
+}
+
+export function getRenegociacaoAprovarUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/aprovar` : "";
+}
+
+export function getRenegociacaoRejeitarUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/rejeitar` : "";
+}
+
+export function getRenegociacaoGerarDocumentosUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/documentos/gerar` : "";
+}
+
+export function getRenegociacaoSubmeterAprovacaoUrl(
+  contratoId: number,
+  renegociacaoId: number,
+): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/submeter-aprovacao` : "";
+}
+
+export function getRenegociacaoEfetivarUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/efetivar` : "";
+}
+
+export function getRenegociacaoAuditoriaUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/auditoria` : "";
+}
+
 // ---------------------------------------------------------------------------
 // Documentos do contratante
 // ---------------------------------------------------------------------------

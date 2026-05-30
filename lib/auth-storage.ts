@@ -162,6 +162,30 @@ export function canRegistrarContratoLegado(): boolean {
   return isAdmin() || isAdministrativo();
 }
 
+const CONTRATO_ADITIVO_PATH = "/dashboard/contratos/aditivo";
+const CONTRATO_RENEGOCIACAO_PATH = "/dashboard/contratos/renegociacao";
+
+/** Wizard de aditivo / versão de condições — admin, atendimento e administrativo. */
+export function canAccessContratoAditivo(): boolean {
+  const r = getUserRole();
+  return r === "ADMIN" || r === "ATENDIMENTO" || r === "ADMINISTRATIVO";
+}
+
+/** Módulo unificado de renegociação — mesmas permissões do aditivo. */
+export function canAccessContratoRenegociacao(): boolean {
+  return canAccessContratoAditivo();
+}
+
+function isContratoAditivoPath(pathname: string): boolean {
+  return pathname === CONTRATO_ADITIVO_PATH || pathname.startsWith(`${CONTRATO_ADITIVO_PATH}?`);
+}
+
+function isContratoRenegociacaoPath(pathname: string): boolean {
+  return (
+    pathname === CONTRATO_RENEGOCIACAO_PATH || pathname.startsWith(`${CONTRATO_RENEGOCIACAO_PATH}?`)
+  );
+}
+
 function isAtendimentoPath(pathname: string): boolean {
   return pathname === ATENDIMENTO_PATH_PREFIX || pathname.startsWith(`${ATENDIMENTO_PATH_PREFIX}/`);
 }
@@ -207,7 +231,12 @@ function isAdministrativoAllowedPath(pathname: string): boolean {
 export function canAccessDashboardPath(pathname: string, role?: string | null): boolean {
   const r = role ?? getUserRole();
   if (r === "ATENDIMENTO") {
-    return isAtendimentoPath(pathname) || isWhatsAppConexaoPath(pathname);
+    return (
+      isAtendimentoPath(pathname) ||
+      isWhatsAppConexaoPath(pathname) ||
+      isContratoAditivoPath(pathname) ||
+      isContratoRenegociacaoPath(pathname)
+    );
   }
   if (r === "ADMINISTRATIVO") {
     return isAdministrativoAllowedPath(pathname);

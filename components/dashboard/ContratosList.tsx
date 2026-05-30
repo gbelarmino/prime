@@ -11,6 +11,7 @@ import {
   FileText,
   Check,
   X,
+  FilePlus,
   History,
   Send,
   MoreHorizontal,
@@ -46,7 +47,11 @@ import {
   DASHBOARD_SEARCH_ICON_HEADER_CLASS,
   DASHBOARD_SEARCH_INPUT_HEADER_CLASS,
 } from "@/lib/dashboard-datatable";
-import { getUserRole } from "@/lib/auth-storage";
+import { getUserRole, canAccessContratoRenegociacao } from "@/lib/auth-storage";
+import {
+  buildRenegociacaoDashboardUrl,
+  MODALIDADE_ATALHO_ADITIVO,
+} from "@/lib/renegociacao-routes";
 import { apiFetch } from "@/lib/api-fetch";
 import { ContratoTimeline } from "@/components/dashboard/ContratoTimeline";
 import { downloadContratoPdf, downloadContratoPdfAssinado } from "@/lib/download-contrato-pdf";
@@ -465,6 +470,50 @@ export function ContratosList() {
           ),
         });
       }
+    }
+
+    if (isAssinado && canAccessContratoRenegociacao()) {
+      items.push({
+        label: "Aditivo (saldo devedor)",
+        icon: "pi pi-file-edit",
+        template: (item: { label: string }) => (
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                buildRenegociacaoDashboardUrl({
+                  contratoId: r.id,
+                  modalidade: MODALIDADE_ATALHO_ADITIVO,
+                }),
+              )
+            }
+            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-500/10 transition-colors group"
+          >
+            <FilePlus size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold uppercase tracking-widest text-blue-400/80 text-left whitespace-nowrap">
+              {item.label}
+            </span>
+          </button>
+        ),
+      });
+      items.push({
+        label: "Renegociar",
+        icon: "pi pi-refresh",
+        template: (item: { label: string }) => (
+          <button
+            type="button"
+            onClick={() =>
+              router.push(buildRenegociacaoDashboardUrl({ contratoId: r.id }))
+            }
+            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-violet-500/10 transition-colors group"
+          >
+            <FilePlus size={16} className="text-violet-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold uppercase tracking-widest text-violet-400/80 text-left whitespace-nowrap">
+              {item.label}
+            </span>
+          </button>
+        ),
+      });
     }
 
     // Ações de Corretor (fluxo digital apenas)

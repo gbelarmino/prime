@@ -4,11 +4,21 @@ import { motion } from "framer-motion";
 import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+type FormSectionAccent = "blue" | "amber" | "emerald";
+
+const ACCENT_BAR: Record<FormSectionAccent, string> = {
+  blue: "bg-blue-500",
+  amber: "bg-amber-500",
+  emerald: "bg-emerald-500",
+};
+
 interface FormSectionProps {
   title?: string;
   description?: string;
   children: ReactNode;
   className?: string;
+  accent?: FormSectionAccent;
+  contentClassName?: string;
 }
 
 export function FormSection({
@@ -16,6 +26,8 @@ export function FormSection({
   description,
   children,
   className,
+  accent = "blue",
+  contentClassName,
 }: FormSectionProps) {
   return (
     <section
@@ -27,7 +39,7 @@ export function FormSection({
       {title && (
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-6 w-1 bg-blue-500 rounded-full" />
+            <div className={cn("h-6 w-1 rounded-full", ACCENT_BAR[accent])} />
             <h3 className="font-[family-name:var(--font-playfair)] text-2xl font-bold text-white">
               {title}
             </h3>
@@ -39,7 +51,7 @@ export function FormSection({
           )}
         </div>
       )}
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+      <div className={cn("grid grid-cols-1 gap-8 md:grid-cols-2", contentClassName)}>
         {children}
       </div>
     </section>

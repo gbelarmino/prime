@@ -42,6 +42,7 @@ import {
   TrendingUp,
   Calculator,
   Kanban,
+  RefreshCw,
 } from "lucide-react";
 import { Menu } from "primereact/menu";
 import { AppLogo } from "@/components/AppLogo";
@@ -141,6 +142,13 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     label: "Contratos",
     icon: FileText,
     roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
+  },
+  {
+    kind: "link",
+    href: "/dashboard/contratos/renegociacao",
+    label: "Renegociação",
+    icon: RefreshCw,
+    roles: ["ADMIN", "ATENDIMENTO", "ADMINISTRATIVO"],
   },
   {
     kind: "group",
