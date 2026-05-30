@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FileSignature } from "lucide-react";
 import { ClicksignList } from "@/components/dashboard/ClicksignList";
+import { ClicksignPdfResyncCard } from "@/components/dashboard/ClicksignPdfResyncCard";
 
 export default function ClicksignPage() {
   return (
@@ -27,6 +28,10 @@ export default function ClicksignPage() {
           <FileSignature className="h-4 w-4" />
           Termo assinatura automática
         </Link>
+      </div>
+
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-75">
+        <ClicksignPdfResyncCard />
       </div>
 
       {/* Listagem */}

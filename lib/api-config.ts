@@ -497,6 +497,28 @@ export function getClicksignAutoSignatureTermUrl(): string {
   return `${base}/api/clicksign/auto-signature/terms`;
 }
 
+export function getClicksignResyncPdfsUrl(): string {
+  const base = getApiBaseUrl();
+  if (!base) return "";
+  return `${base}/api/clicksign/resincronizar-pdfs-assinados`;
+}
+
+export type ClicksignPdfResyncLogLine = {
+  nivel: "INFO" | "SUCESSO" | "AVISO" | "ERRO" | string;
+  mensagem: string;
+  contratoId: number | null;
+  numeroContrato: string | null;
+};
+
+export type ClicksignPdfResyncResponse = {
+  totalContratos: number;
+  baixados: number;
+  ignorados: number;
+  falhas: number;
+  diretorioUpload: string;
+  logs: ClicksignPdfResyncLogLine[];
+};
+
 export type AutoSignatureTermPayload = {
   nome: string;
   email: string;
