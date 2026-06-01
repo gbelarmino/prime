@@ -39,12 +39,23 @@ export type MemoriaCalculo = {
   vlDesconto?: number;
   vlTotal?: number;
   vlValorPresente?: number;
-  itens?: {
-    tituloId?: string;
-    numeroParcela?: number;
-    componente?: string;
-    valor?: number;
-  }[];
+  itens?: MemoriaCalculoItem[];
+};
+
+export type MemoriaCalculoItem = {
+  tituloId?: string;
+  numeroParcela?: number;
+  componente?: string;
+  valor?: number;
+  vencimento?: string;
+  diasAtraso?: number;
+  valorNominal?: number;
+  valorMulta?: number;
+  valorJuros?: number;
+  valorPresente?: number;
+  multaPercentual?: number;
+  jurosMensalPercentual?: number;
+  memoria?: string;
 };
 
 export type ParcelaFluxo = {
@@ -69,6 +80,28 @@ export type RenegociacaoResumo = {
   criadoEm: string;
 };
 
+/** Item da listagem global (GET /api/renegociacoes/consulta). */
+export type RenegociacaoConsultaItem = {
+  id: number;
+  contratoId: number;
+  numeroContrato: string | null;
+  contratanteNome: string;
+  modalidade: ModalidadeRenegociacao;
+  status: StatusRenegociacao;
+  versaoPublicadaId?: number | null;
+  criadoEm: string;
+  atualizadoEm: string;
+  usuarioCriacaoId?: number | null;
+  usuarioCriacaoNome?: string | null;
+};
+
+/** Cancelável apenas se ainda não foi efetivada (nem já cancelada/revertida). */
+export function renegociacaoPodeSerCancelada(status: StatusRenegociacao): boolean {
+  return (
+    status !== "EFETIVADO" && status !== "CANCELADO" && status !== "REVERTIDO"
+  );
+}
+
 export type RenegociacaoDetalhe = RenegociacaoResumo & {
   motivo?: string | null;
   justificativa?: string | null;
@@ -86,6 +119,8 @@ export type CriarRenegociacaoRequest = {
 };
 
 export type SimularRenegociacaoRequest = {
+  /** Alinha o processo à modalidade do wizard (evita processo antigo com T1 gravado). */
+  modalidade?: ModalidadeRenegociacao;
   parcelaInicial?: number;
   dataCorte?: string;
   valorEntrada?: number;
@@ -167,6 +202,18 @@ export const MODALIDADE_OPTIONS: {
   },
 ];
 
+/** Status em que não é permitido abrir outro processo no mesmo contrato. */
+export const STATUS_RENEGOCIACAO_TERMINAIS: StatusRenegociacao[] = [
+  "EFETIVADO",
+  "CANCELADO",
+  "REVERTIDO",
+  "PROPOSTA_REJEITADA",
+];
+
+export function renegociacaoEstaAtiva(status: StatusRenegociacao): boolean {
+  return !STATUS_RENEGOCIACAO_TERMINAIS.includes(status);
+}
+
 export const STATUS_RENEGOCIACAO_LABEL: Record<StatusRenegociacao, string> = {
   RASCUNHO: "Rascunho",
   SIMULACAO: "Em simulação",
@@ -180,3 +227,22 @@ export const STATUS_RENEGOCIACAO_LABEL: Record<StatusRenegociacao, string> = {
   CANCELADO: "Cancelado",
   REVERTIDO: "Revertido",
 };
+
+/** Tons de badge por código de status (uso com `dashboardStatusBadge(label, map, status)`). */
+export const STATUS_RENEGOCIACAO_TONES: Record<StatusRenegociacao, string> = {
+  RASCUNHO: "border-white/15 bg-white/10 text-white/50",
+  SIMULACAO: "border-sky-500/30 bg-sky-500/15 text-sky-200",
+  PROPOSTA_PENDENTE: "border-amber-500/30 bg-amber-500/15 text-amber-200",
+  PROPOSTA_APROVADA: "border-emerald-500/30 bg-emerald-500/15 text-emerald-200",
+  PROPOSTA_REJEITADA: "border-rose-500/30 bg-rose-500/15 text-rose-200",
+  AGUARDANDO_DOCUMENTOS: "border-violet-500/30 bg-violet-500/15 text-violet-200",
+  AGUARDANDO_ASSINATURA: "border-cyan-500/30 bg-cyan-500/15 text-cyan-200",
+  ASSINADO: "border-teal-500/30 bg-teal-500/15 text-teal-200",
+  EFETIVADO: "border-emerald-500/35 bg-emerald-600/20 text-emerald-100",
+  CANCELADO: "border-white/15 bg-white/10 text-white/40",
+  REVERTIDO: "border-orange-500/25 bg-orange-500/10 text-orange-200/90",
+};
+
+export function renegociacaoStatusLabel(status: StatusRenegociacao): string {
+  return STATUS_RENEGOCIACAO_LABEL[status] ?? status;
+}

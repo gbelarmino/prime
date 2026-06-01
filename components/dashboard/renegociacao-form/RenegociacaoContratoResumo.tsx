@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
@@ -11,7 +12,14 @@ import {
   dashboardDataTablePt,
   dashboardStatusBadge,
 } from "@/lib/dashboard-datatable";
+import { textoSaldoDevedorComMemoria } from "@/lib/atendimento-saldo-memoria";
 import type { AtendimentoResumoFinanceiro, AtendimentoTituloResumo } from "@/lib/atendimento-service";
+import { fetchBoletoEncargosConfig, type BoletoEncargosConfig } from "@/lib/fin-memorial-calculo";
+import {
+  agregarInadimplenciaPresente,
+  titulosVencidosDoPainel,
+} from "@/lib/renegociacao-inadimplencia-presente";
+import { InadimplenciaPresenteCard } from "@/components/dashboard/renegociacao-form/InadimplenciaPresenteCard";
 import type { ContratoHonorariosApiResponse } from "@/lib/validations/contrato-honorarios";
 import { cn } from "@/lib/utils";
 
@@ -60,7 +68,17 @@ function ResumoField({ label, value, className }: { label: string; value: string
   );
 }
 
-function Metric({ label, value, highlight }: { label: string; value: string; highlight?: "emerald" | "amber" | "rose" }) {
+function Metric({
+  label,
+  value,
+  highlight,
+  compactValue,
+}: {
+  label: string;
+  value: string;
+  highlight?: "emerald" | "amber" | "rose";
+  compactValue?: boolean;
+}) {
   const valueClass =
     highlight === "emerald"
       ? "text-emerald-300"
@@ -73,7 +91,13 @@ function Metric({ label, value, highlight }: { label: string; value: string; hig
   return (
     <div className="flex min-h-[5rem] min-w-0 flex-col justify-between rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
       <span className="text-[10px] font-bold uppercase leading-tight tracking-wider text-white/40">{label}</span>
-      <p className={cn("mt-2 break-words font-mono text-sm font-semibold leading-tight md:text-base", valueClass)}>
+      <p
+        className={cn(
+          "mt-2 break-words font-mono font-semibold leading-tight",
+          compactValue ? "text-xs sm:text-sm" : "text-sm md:text-base",
+          valueClass,
+        )}
+      >
         {value}
       </p>
     </div>
@@ -99,14 +123,48 @@ export function RenegociacaoContratoResumo({ contrato, financeiro, financeiroCar
   const c = contrato.condicoes;
   const localAssinatura = [contrato.cidadeAssinatura, contrato.ufAssinatura].filter(Boolean).join("/");
   const titulosPagos = financeiro?.titulosPagos ?? [];
+  const [encargos, setEncargos] = useState<BoletoEncargosConfig | null>(null);
 
-  const financeMetrics: { label: string; value: string; highlight?: "emerald" | "amber" | "rose" }[] = financeiro
+  useEffect(() => {
+    fetchBoletoEncargosConfig()
+      .then(setEncargos)
+      .catch(() =>
+        setEncargos({ multaPercentual: 2, jurosMensalPercentual: 1 }),
+      );
+  }, []);
+
+  const inadimplenciaPresente = useMemo(() => {
+    if (!financeiro || !encargos) return null;
+    const vencidos = titulosVencidosDoPainel(
+      financeiro.titulosAbertos,
+      financeiro.titulosVencidos,
+    );
+    return agregarInadimplenciaPresente(vencidos, encargos);
+  }, [financeiro, encargos]);
+
+  const saldoDevedorTexto = financeiro
+    ? textoSaldoDevedorComMemoria(financeiro, c.valorParcela ?? undefined)
+    : "—";
+
+  const financeMetrics: {
+    label: string;
+    value: string;
+    highlight?: "emerald" | "amber" | "rose";
+    compactValue?: boolean;
+  }[] = financeiro
     ? [
         { label: "Valor total do contrato", value: formatBrl(financeiro.valorTotalContrato) },
         { label: "Total pago", value: formatBrl(financeiro.totalPago), highlight: "emerald" },
-        { label: "Saldo devedor", value: formatBrl(financeiro.saldoDevedor), highlight: "amber" },
-        { label: "Inadimplência", value: formatBrl(financeiro.valorInadimplente), highlight: "rose" },
-        { label: "Quitação", value: `${financeiro.percentualQuitacao}%` },
+        {
+          label: "Saldo devedor",
+          value: saldoDevedorTexto,
+          highlight: "amber",
+          compactValue: true,
+        },
+        {
+          label: "Quitação",
+          value: `${financeiro.percentualQuitacao}% (${financeiro.parcelasPagas}/${financeiro.parcelasTotal} parc.)`,
+        },
         {
           label: "Parcelas pagas",
           value: `${financeiro.parcelasPagas} / ${financeiro.parcelasTotal}`,
@@ -122,13 +180,6 @@ export function RenegociacaoContratoResumo({ contrato, financeiro, financeiroCar
   const condicoesMetrics: { label: string; value: string }[] = [
     { label: "Valor negociação", value: formatBrl(c.valorNegociacao) },
     { label: "Valor lote", value: formatBrl(c.valorLote) },
-    { label: "Comissão corretagem", value: formatBrl(c.valorComissaoCorretagem) },
-    { label: "Honorário entrada", value: formatBrl(c.valorHonorarioEntrada) },
-    { label: "Parcela honorário entrada", value: formatBrl(c.valorParcelaHonorarioEntrada) },
-    {
-      label: "Parcelas entrada",
-      value: c.numParcelasMensaisEntrada != null ? String(c.numParcelasMensaisEntrada) : "—",
-    },
     { label: "Valor parcela mensal", value: formatBrl(c.valorParcela) },
     {
       label: "Qtd. parcelas mensais",
@@ -171,8 +222,20 @@ export function RenegociacaoContratoResumo({ contrato, financeiro, financeiroCar
         ) : financeiro ? (
           <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4">
             {financeMetrics.map((m) => (
-              <Metric key={m.label} label={m.label} value={m.value} highlight={m.highlight} />
+              <Metric
+                key={m.label}
+                label={m.label}
+                value={m.value}
+                highlight={m.highlight}
+                compactValue={m.compactValue}
+              />
             ))}
+            <div className="col-span-2 sm:col-span-4">
+              <InadimplenciaPresenteCard
+                agregado={inadimplenciaPresente}
+                nominalPainel={financeiro.valorInadimplente}
+              />
+            </div>
           </div>
         ) : (
           <p className="text-sm text-white/40">
@@ -228,7 +291,7 @@ export function RenegociacaoContratoResumo({ contrato, financeiro, financeiroCar
       </SectionBlock>
 
       <SectionBlock title="Condições financeiras atuais (contrato)">
-        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
           {condicoesMetrics.map((m) => (
             <Metric key={m.label} label={m.label} value={m.value} />
           ))}

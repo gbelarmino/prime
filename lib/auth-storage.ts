@@ -182,7 +182,8 @@ function isContratoAditivoPath(pathname: string): boolean {
 
 function isContratoRenegociacaoPath(pathname: string): boolean {
   return (
-    pathname === CONTRATO_RENEGOCIACAO_PATH || pathname.startsWith(`${CONTRATO_RENEGOCIACAO_PATH}?`)
+    pathname === CONTRATO_RENEGOCIACAO_PATH ||
+    pathname.startsWith(`${CONTRATO_RENEGOCIACAO_PATH}/`)
   );
 }
 

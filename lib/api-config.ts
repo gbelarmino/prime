@@ -14,6 +14,7 @@ const API_PATHS = {
   corretores: "/api/corretores",
   imoveis: "/api/imoveis",
   contratosHonorarios: "/api/contratos-honorarios",
+  renegociacoes: "/api/renegociacoes",
   dominios: "/api/dominios",
   usuarios: "/api/usuarios",
    dashboard: "/api/dashboard",
@@ -421,6 +422,18 @@ export function getRenegociacaoBaseUrl(contratoId: number): string {
   const base = getContratoHonorariosUrl();
   if (!base) return "";
   return `${base}/${contratoId}/renegociacoes`;
+}
+
+export function getRenegociacoesConsultaUrl(page = 0, size = 25, q?: string): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.renegociacoes);
+  if (!base) return "";
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  const term = q?.trim();
+  if (term) params.set("q", term);
+  return `${base}/consulta?${params.toString()}`;
 }
 
 export function getRenegociacaoSimularUrl(contratoId: number, renegociacaoId: number): string {

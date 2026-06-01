@@ -252,12 +252,15 @@ export function dashboardCellMono(
 export function dashboardStatusBadge(
   status: string,
   toneMap: Record<string, string>,
+  /** Chave do mapa quando difere do texto exibido (ex.: rótulo PT + código enum). */
+  toneKey?: string,
 ) {
+  const key = toneKey ?? status;
   return (
     <span
       className={cn(
         "inline-flex rounded-lg border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-        toneMap[status] ?? "border-white/10 bg-white/10 text-white/50",
+        toneMap[key] ?? "border-white/10 bg-white/10 text-white/50",
       )}
     >
       {status}

@@ -95,6 +95,35 @@ type MenuGroupItem = {
 const ATENDIMENTO_MENU_PREFIX = "/dashboard/atendimento";
 const WHATSAPP_MENU_PREFIX = "/dashboard/whatsapp";
 const EMAIL_MENU_PREFIX = "/dashboard/email";
+const CONTRATOS_MENU_PATH = "/dashboard/contratos";
+const RENEGOCIACAO_MENU_PREFIX = "/dashboard/contratos/renegociacao";
+const RENEGOCIACAO_CONSULTAR_PATH = `${RENEGOCIACAO_MENU_PREFIX}/consultar`;
+
+/** Item de link simples ativo (prefixo de rota, com limite de segmento). */
+function isSidebarLinkActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  if (href === ADMIN_DASHBOARD_HOME || href === WELCOME_DASHBOARD_PATH) return false;
+  if (!pathname.startsWith(href)) return false;
+  if (href.length < pathname.length && pathname[href.length] !== "/") return false;
+  return true;
+}
+
+/** Contratos não compete com o submenu Renegociar/Consultar. */
+function isContratosMenuActive(pathname: string): boolean {
+  if (pathname.startsWith(RENEGOCIACAO_MENU_PREFIX)) return false;
+  return isSidebarLinkActive(pathname, CONTRATOS_MENU_PATH);
+}
+
+/** Subitem do grupo Renegociação (Renegociar vs Consultar). */
+function isRenegociacaoMenuChildActive(pathname: string, childHref: string): boolean {
+  if (childHref === RENEGOCIACAO_MENU_PREFIX) {
+    return pathname === childHref;
+  }
+  if (childHref === RENEGOCIACAO_CONSULTAR_PATH) {
+    return pathname === childHref || pathname.startsWith(`${childHref}/`);
+  }
+  return pathname === childHref || pathname.startsWith(`${childHref}/`);
+}
 
 const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
   { kind: "link", href: ADMIN_DASHBOARD_HOME, label: "Início", icon: Home, roles: ["ADMIN"] },
@@ -144,11 +173,23 @@ const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
   },
   {
-    kind: "link",
-    href: "/dashboard/contratos/renegociacao",
+    kind: "group",
     label: "Renegociação",
     icon: RefreshCw,
     roles: ["ADMIN", "ATENDIMENTO", "ADMINISTRATIVO"],
+    prefix: "/dashboard/contratos/renegociacao",
+    children: [
+      {
+        href: "/dashboard/contratos/renegociacao",
+        label: "Renegociar",
+        icon: GitCompareArrows,
+      },
+      {
+        href: "/dashboard/contratos/renegociacao/consultar",
+        label: "Consultar",
+        icon: Search,
+      },
+    ],
   },
   {
     kind: "group",
@@ -348,7 +389,10 @@ function SidebarNavGroup({
       {open && (
         <div className="flex flex-col gap-0.5 ml-3 pl-3 border-l border-white/10">
           {visibleChildren.map((c) => {
-            const active = pathname === c.href;
+            const active =
+              item.prefix === RENEGOCIACAO_MENU_PREFIX
+                ? isRenegociacaoMenuChildActive(pathname, c.href)
+                : pathname === c.href;
             const ChildIcon = c.icon;
             const badgeCount =
               c.href === FIN_UNICRED_WEBHOOKS_PATH ? unicredWebhookPendentes : 0;
@@ -491,10 +535,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const SidebarItem = ({ icon, label, href, expanded }: { icon: ReactNode, label: string, href: string, expanded: boolean }) => {
     const active =
-      pathname === href ||
-      (href !== ADMIN_DASHBOARD_HOME &&
-        href !== WELCOME_DASHBOARD_PATH &&
-        pathname.startsWith(href));
+      href === CONTRATOS_MENU_PATH
+        ? isContratosMenuActive(pathname)
+        : isSidebarLinkActive(pathname, href);
     
     return (
       <Link 

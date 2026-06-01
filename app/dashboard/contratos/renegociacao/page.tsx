@@ -57,7 +57,7 @@ export default function ContratoRenegociacaoPage() {
               ? modalidadeInicial === "T2_SALDO_DEVEDOR"
                 ? "Fluxo unificado — inclui o antigo aditivo de saldo devedor (modalidade T2)."
                 : "Simule, formalize e efetive uma nova versão das condições financeiras, preservando o histórico integral do contrato."
-              : "Selecione um contrato assinado na tabela para iniciar o processo de renegociação."}
+              : "Selecione um contrato com status Assinado na tabela (fluxo Clicksign ou registo legado/atípico)."}
           </p>
         </div>
       </div>

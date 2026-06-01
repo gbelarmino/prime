@@ -56,6 +56,10 @@ export interface AtendimentoResumoFinanceiro {
   valorTotalContrato: number;
   totalPago: number;
   saldoDevedor: number;
+  /** Ex.: 69 x 393,0 = 27.117,00 */
+  memoriaSaldoDevedor?: string | null;
+  parcelasRestantes?: number | null;
+  valorParcelaReferencia?: number | null;
   valorInadimplente: number;
   percentualQuitacao: number;
   parcelasPagas: number;

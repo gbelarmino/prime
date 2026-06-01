@@ -476,13 +476,24 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <ResumoCard label="Valor total" value={formatMoney(painel.valorTotalContrato)} icon={Banknote} />
               <ResumoCard label="Total pago" value={formatMoney(painel.totalPago)} icon={Banknote} />
-              <ResumoCard label="Saldo devedor" value={formatMoney(painel.saldoDevedor)} icon={Receipt} />
+              <ResumoCard
+                label="Saldo devedor"
+                value={
+                  painel.memoriaSaldoDevedor?.trim() ??
+                  formatMoney(painel.saldoDevedor)
+                }
+                icon={Receipt}
+              />
               <ResumoCard
                 label="Inadimplência"
                 value={formatMoney(painel.valorInadimplente)}
                 icon={Receipt}
               />
-              <ResumoCard label="Quitação" value={`${painel.percentualQuitacao}%`} icon={Percent} />
+              <ResumoCard
+                label="Quitação"
+                value={`${painel.percentualQuitacao}% (${painel.parcelasPagas}/${painel.parcelasTotal})`}
+                icon={Percent}
+              />
               <ResumoCard
                 label="Parcelas"
                 value={`${painel.parcelasPagas} / ${painel.parcelasTotal}`}

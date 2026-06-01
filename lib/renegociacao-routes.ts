@@ -2,6 +2,8 @@ import type { ModalidadeRenegociacao } from "./renegociacao-types";
 
 export const RENEGOCIACAO_DASHBOARD_PATH = "/dashboard/contratos/renegociacao";
 
+export const RENEGOCIACAO_CONSULTAR_PATH = "/dashboard/contratos/renegociacao/consultar";
+
 /** Atalho do antigo fluxo “Aditivo contrato” (saldo devedor / T2). */
 export const MODALIDADE_ATALHO_ADITIVO: ModalidadeRenegociacao = "T2_SALDO_DEVEDOR";
 

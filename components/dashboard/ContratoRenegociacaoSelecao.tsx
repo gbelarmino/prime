@@ -34,7 +34,11 @@ import { buildRenegociacaoDashboardUrl } from "@/lib/renegociacao-routes";
 import type { ModalidadeRenegociacao } from "@/lib/renegociacao-types";
 import { cn } from "@/lib/utils";
 
-/** Nome do enum na API (`StatusContrato.ASSINADO`); não usar o valor numérico 8. */
+/**
+ * Filtro da listagem: `StatusContrato.ASSINADO` (vlr 8).
+ * Contratos legados/atípicos usam o mesmo status; distinguem-se por `origemAssinatura === LEGADO_MANUAL`.
+ * Não existe enum `ASSINADO_LEGADO` — não usar o valor numérico 8 no query param.
+ */
 const STATUS_ASSINADO_FILTRO = "ASSINADO";
 
 const TABLE_PT = {
@@ -291,16 +295,26 @@ export function ContratoRenegociacaoSelecao({ modalidadeInicial }: Props) {
           />
           <Column
             header="Status"
-            body={(row: ContratoListItem) => (
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest",
-                  "bg-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]",
-                )}
-              >
-                {row.statusLabel ?? "Assinado"}
-              </span>
-            )}
+            body={(row: ContratoListItem) => {
+              const legado = row.origemAssinatura === "LEGADO_MANUAL";
+              return (
+                <div className="flex flex-col items-start gap-1">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest",
+                      "bg-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]",
+                    )}
+                  >
+                    {row.statusLabel ?? "Assinado"}
+                  </span>
+                  {legado ? (
+                    <span className="inline-flex items-center rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-emerald-400/90">
+                      Legado
+                    </span>
+                  ) : null}
+                </div>
+              );
+            }}
             style={{ width: "9rem" }}
           />
           <Column header="Ações" body={actionBodyTemplate} align="right" style={{ width: "4.5rem" }} />

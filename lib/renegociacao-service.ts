@@ -3,6 +3,7 @@ import {
   getRenegociacaoAprovarUrl,
   getRenegociacaoAuditoriaUrl,
   getRenegociacaoBaseUrl,
+  getRenegociacoesConsultaUrl,
   getRenegociacaoCancelarUrl,
   getRenegociacaoEfetivarUrl,
   getRenegociacaoGerarDocumentosUrl,
@@ -12,11 +13,25 @@ import {
 } from "./api-config";
 import type {
   CriarRenegociacaoRequest,
+  ModalidadeRenegociacao,
   RenegociacaoDetalhe,
+  RenegociacaoConsultaItem,
   RenegociacaoResumo,
   RenegociacaoSimulacaoResponse,
   SimularRenegociacaoRequest,
 } from "./renegociacao-types";
+import { renegociacaoEstaAtiva } from "./renegociacao-types";
+import type { AtendimentoResumoFinanceiro } from "./atendimento-service";
+import {
+  calcularVencimentosComPrimeiraParcelaDetalhe,
+  formatIsoDate,
+  parseIsoDate,
+} from "./fin-vencimento";
+import type { BoletoEncargosConfig } from "./fin-memorial-calculo";
+import {
+  aplicarDescontoQuitacao,
+  montarBaseQuitacaoLocal,
+} from "./renegociacao-quitacao-calculo";
 import {
   simularCondicoesVersao,
   type CondicoesVersaoSimulacaoResponse,
@@ -34,6 +49,18 @@ async function parseError(res: Response): Promise<string> {
   return `Erro ${res.status}`;
 }
 
+export async function listarRenegociacoesConsulta(
+  page: number,
+  size: number,
+  q?: string,
+): Promise<import("./spring-page").SpringPage<RenegociacaoConsultaItem>> {
+  const url = getRenegociacoesConsultaUrl(page, size, q);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
 export async function listarRenegociacoes(
   contratoId: number,
   status?: string[],
@@ -45,6 +72,14 @@ export async function listarRenegociacoes(
   if (res.status === 404) return [];
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
+}
+
+/** Primeiro processo não terminal do contrato (mesma regra do backend ao criar). */
+export async function obterRenegociacaoAtivaEmAndamento(
+  contratoId: number,
+): Promise<RenegociacaoResumo | null> {
+  const lista = await listarRenegociacoes(contratoId);
+  return lista.find((r) => renegociacaoEstaAtiva(r.status)) ?? null;
 }
 
 export async function criarRenegociacao(
@@ -141,6 +176,125 @@ export function condicoesSimulacaoParaRenegociacao(
     })),
     avisos: raw.avisos,
   };
+}
+
+/** T4 — protótipo local quando a API de renegociação ainda não está disponível. */
+export function simularQuitacaoLocal(
+  financeiro: AtendimentoResumoFinanceiro,
+  params: {
+    parcelaInicial: number;
+    quantidadeParcelas: number;
+    pctDesconto?: number | null;
+    vlDesconto?: number | null;
+    primeiroVencimento?: string | null;
+    diaVencimentoContrato?: number | null;
+    encargos?: BoletoEncargosConfig;
+  },
+): RenegociacaoSimulacaoResponse {
+  const base = montarBaseQuitacaoLocal(financeiro, params.parcelaInicial, params.encargos);
+  const saldoDevedor = base.saldoDevedorContrato;
+  const inadimplenciaVp = base.inadimplenciaPresente.valorPresenteTotal;
+  const totalAnterior = base.baseQuitacao;
+  const totalNovo = aplicarDescontoQuitacao(totalAnterior, params.pctDesconto, params.vlDesconto);
+  const desconto = Math.max(0, Math.round((totalAnterior - totalNovo) * 100) / 100);
+  const pct =
+    params.pctDesconto != null && params.pctDesconto > 0
+      ? params.pctDesconto
+      : totalAnterior > 0
+        ? Math.round((desconto / totalAnterior) * 10000) / 100
+        : 0;
+  const qtd = Math.max(1, params.quantidadeParcelas);
+  const parcelaValor = Math.round((totalNovo / qtd) * 100) / 100;
+  const v0Iso =
+    params.primeiroVencimento ??
+    (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 15);
+      return d.toISOString().slice(0, 10);
+    })();
+  const diaVenc =
+    params.diaVencimentoContrato != null &&
+    params.diaVencimentoContrato >= 1 &&
+    params.diaVencimentoContrato <= 31
+      ? params.diaVencimentoContrato
+      : parseIsoDate(v0Iso).getDate();
+  const vencimentos = calcularVencimentosComPrimeiraParcelaDetalhe(
+    parseIsoDate(v0Iso),
+    diaVenc,
+    qtd,
+  );
+  const cronograma = vencimentos.map((v, i) => ({
+    numeroParcela: i + 1,
+    vencimento: formatIsoDate(v.vencimento),
+    valorNominal: i === qtd - 1 ? totalNovo - parcelaValor * (qtd - 1) : parcelaValor,
+  }));
+  const abertos = financeiro.titulosAbertos.filter((t) => t.numeroParcela >= params.parcelaInicial);
+  const exige = pct > 5;
+  return {
+    simulacaoId: 0,
+    nrSequencia: 1,
+    memoriaCalculo: {
+      vlPrincipal: saldoDevedor,
+      vlJuros: base.inadimplenciaPresente.jurosTotal,
+      vlMulta: base.inadimplenciaPresente.multaTotal,
+      vlDesconto: desconto,
+      vlTotal: totalNovo,
+      vlValorPresente: inadimplenciaVp,
+    },
+    totalAnterior,
+    totalNovo,
+    saldoDevedor,
+    pctDesconto: pct,
+    diferencaTotal: totalNovo - totalAnterior,
+    reducaoTotal: totalNovo < totalAnterior,
+    exigeAprovacao: exige,
+    nrNivelAprovacaoRequerido: pct > 15 ? 3 : exige ? 2 : 1,
+    classificacaoJuridicaSugerida: "TERMO_QUITACAO",
+    instrumentosSugeridos: ["TERMO_QUITACAO"],
+    titulosAfetados: abertos.map((t) => ({
+      id: t.id,
+      numeroParcela: t.numeroParcela,
+      vencimento: t.vencimento,
+      valorNominal: t.valorNominal,
+      status: t.status,
+    })),
+    cronogramaFuturo: cronograma,
+    avisos: [
+      "Simulação local — publique a API de renegociação para persistir no processo.",
+      "Vencimentos do cronograma seguem o dia do contrato; sábado e domingo deslocam para a segunda-feira.",
+      ...base.avisos,
+      abertos.length === 0
+        ? `Nenhum título em aberto a partir da parcela ${params.parcelaInicial}.`
+        : `${abertos.length} título(s) em aberto na faixa de corte.`,
+    ],
+  };
+}
+
+/** Corrige total/cronograma quando a API devolve totalAnterior sem somar inadimplência VP. */
+export function alinharSimulacaoQuitacaoT4(
+  api: RenegociacaoSimulacaoResponse,
+  local: RenegociacaoSimulacaoResponse,
+  tolerancia = 0.02,
+): RenegociacaoSimulacaoResponse {
+  if (Math.abs(api.totalAnterior - local.totalAnterior) <= tolerancia) {
+    return api;
+  }
+  return {
+    ...api,
+    totalAnterior: local.totalAnterior,
+    totalNovo: local.totalNovo,
+    memoriaCalculo: { ...api.memoriaCalculo, ...local.memoriaCalculo },
+    cronogramaFuturo: local.cronogramaFuturo,
+    pctDesconto: local.pctDesconto,
+    diferencaTotal: local.diferencaTotal,
+    reducaoTotal: local.reducaoTotal,
+    exigeAprovacao: local.exigeAprovacao,
+    nrNivelAprovacaoRequerido: local.nrNivelAprovacaoRequerido,
+  };
+}
+
+export function modalidadeUsaMotorCondicoes(m: ModalidadeRenegociacao | null): boolean {
+  return m === "T2_SALDO_DEVEDOR" || m === "T3_COMPLETA" || m === "T5_COM_ENTRADA";
 }
 
 export async function cancelarRenegociacao(

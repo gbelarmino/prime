@@ -32,6 +32,7 @@ import {
   dashboardCellText,
   dashboardDataTablePt,
 } from "@/lib/dashboard-datatable";
+import { textoSaldoDevedorComMemoria } from "@/lib/atendimento-saldo-memoria";
 import { atendimentoService, type AtendimentoResumoFinanceiro } from "@/lib/atendimento-service";
 import { apiFetch } from "@/lib/api-fetch";
 import { getContratoHonorariosByIdUrl } from "@/lib/api-config";
@@ -39,15 +40,35 @@ import {
   aprovarRenegociacao,
   condicoesSimulacaoParaRenegociacao,
   criarRenegociacao,
+  obterRenegociacao,
+  obterRenegociacaoAtivaEmAndamento,
   efetivarRenegociacao,
   gerarDocumentosRenegociacao,
   gerarPropostaRenegociacao,
+  modalidadeUsaMotorCondicoes,
+  alinharSimulacaoQuitacaoT4,
+  simularQuitacaoLocal,
   simularRenegociacao,
   simularViaCondicoesVersao,
   submeterAprovacao,
 } from "@/lib/renegociacao-service";
 import {
+  AJUDA_PARAMETROS_POR_MODALIDADE,
+  defaultsParametrosModalidade,
+} from "@/lib/renegociacao-wizard-params";
+import { fetchBoletoEncargosConfig, type BoletoEncargosConfig } from "@/lib/fin-memorial-calculo";
+import { montarBaseQuitacaoLocal } from "@/lib/renegociacao-quitacao-calculo";
+import {
+  agregadoInadimplenciaParaExibicao,
+  agregarInadimplenciaPresente,
+  titulosVencidosDoPainel,
+} from "@/lib/renegociacao-inadimplencia-presente";
+import { InadimplenciaPresenteCard } from "@/components/dashboard/renegociacao-form/InadimplenciaPresenteCard";
+import { QuitacaoLiquidacaoMemoriaCard } from "@/components/dashboard/renegociacao-form/QuitacaoLiquidacaoMemoriaCard";
+import { RenegociacaoEfetivacaoResumo } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResumo";
+import {
   MODALIDADE_OPTIONS,
+  STATUS_RENEGOCIACAO_LABEL,
   type ModalidadeRenegociacao,
   type RenegociacaoSimulacaoResponse,
 } from "@/lib/renegociacao-types";
@@ -85,15 +106,24 @@ function formatBrl(n: number | null | undefined) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function usaMotorCondicoes(m: ModalidadeRenegociacao | null) {
-  return m === "T2_SALDO_DEVEDOR" || m === "T3_COMPLETA";
-}
-
-function MetricTile({ label, value }: { label: string; value: string }) {
+function MetricTile({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div
+      className={cn(
+        "w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 sm:px-5 sm:py-4",
+        className,
+      )}
+    >
       <span className="block text-[10px] font-bold uppercase tracking-widest text-white/40">{label}</span>
-      <p className="mt-2 font-mono text-lg font-semibold text-white">{value}</p>
+      <p className="mt-2 break-words font-mono text-base font-semibold text-white sm:text-lg">{value}</p>
     </div>
   );
 }
@@ -117,17 +147,75 @@ export function RenegociacaoWizard({
   const [parcelaInicial, setParcelaInicial] = useState(1);
   const [quantidadeParcelas, setQuantidadeParcelas] = useState(12);
   const [pctDesconto, setPctDesconto] = useState<number | null>(null);
+  const [primeiroVencimento, setPrimeiroVencimento] = useState<string | null>(null);
   const [valorEntrada, setValorEntrada] = useState<number | null>(null);
   const [nrProcesso, setNrProcesso] = useState("");
   const [simulacao, setSimulacao] = useState<RenegociacaoSimulacaoResponse | null>(null);
   const [propostaId, setPropostaId] = useState<number | null>(null);
   const [workflowOk, setWorkflowOk] = useState(false);
   const [documentosOk, setDocumentosOk] = useState(false);
+  const [processoRetomado, setProcessoRetomado] = useState(false);
+  const [encargos, setEncargos] = useState<BoletoEncargosConfig | null>(null);
+
+  useEffect(() => {
+    fetchBoletoEncargosConfig()
+      .then(setEncargos)
+      .catch(() =>
+        setEncargos({ multaPercentual: 2, jurosMensalPercentual: 1 }),
+      );
+  }, []);
 
   const modalidadeMeta = useMemo(
     () => MODALIDADE_OPTIONS.find((o) => o.value === modalidade),
     [modalidade],
   );
+
+  const ajudaParametros = modalidade ? AJUDA_PARAMETROS_POR_MODALIDADE[modalidade] : undefined;
+
+  const previewQuitacao = useMemo(() => {
+    if (modalidade !== "T4_QUITACAO" || !financeiro) return null;
+    return montarBaseQuitacaoLocal(financeiro, parcelaInicial, encargos ?? undefined);
+  }, [modalidade, financeiro, parcelaInicial, encargos]);
+
+  const previewInadimplenciaVp = useMemo(() => {
+    if (!financeiro || !encargos) return null;
+    if (modalidade !== "T1_PARCELAS_VENCIDAS" && modalidade !== "T4_QUITACAO") return null;
+    const vencidos = titulosVencidosDoPainel(
+      financeiro.titulosAbertos.filter((t) => t.numeroParcela >= parcelaInicial),
+      financeiro.titulosVencidos.filter((t) => t.numeroParcela >= parcelaInicial),
+    );
+    return agregarInadimplenciaPresente(vencidos, encargos);
+  }, [financeiro, encargos, modalidade, parcelaInicial]);
+
+  const inadimplenciaSimulacao = useMemo(() => {
+    if (!simulacao || (modalidade !== "T4_QUITACAO" && modalidade !== "T1_PARCELAS_VENCIDAS")) {
+      return null;
+    }
+    return agregadoInadimplenciaParaExibicao(
+      financeiro,
+      encargos,
+      parcelaInicial,
+      simulacao.memoriaCalculo?.itens,
+      simulacao.totalAnterior,
+    );
+  }, [simulacao, financeiro, encargos, parcelaInicial, modalidade]);
+
+  /** Mesma base do passo de parâmetros (saldo + VP), independente do totalAnterior da API. */
+  const inadimplenciaQuitacaoExibicao = useMemo(() => {
+    if (modalidade !== "T4_QUITACAO") return null;
+    return (
+      inadimplenciaSimulacao ??
+      previewInadimplenciaVp ??
+      null
+    );
+  }, [modalidade, inadimplenciaSimulacao, previewInadimplenciaVp]);
+
+  useEffect(() => {
+    if (!modalidade) return;
+    const d = defaultsParametrosModalidade(modalidade, financeiro ?? undefined);
+    if (d.parcelaInicial != null) setParcelaInicial(d.parcelaInicial);
+    if (d.quantidadeParcelas != null) setQuantidadeParcelas(d.quantidadeParcelas);
+  }, [modalidade, financeiro?.titulosAbertos]);
 
   useEffect(() => {
     if (!modalidadeInicial) return;
@@ -140,6 +228,44 @@ export function RenegociacaoWizard({
         : "Renegociação de condições financeiras";
     });
   }, [modalidadeInicial]);
+
+  useEffect(() => {
+    const id = renegociacaoIdInicial;
+    if (id == null || id <= 0) return;
+    let cancelled = false;
+    obterRenegociacao(contratoId, id)
+      .then((det) => {
+        if (cancelled) return;
+        if (!modalidadeInicial) setModalidade(det.modalidade);
+        if (det.motivo?.trim()) {
+          setMotivo((prev) => (prev.trim() ? prev : det.motivo!.trim()));
+        }
+      })
+      .catch(() => {
+        /* processo inexistente ou API indisponível */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contratoId, renegociacaoIdInicial, modalidadeInicial]);
+
+  useEffect(() => {
+    if (renegociacaoIdInicial != null && renegociacaoIdInicial > 0) return;
+    let cancelled = false;
+    obterRenegociacaoAtivaEmAndamento(contratoId)
+      .then((ativa) => {
+        if (cancelled || !ativa) return;
+        setRenegociacaoId(ativa.id);
+        setProcessoRetomado(true);
+        if (!modalidadeInicial) setModalidade(ativa.modalidade);
+      })
+      .catch(() => {
+        /* API indisponível */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contratoId, renegociacaoIdInicial, modalidadeInicial]);
 
   useEffect(() => {
     let cancelled = false;
@@ -188,6 +314,27 @@ export function RenegociacaoWizard({
       return created.id;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao abrir processo";
+      if (
+        msg.includes("em andamento") ||
+        msg.includes("409") ||
+        msg.toLowerCase().includes("conflict")
+      ) {
+        try {
+          const ativa = await obterRenegociacaoAtivaEmAndamento(contratoId);
+          if (ativa) {
+            setRenegociacaoId(ativa.id);
+            setProcessoRetomado(true);
+            setModoRascunhoLocal(false);
+            const statusLabel = STATUS_RENEGOCIACAO_LABEL[ativa.status] ?? ativa.status;
+            toast.info(
+              `Retomando o processo #${ativa.id} (${statusLabel}). Para abrir outro, cancele este processo antes.`,
+            );
+            return ativa.id;
+          }
+        } catch {
+          /* segue para mensagem original */
+        }
+      }
       if (msg.includes("404") || msg.includes("501") || msg.includes("Erro 5")) {
         setModoRascunhoLocal(true);
         setRenegociacaoId(-1);
@@ -213,28 +360,71 @@ export function RenegociacaoWizard({
         try {
           const payload = condicoesToApiPayload(contrato);
           const res = await simularRenegociacao(contratoId, procId, {
+            modalidade,
             parcelaInicial,
             quantidadeParcelas,
+            primeiroVencimento: primeiroVencimento ?? undefined,
             pctDesconto: pctDesconto ?? undefined,
             valorEntrada: valorEntrada ?? undefined,
-            condicoes: usaMotorCondicoes(modalidade) ? payload : undefined,
-            politicaReajuste: usaMotorCondicoes(modalidade) ? "CADEIA" : undefined,
-            confirmarCancelamentoTitulos: usaMotorCondicoes(modalidade) ? true : undefined,
+            condicoes: modalidadeUsaMotorCondicoes(modalidade) ? payload : undefined,
+            politicaReajuste: modalidadeUsaMotorCondicoes(modalidade) ? "CADEIA" : undefined,
+            confirmarCancelamentoTitulos:
+              modalidadeUsaMotorCondicoes(modalidade) || modalidade === "T4_QUITACAO"
+                ? true
+                : undefined,
             dadosJudiciais:
               modalidade === "T6_JUDICIAL"
                 ? { nrProcesso: nrProcesso.trim() || undefined }
                 : undefined,
           });
-          setSimulacao(res);
+          if (
+            modalidade === "T4_QUITACAO" &&
+            res.avisos.some((a) => a.toLowerCase().includes("parcelas vencidas"))
+          ) {
+            toast.error(
+              "A API simulou parcelas vencidas (T1) em vez de liquidação antecipada (T4). Reinicie o backend e confirme a modalidade no passo anterior.",
+            );
+            return;
+          }
+          let simFinal = res;
+          if (modalidade === "T4_QUITACAO" && financeiro) {
+            const localT4 = simularQuitacaoLocal(financeiro, {
+              parcelaInicial,
+              quantidadeParcelas,
+              pctDesconto,
+              primeiroVencimento,
+              diaVencimentoContrato: contratoApi?.condicoes?.diaVencimento ?? undefined,
+              encargos: encargos ?? undefined,
+            });
+            simFinal = alinharSimulacaoQuitacaoT4(res, localT4);
+            if (previewQuitacao && Math.abs(res.totalAnterior - previewQuitacao.baseQuitacao) > 1) {
+              toast.info(
+                "Totais alinhados à prévia (saldo devedor + inadimplência a valor presente).",
+              );
+            }
+          }
+          if (simFinal.totalAnterior <= 0 && simFinal.totalNovo <= 0) {
+            toast.error(
+              simFinal.avisos[0] ??
+                "Simulação sem valores — confira modalidade, saldo do contrato ou títulos vencidos.",
+            );
+            return;
+          }
+          setSimulacao(simFinal);
           setModoRascunhoLocal(false);
           setStep(3);
           return;
-        } catch {
+        } catch (apiErr) {
+          const msg = apiErr instanceof Error ? apiErr.message : "";
+          if (msg && !msg.includes("404") && !msg.includes("501")) {
+            toast.error(msg);
+            return;
+          }
           /* fallback abaixo */
         }
       }
 
-      if (usaMotorCondicoes(modalidade)) {
+      if (modalidadeUsaMotorCondicoes(modalidade)) {
         const payload = condicoesToApiPayload(contrato);
         const tipoOrigem = modalidade === "T3_COMPLETA" ? "ADITIVO_GRADE" : "RENEGOCIACAO_SALDO";
         const raw = await simularViaCondicoesVersao(contratoId, {
@@ -245,6 +435,27 @@ export function RenegociacaoWizard({
           politicaReajuste: "CADEIA",
         });
         setSimulacao(condicoesSimulacaoParaRenegociacao(raw));
+        setStep(3);
+        return;
+      }
+
+      if (modalidade === "T4_QUITACAO" && financeiro) {
+        const local = simularQuitacaoLocal(financeiro, {
+          parcelaInicial,
+          quantidadeParcelas,
+          pctDesconto,
+          primeiroVencimento,
+          diaVencimentoContrato: contratoApi?.condicoes?.diaVencimento ?? undefined,
+          encargos: encargos ?? undefined,
+        });
+        if (local.totalAnterior <= 0 && local.saldoDevedor <= 0) {
+          toast.error(
+            "Saldo devedor zerado na visão geral — contrato quitado ou sem base para liquidação antecipada.",
+          );
+          return;
+        }
+        setSimulacao(local);
+        setModoRascunhoLocal(true);
         setStep(3);
         return;
       }
@@ -324,7 +535,7 @@ export function RenegociacaoWizard({
   const processarEfetivacao = async () => {
     const procId = renegociacaoId;
     if (procId == null || procId <= 0) return;
-    if (!usaMotorCondicoes(modalidade)) {
+    if (!modalidadeUsaMotorCondicoes(modalidade)) {
       toast.info("T1/T4/T6: efetive via painel de atendimento ou aguarde integração de títulos.");
       return;
     }
@@ -386,6 +597,14 @@ export function RenegociacaoWizard({
 
   return (
     <div>
+      {processoRetomado && renegociacaoId != null && renegociacaoId > 0 && (
+        <div className="mb-6 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-100/90">
+          Processo <span className="font-mono font-semibold text-white">#{renegociacaoId}</span> já
+          está em andamento neste contrato. As próximas simulações atualizam esse processo. Para
+          iniciar outro do zero, cancele o atual antes (via API ou suporte).
+        </div>
+      )}
+
       {modoRascunhoLocal && (
         <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
           Modo protótipo: endpoints <code className="text-amber-200">/renegociacoes</code> pendentes no
@@ -474,9 +693,43 @@ export function RenegociacaoWizard({
           <motion.div key="p" {...STEP_MOTION}>
             <FormSection
               title="Parâmetros financeiros"
-              description="Entrada para o motor de cálculo. Valores definitivos após simulação."
+              description={
+                ajudaParametros?.descricaoPasso ??
+                "Entrada para o motor de cálculo. Valores definitivos após simulação."
+              }
+              contentClassName="!grid-cols-1 !gap-8 w-full min-w-0"
             >
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="flex w-full min-w-0 flex-col gap-8">
+                {modalidade === "T4_QUITACAO" && previewQuitacao && (
+                  <div className="flex w-full flex-col gap-3">
+                    <MetricTile
+                      label="Saldo devedor"
+                      value={
+                        financeiro
+                          ? textoSaldoDevedorComMemoria(
+                              financeiro,
+                              contratoApi?.condicoes?.valorParcela ?? undefined,
+                            )
+                          : formatBrl(previewQuitacao.saldoDevedorContrato)
+                      }
+                    />
+                    <InadimplenciaPresenteCard
+                      agregado={previewInadimplenciaVp}
+                      nominalPainel={previewQuitacao.valorInadimplenteNominal}
+                    />
+                    <MetricTile
+                      label="Total anterior (prévia)"
+                      value={formatBrl(previewQuitacao.baseQuitacao)}
+                    />
+                  </div>
+                )}
+                {modalidade === "T1_PARCELAS_VENCIDAS" && previewInadimplenciaVp && (
+                  <InadimplenciaPresenteCard
+                    agregado={previewInadimplenciaVp}
+                    nominalPainel={financeiro?.valorInadimplente}
+                  />
+                )}
+                <div className="grid w-full gap-5 md:grid-cols-2">
                 <div>
                   <label className={RENEGOCIACAO_LABEL_CLASS}>Parcela inicial (corte)</label>
                   <InputNumber
@@ -486,6 +739,9 @@ export function RenegociacaoWizard({
                     className="w-full"
                     inputClassName={RENEGOCIACAO_INPUT_CLASS}
                   />
+                  {ajudaParametros?.parcelaInicial && (
+                    <p className={RENEGOCIACAO_HINT_CLASS}>{ajudaParametros.parcelaInicial}</p>
+                  )}
                 </div>
                 <div>
                   <label className={RENEGOCIACAO_LABEL_CLASS}>Quantidade de parcelas</label>
@@ -493,22 +749,31 @@ export function RenegociacaoWizard({
                     value={quantidadeParcelas}
                     onValueChange={(e) => setQuantidadeParcelas(e.value ?? 1)}
                     min={1}
-                    max={360}
+                    max={modalidade === "T4_QUITACAO" ? 24 : 360}
                     className="w-full"
                     inputClassName={RENEGOCIACAO_INPUT_CLASS}
                   />
+                  {ajudaParametros?.quantidadeParcelas && (
+                    <p className={RENEGOCIACAO_HINT_CLASS}>{ajudaParametros.quantidadeParcelas}</p>
+                  )}
                 </div>
                 <div>
-                  <label className={RENEGOCIACAO_LABEL_CLASS}>Desconto (%)</label>
+                  <label className={RENEGOCIACAO_LABEL_CLASS}>
+                    Desconto (%){modalidade === "T4_QUITACAO" ? " (opcional)" : ""}
+                  </label>
                   <InputNumber
                     value={pctDesconto}
                     onValueChange={(e) => setPctDesconto(e.value ?? null)}
                     min={0}
                     max={100}
                     suffix="%"
+                    placeholder={modalidade === "T4_QUITACAO" ? "Sem desconto" : undefined}
                     className="w-full"
                     inputClassName={RENEGOCIACAO_INPUT_CLASS}
                   />
+                  {ajudaParametros?.desconto && (
+                    <p className={RENEGOCIACAO_HINT_CLASS}>{ajudaParametros.desconto}</p>
+                  )}
                 </div>
                 {modalidade === "T5_COM_ENTRADA" && (
                   <div>
@@ -524,6 +789,21 @@ export function RenegociacaoWizard({
                     />
                   </div>
                 )}
+                {modalidade === "T4_QUITACAO" && (
+                  <div>
+                    <label className={RENEGOCIACAO_LABEL_CLASS}>Primeiro vencimento (pagamento)</label>
+                    <input
+                      type="date"
+                      value={primeiroVencimento ?? ""}
+                      onChange={(e) => setPrimeiroVencimento(e.target.value || null)}
+                      className={RENEGOCIACAO_INPUT_CLASS}
+                    />
+                    <p className={RENEGOCIACAO_HINT_CLASS}>
+                      Opcional. Padrão: 15 dias a partir de hoje. Demais parcelas no dia de vencimento do
+                      contrato; fins de semana vão para a segunda-feira.
+                    </p>
+                  </div>
+                )}
                 {modalidade === "T6_JUDICIAL" && (
                   <div className="md:col-span-2">
                     <label className={RENEGOCIACAO_LABEL_CLASS}>Nº processo</label>
@@ -536,6 +816,7 @@ export function RenegociacaoWizard({
                     />
                   </div>
                 )}
+                </div>
               </div>
             </FormSection>
           </motion.div>
@@ -545,48 +826,127 @@ export function RenegociacaoWizard({
           <motion.div key="s" {...STEP_MOTION}>
             <FormSection
               title="Resultado da simulação"
-              description="Nenhuma alteração financeira até efetivação assinada."
+              description={
+                modalidade === "T4_QUITACAO"
+                  ? "Liquidação: memória (saldo devedor + inadimplência a VP − desconto) e parcelas de pagamento. Nada altera o contrato até assinatura."
+                  : "Nenhuma alteração financeira até efetivação assinada."
+              }
+              contentClassName="!grid-cols-1 !gap-6 w-full min-w-0"
             >
-              <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <MetricTile label="Total anterior" value={formatBrl(simulacao.totalAnterior)} />
-                <MetricTile label="Total novo" value={formatBrl(simulacao.totalNovo)} />
-                <MetricTile label="Saldo devedor" value={formatBrl(simulacao.saldoDevedor)} />
-                <MetricTile
-                  label="Aprovação"
-                  value={simulacao.exigeAprovacao ? `Nível ${simulacao.nrNivelAprovacaoRequerido}` : "Automática"}
-                />
+              <div className="flex w-full flex-col gap-6">
+                {modalidade === "T4_QUITACAO" && simulacao.memoriaCalculo ? (
+                  <>
+                    <QuitacaoLiquidacaoMemoriaCard
+                      saldoDevedor={simulacao.saldoDevedor}
+                      saldoDevedorDetalhe={
+                        financeiro
+                          ? textoSaldoDevedorComMemoria(
+                              financeiro,
+                              contratoApi?.condicoes?.valorParcela ?? undefined,
+                            )
+                          : undefined
+                      }
+                      inadimplenciaAgregado={inadimplenciaQuitacaoExibicao}
+                      nominalPainel={financeiro?.valorInadimplente}
+                      inadimplenciaVpFallback={
+                        simulacao.memoriaCalculo.vlValorPresente ?? 0
+                      }
+                      desconto={simulacao.memoriaCalculo.vlDesconto}
+                      pctDesconto={simulacao.pctDesconto}
+                    />
+                    <div className="flex w-full flex-col gap-2">
+                      <p className="text-sm font-medium text-white/80">Parcelas do pagamento</p>
+                      <DashboardDataTableShell className={DASHBOARD_DATATABLE_INSET_SHELL_CLASS}>
+                        <DataTable
+                          value={simulacao.cronogramaFuturo}
+                          className={DASHBOARD_DATATABLE_CLASS}
+                          pt={TABLE_PT}
+                          emptyMessage="Sem parcelas no cronograma simulado."
+                        >
+                          <Column
+                            field="numeroParcela"
+                            header="Parc."
+                            body={(r) => dashboardCellMono(String(r.numeroParcela))}
+                          />
+                          <Column
+                            field="vencimento"
+                            header="Vencimento"
+                            body={(r) =>
+                              dashboardCellText(new Date(r.vencimento).toLocaleDateString("pt-BR"))
+                            }
+                          />
+                          <Column
+                            field="valorNominal"
+                            header="Valor"
+                            body={(r) => dashboardCellMono(formatBrl(r.valorNominal))}
+                          />
+                        </DataTable>
+                      </DashboardDataTableShell>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex w-full flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                      <MetricTile label="Total anterior" value={formatBrl(simulacao.totalAnterior)} />
+                      <MetricTile label="Total novo" value={formatBrl(simulacao.totalNovo)} />
+                      <MetricTile label="Saldo devedor" value={formatBrl(simulacao.saldoDevedor)} />
+                      <MetricTile
+                        label="Aprovação"
+                        value={
+                          simulacao.exigeAprovacao
+                            ? `Nível ${simulacao.nrNivelAprovacaoRequerido}`
+                            : "Automática"
+                        }
+                      />
+                    </div>
+                    {modalidade === "T1_PARCELAS_VENCIDAS" && simulacao.memoriaCalculo && (
+                      <div className="flex w-full flex-col gap-3">
+                        <InadimplenciaPresenteCard
+                          agregado={inadimplenciaSimulacao}
+                          nominalPainel={financeiro?.valorInadimplente}
+                        />
+                        <MetricTile
+                          label="Desconto"
+                          value={formatBrl(simulacao.memoriaCalculo.vlDesconto)}
+                        />
+                      </div>
+                    )}
+                    {simulacao.avisos.length > 0 && (
+                      <ul className="list-disc space-y-1 pl-5 text-sm text-amber-200/90">
+                        {simulacao.avisos.map((a) => (
+                          <li key={a}>{a}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <DashboardDataTableShell className={DASHBOARD_DATATABLE_INSET_SHELL_CLASS}>
+                      <DataTable
+                        value={simulacao.cronogramaFuturo}
+                        className={DASHBOARD_DATATABLE_CLASS}
+                        pt={TABLE_PT}
+                        emptyMessage="Sem parcelas no cronograma simulado."
+                      >
+                        <Column
+                          field="numeroParcela"
+                          header="Parc."
+                          body={(r) => dashboardCellMono(String(r.numeroParcela))}
+                        />
+                        <Column
+                          field="vencimento"
+                          header="Vencimento"
+                          body={(r) =>
+                            dashboardCellText(new Date(r.vencimento).toLocaleDateString("pt-BR"))
+                          }
+                        />
+                        <Column
+                          field="valorNominal"
+                          header="Valor"
+                          body={(r) => dashboardCellMono(formatBrl(r.valorNominal))}
+                        />
+                      </DataTable>
+                    </DashboardDataTableShell>
+                  </>
+                )}
               </div>
-              {simulacao.avisos.length > 0 && (
-                <ul className="mb-6 list-disc space-y-1 pl-5 text-sm text-amber-200/90">
-                  {simulacao.avisos.map((a) => (
-                    <li key={a}>{a}</li>
-                  ))}
-                </ul>
-              )}
-              <DashboardDataTableShell className={DASHBOARD_DATATABLE_INSET_SHELL_CLASS}>
-                <DataTable
-                  value={simulacao.cronogramaFuturo}
-                  className={DASHBOARD_DATATABLE_CLASS}
-                  pt={TABLE_PT}
-                  emptyMessage="Sem parcelas no cronograma simulado."
-                >
-                  <Column
-                    field="numeroParcela"
-                    header="Parc."
-                    body={(r) => dashboardCellMono(String(r.numeroParcela))}
-                  />
-                  <Column
-                    field="vencimento"
-                    header="Vencimento"
-                    body={(r) => dashboardCellText(new Date(r.vencimento).toLocaleDateString("pt-BR"))}
-                  />
-                  <Column
-                    field="valorNominal"
-                    header="Valor"
-                    body={(r) => dashboardCellMono(formatBrl(r.valorNominal))}
-                  />
-                </DataTable>
-              </DashboardDataTableShell>
             </FormSection>
           </motion.div>
         )}
@@ -643,15 +1003,24 @@ export function RenegociacaoWizard({
           <motion.div key="e" {...STEP_MOTION}>
             <FormSection
               title="Efetivação"
-              description="Publica nova versão contratual (T2/T3/T5) e vincula ao processo."
+              description="Revise o resumo abaixo e conclua apenas se estiver de acordo com a simulação aprovada."
+              contentClassName="!grid-cols-1 !gap-6 w-full min-w-0"
             >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-white/50">
-                  {usaMotorCondicoes(modalidade)
-                    ? "Confirma cancelamento de títulos substituídos e publica a versão de condições."
-                    : "Modalidade sem versão automática — use atendimento ou aditivo manual."}
-                </p>
-                {usaMotorCondicoes(modalidade) && renegociacaoId != null && renegociacaoId > 0 ? (
+              <RenegociacaoEfetivacaoResumo
+                modalidade={modalidade}
+                simulacao={simulacao}
+                parcelaInicial={parcelaInicial}
+                financeiro={financeiro}
+                inadimplenciaQuitacao={inadimplenciaQuitacaoExibicao}
+                processoId={renegociacaoId}
+                documentosOk={documentosOk}
+                propostaId={propostaId}
+                contratoId={contratoId}
+              />
+              <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                {modalidadeUsaMotorCondicoes(modalidade) &&
+                renegociacaoId != null &&
+                renegociacaoId > 0 ? (
                   <Button
                     type="button"
                     loading={loading}
@@ -659,21 +1028,16 @@ export function RenegociacaoWizard({
                     className="rounded-full border-0 bg-emerald-600 px-6 py-3 text-xs font-black uppercase tracking-widest"
                     label="Efetivar"
                   />
-                ) : (
-                  <Link
-                    href={buildRenegociacaoDashboardUrl({
-                      contratoId,
-                      modalidade: MODALIDADE_ATALHO_ADITIVO,
-                    })}
-                  >
+                ) : modalidade === "T1_PARCELAS_VENCIDAS" || modalidade === "T6_JUDICIAL" ? (
+                  <Link href={`/dashboard/atendimento/painel?id=${contratoId}`}>
                     <Button
                       type="button"
                       className="rounded-full border-0 bg-violet-600 px-6 py-3 text-xs font-black uppercase tracking-widest"
                       icon="pi pi-external-link"
-                      label="Saldo devedor (T2)"
+                      label="Painel de atendimento"
                     />
                   </Link>
-                )}
+                ) : null}
               </div>
             </FormSection>
           </motion.div>
