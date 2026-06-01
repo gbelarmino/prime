@@ -773,15 +773,7 @@ export function getFinTitulosIdsElegiveisWhatsAppUrl(opts?: FinTitulosListFilter
   const base = getFinTitulosUrl();
   if (!base) return "";
   const params = new URLSearchParams();
-  if (opts?.status) params.set("status", opts.status);
-  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
-  if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
-  if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
-  if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
-  if (opts?.lote != null) params.set("lote", String(opts.lote));
-  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
-  if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
-  if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  appendFinTitulosListFilterParams(params, opts);
   const qs = params.toString();
   return qs ? `${base}/ids-elegiveis-whatsapp?${qs}` : `${base}/ids-elegiveis-whatsapp`;
 }
@@ -790,15 +782,7 @@ export function getFinTitulosIdsElegiveisRegistroUrl(opts?: FinTitulosListFilter
   const base = getFinTitulosUrl();
   if (!base) return "";
   const params = new URLSearchParams();
-  if (opts?.status) params.set("status", opts.status);
-  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
-  if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
-  if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
-  if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
-  if (opts?.lote != null) params.set("lote", String(opts.lote));
-  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
-  if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
-  if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  appendFinTitulosListFilterParams(params, opts);
   const qs = params.toString();
   return qs ? `${base}/ids-elegiveis-registro?${qs}` : `${base}/ids-elegiveis-registro`;
 }
@@ -807,6 +791,10 @@ export type FinTitulosListFilters = {
   status?: string;
   contratoId?: number;
   imovelId?: number;
+  vencimentoDe?: string;
+  vencimentoAte?: string;
+  cadastroDe?: string;
+  cadastroAte?: string;
   empreendimento?: string;
   quadra?: string;
   lote?: number;
@@ -814,6 +802,25 @@ export type FinTitulosListFilters = {
   nome?: string;
   cpf?: string;
 };
+
+function appendFinTitulosListFilterParams(
+  params: URLSearchParams,
+  opts?: FinTitulosListFilters,
+): void {
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
+  if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
+  if (opts?.vencimentoDe) params.set("vencimentoDe", opts.vencimentoDe);
+  if (opts?.vencimentoAte) params.set("vencimentoAte", opts.vencimentoAte);
+  if (opts?.cadastroDe) params.set("cadastroDe", opts.cadastroDe);
+  if (opts?.cadastroAte) params.set("cadastroAte", opts.cadastroAte);
+  if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
+  if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
+  if (opts?.lote != null) params.set("lote", String(opts.lote));
+  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
+  if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
+  if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+}
 
 export function getFinTitulosListUrl(
   page = 0,
@@ -827,15 +834,7 @@ export function getFinTitulosListUrl(
     size: String(size),
     sort: "cadastroEm,desc",
   });
-  if (opts?.status) params.set("status", opts.status);
-  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
-  if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
-  if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
-  if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
-  if (opts?.lote != null) params.set("lote", String(opts.lote));
-  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
-  if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
-  if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  appendFinTitulosListFilterParams(params, opts);
   return `${base}?${params.toString()}`;
 }
 

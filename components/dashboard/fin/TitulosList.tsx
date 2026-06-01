@@ -57,6 +57,7 @@ import {
   parseIsoDate,
 } from "@/lib/fin-vencimento";
 import type { SpringPage } from "@/lib/spring-page";
+import { springPageDisplayRange } from "@/lib/spring-page";
 
 const STATUS_OPTIONS = [
   { label: "Todos", value: "" },
@@ -83,7 +84,10 @@ const STATUS_TONES: Record<string, string> = {
 const PAGE_SIZE = 12;
 const LOTE_MAX = 50;
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
-const FILTER_INPUT_CLASS = "w-full rounded-xl border-white/10 bg-white/5 text-white";
+const FILTER_INPUT_CLASS =
+  "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white/70 placeholder:text-white/25 focus:border-blue-500/50 focus:outline-none transition-all [color-scheme:dark]";
+const FILTER_DATE_CLASS =
+  "bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white/70 focus:outline-none focus:border-blue-500/50 transition-all min-w-[140px] [color-scheme:dark]";
 const FILTRO_TODOS = "";
 
 const FILTER_DROPDOWN_PT = {
@@ -167,6 +171,10 @@ export function TitulosList({
   const [filterQuadrasLoading, setFilterQuadrasLoading] = useState(false);
   const [filterLotes, setFilterLotes] = useState<number[]>([]);
   const [filterLotesLoading, setFilterLotesLoading] = useState(false);
+  const [filterVencimentoDe, setFilterVencimentoDe] = useState("");
+  const [filterVencimentoAte, setFilterVencimentoAte] = useState("");
+  const [filterEmissaoDe, setFilterEmissaoDe] = useState("");
+  const [filterEmissaoAte, setFilterEmissaoAte] = useState("");
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const hasLoadedRef = useRef(false);
@@ -241,6 +249,10 @@ export function TitulosList({
       contrato: filterContrato.trim() || undefined,
       nome: filterNome.trim() || undefined,
       cpf: filterCpf.trim() || undefined,
+      vencimentoDe: filterVencimentoDe || undefined,
+      vencimentoAte: filterVencimentoAte || undefined,
+      cadastroDe: filterEmissaoDe || undefined,
+      cadastroAte: filterEmissaoAte || undefined,
     }),
     [
       statusFilter,
@@ -251,6 +263,10 @@ export function TitulosList({
       filterContrato,
       filterNome,
       filterCpf,
+      filterVencimentoDe,
+      filterVencimentoAte,
+      filterEmissaoDe,
+      filterEmissaoAte,
     ],
   );
 
@@ -300,6 +316,10 @@ export function TitulosList({
     filterEmpreendimento,
     filterQuadra,
     filterLote,
+    filterVencimentoDe,
+    filterVencimentoAte,
+    filterEmissaoDe,
+    filterEmissaoAte,
   ]);
 
   useEffect(() => {
@@ -377,6 +397,10 @@ export function TitulosList({
     setFilterQuadra(FILTRO_TODOS);
     setFilterLote(null);
     setStatusFilter("");
+    setFilterVencimentoDe("");
+    setFilterVencimentoAte("");
+    setFilterEmissaoDe("");
+    setFilterEmissaoAte("");
   };
 
   const temFiltrosAtivos =
@@ -386,7 +410,11 @@ export function TitulosList({
     !!filterCpf.trim() ||
     !!filterEmpreendimento.trim() ||
     !!filterQuadra.trim() ||
-    filterLote != null;
+    filterLote != null ||
+    !!filterVencimentoDe ||
+    !!filterVencimentoAte ||
+    !!filterEmissaoDe ||
+    !!filterEmissaoAte;
 
   useEffect(() => {
     if (!showNovo) {
@@ -1089,6 +1117,7 @@ export function TitulosList({
   };
 
   const totalRecords = pageData?.totalElements ?? 0;
+  const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
 
   return (
     <>
@@ -1097,6 +1126,12 @@ export function TitulosList({
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-white/40">
               <span className="font-bold text-white">{totalRecords}</span> títulos encontrados
+              {totalRecords > 0 ? (
+                <span className="text-white/30">
+                  {" "}
+                  · a mostrar {range.from}–{range.to}
+                </span>
+              ) : null}
             </p>
             <button
               type="button"
@@ -1216,13 +1251,73 @@ export function TitulosList({
               </>
             ) : null}
             <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-venc-de"
+                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+              >
+                Vencimento de
+              </label>
+              <input
+                id="titulo-venc-de"
+                type="date"
+                value={filterVencimentoDe}
+                onChange={(e) => setFilterVencimentoDe(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-venc-ate"
+                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+              >
+                Vencimento até
+              </label>
+              <input
+                id="titulo-venc-ate"
+                type="date"
+                value={filterVencimentoAte}
+                onChange={(e) => setFilterVencimentoAte(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-emissao-de"
+                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+              >
+                Emissão de
+              </label>
+              <input
+                id="titulo-emissao-de"
+                type="date"
+                value={filterEmissaoDe}
+                onChange={(e) => setFilterEmissaoDe(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-emissao-ate"
+                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+              >
+                Emissão até
+              </label>
+              <input
+                id="titulo-emissao-ate"
+                type="date"
+                value={filterEmissaoAte}
+                onChange={(e) => setFilterEmissaoAte(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
                 Status
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70 transition-all focus:border-blue-500/50 focus:outline-none"
+                className={FILTER_DATE_CLASS}
               >
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value || "all"} value={o.value} className="bg-[#020817]">
@@ -1338,8 +1433,9 @@ export function TitulosList({
             onPage={onPage}
             loading={refreshing}
             emptyMessage="Nenhum título encontrado."
-            responsiveLayout="stack"
-            breakpoint="960px"
+            scrollable
+            tableStyle={{ minWidth: "64rem" }}
+            responsiveLayout="scroll"
             className={DASHBOARD_DATATABLE_CLASS}
             pt={TABLE_PT}
             rowHover
@@ -1362,45 +1458,61 @@ export function TitulosList({
                 body={(row: TituloCobranca) =>
                   dashboardCellMono(formatContratoRef(row.numeroContrato, row.contratoId))
                 }
-                style={{ width: "8%" }}
+                style={{ width: "6.5rem", maxWidth: "6.5rem" }}
               />
             ) : null}
-            <Column field="numeroParcela" header="Parc." style={{ width: "6%" }} />
+            <Column
+              field="numeroParcela"
+              header="Parc."
+              style={{ width: "3.5rem", maxWidth: "3.5rem" }}
+            />
             <Column
               header="Nosso nº"
               body={(row: TituloCobranca) => dashboardCellMono(row.nossoNumero)}
-              style={{ width: "12%" }}
+              style={{ width: "7.5rem", maxWidth: "7.5rem" }}
             />
-            {embedded ? (
-              <Column
-                header="Geração"
-                body={(row: TituloCobranca) => dashboardCellText(formatDate(row.cadastroEm))}
-                style={{ width: "10%" }}
-              />
-            ) : null}
+            <Column
+              header="Emissão"
+              body={(row: TituloCobranca) => dashboardCellText(formatDate(row.cadastroEm))}
+              style={{ width: "6rem", maxWidth: "6rem" }}
+            />
+            <Column
+              header="Usuário"
+              body={(row: TituloCobranca) =>
+                dashboardCellText(row.usuarioNome?.trim() || "—", {
+                  title: row.usuarioNome ?? undefined,
+                })
+              }
+              style={{ width: "9rem", maxWidth: "9rem" }}
+            />
             {embedded ? (
               <Column
                 header="Convênio"
                 body={(row: TituloCobranca) => dashboardCellText(row.convenioNome || "—")}
-                style={{ width: "14%" }}
+                style={{ width: "8rem", maxWidth: "8rem" }}
               />
             ) : null}
             <Column
               header="Vencimento"
               body={(row: TituloCobranca) => dashboardCellText(formatDate(row.vencimento))}
-              style={{ width: "10%" }}
+              style={{ width: "6rem", maxWidth: "6rem" }}
             />
             <Column
               header="Valor"
               body={(row: TituloCobranca) => dashboardCellText(formatMoney(row.valorNominal))}
-              style={{ width: "12%" }}
+              style={{ width: "7rem", maxWidth: "7rem" }}
             />
             <Column
               header="Status"
               body={(row: TituloCobranca) => dashboardStatusBadge(row.status, STATUS_TONES)}
-              style={{ width: "12%" }}
+              style={{ width: "7.5rem", maxWidth: "7.5rem" }}
             />
-            <Column header="Ações" body={actionBodyTemplate} align="right" style={{ width: "8%" }} />
+            <Column
+              header="Ações"
+              body={actionBodyTemplate}
+              align="right"
+              style={{ width: "4rem", maxWidth: "4rem" }}
+            />
           </DataTable>
         </DashboardDataTableShell>
 

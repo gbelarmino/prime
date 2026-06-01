@@ -99,6 +99,7 @@ export interface TituloCobranca {
   versao: number;
   cadastroEm: string;
   alteradoEm: string;
+  usuarioNome?: string | null;
 }
 
 export interface TituloHistoricoItem {
@@ -565,6 +566,10 @@ export const finService = {
       status?: string;
       contratoId?: number;
       imovelId?: number;
+      vencimentoDe?: string;
+      vencimentoAte?: string;
+      cadastroDe?: string;
+      cadastroAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
@@ -578,6 +583,10 @@ export const finService = {
       status: filters?.status,
       contratoId: filters?.contratoId,
       imovelId: filters?.imovelId,
+      vencimentoDe: filters?.vencimentoDe,
+      vencimentoAte: filters?.vencimentoAte,
+      cadastroDe: filters?.cadastroDe,
+      cadastroAte: filters?.cadastroAte,
       empreendimento: filters?.empreendimento,
       quadra: filters?.quadra,
       lote: filters?.lote,
@@ -724,6 +733,10 @@ export const finService = {
       status?: string;
       contratoId?: number;
       imovelId?: number;
+      vencimentoDe?: string;
+      vencimentoAte?: string;
+      cadastroDe?: string;
+      cadastroAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
@@ -737,6 +750,10 @@ export const finService = {
       status: filters?.status,
       contratoId: filters?.contratoId,
       imovelId: filters?.imovelId,
+      vencimentoDe: filters?.vencimentoDe,
+      vencimentoAte: filters?.vencimentoAte,
+      cadastroDe: filters?.cadastroDe,
+      cadastroAte: filters?.cadastroAte,
       empreendimento: filters?.empreendimento,
       quadra: filters?.quadra,
       lote: filters?.lote,
@@ -767,6 +784,10 @@ export const finService = {
       status?: string;
       contratoId?: number;
       imovelId?: number;
+      vencimentoDe?: string;
+      vencimentoAte?: string;
+      cadastroDe?: string;
+      cadastroAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
@@ -780,6 +801,10 @@ export const finService = {
       status: filters?.status,
       contratoId: filters?.contratoId,
       imovelId: filters?.imovelId,
+      vencimentoDe: filters?.vencimentoDe,
+      vencimentoAte: filters?.vencimentoAte,
+      cadastroDe: filters?.cadastroDe,
+      cadastroAte: filters?.cadastroAte,
       empreendimento: filters?.empreendimento,
       quadra: filters?.quadra,
       lote: filters?.lote,
