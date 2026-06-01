@@ -28,6 +28,7 @@ import {
 } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
+import { TituloPdfLoteDialog } from "@/components/dashboard/fin/TituloPdfLoteDialog";
 import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegistrarLoteDialog";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import {
@@ -35,6 +36,7 @@ import {
   formatContratoRef,
   type TituloCobranca,
   type TituloContextoLote,
+  type TituloPdfLoteResult,
   type TituloRegistrarLoteResult,
   type TituloWhatsAppCobrancaLoteResult,
 } from "@/lib/fin-service";
@@ -132,8 +134,14 @@ function tituloElegivelWhatsApp(status: TituloCobranca["status"]): boolean {
   return status === "EMITIDO";
 }
 
+function tituloElegivelPdf(status: TituloCobranca["status"]): boolean {
+  return podeBaixarPdfBoleto(status);
+}
+
 function tituloSelecionavel(status: TituloCobranca["status"]): boolean {
-  return tituloRegistravel(status) || tituloElegivelWhatsApp(status);
+  return (
+    tituloRegistravel(status) || tituloElegivelWhatsApp(status) || tituloElegivelPdf(status)
+  );
 }
 
 export function TitulosList({
@@ -187,6 +195,8 @@ export function TitulosList({
   const [whatsappLoteDialogOpen, setWhatsappLoteDialogOpen] = useState(false);
   const [whatsappLoteResultado, setWhatsappLoteResultado] =
     useState<TituloWhatsAppCobrancaLoteResult | null>(null);
+  const [pdfLoteDialogOpen, setPdfLoteDialogOpen] = useState(false);
+  const [pdfLoteResultado, setPdfLoteResultado] = useState<TituloPdfLoteResult | null>(null);
   const [selecionandoTodos, setSelecionandoTodos] = useState(false);
 
   const titulosRegistraveisSelecionados = useMemo(
@@ -196,6 +206,11 @@ export function TitulosList({
 
   const titulosWhatsAppSelecionados = useMemo(
     () => selectedTitulos.filter((t) => tituloElegivelWhatsApp(t.status)),
+    [selectedTitulos],
+  );
+
+  const titulosPdfSelecionados = useMemo(
+    () => selectedTitulos.filter((t) => tituloElegivelPdf(t.status)),
     [selectedTitulos],
   );
 
@@ -771,6 +786,47 @@ export function TitulosList({
     }
   };
 
+  const abrirPdfLote = () => {
+    if (titulosPdfSelecionados.length === 0) {
+      toast.info("Selecione títulos com boleto/PDF disponível para download.");
+      return;
+    }
+    if (titulosPdfSelecionados.length > LOTE_MAX) {
+      toast.error(`Selecione no máximo ${LOTE_MAX} títulos por operação.`);
+      return;
+    }
+    setPdfLoteResultado(null);
+    setPdfLoteDialogOpen(true);
+  };
+
+  const fecharPdfLoteDialog = () => {
+    setPdfLoteDialogOpen(false);
+    setPdfLoteResultado(null);
+  };
+
+  const confirmarPdfLote = async () => {
+    if (titulosPdfSelecionados.length === 0) return;
+    setActionLoading(true);
+    try {
+      const outcome = await finService.downloadPdfLote(
+        titulosPdfSelecionados.map((t) => t.id),
+      );
+      if (outcome.ok) {
+        toast.success(`PDF mesclado baixado (${outcome.filename}).`);
+        setPdfLoteDialogOpen(false);
+        setPdfLoteResultado(null);
+        setSelectedTitulos([]);
+      } else {
+        setPdfLoteResultado(outcome.resultado);
+        toast.error("Não foi possível mesclar todos os boletos. Veja o detalhe.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF em lote.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const abrirCancelar = (row: TituloCobranca) => {
     setTituloParaCancelar(row);
     setCancelDialogOpen(true);
@@ -1192,6 +1248,17 @@ export function TitulosList({
                 <MessageCircle size={14} />
                 Enviar WhatsApp
               </button>
+              <button
+                type="button"
+                onClick={abrirPdfLote}
+                disabled={
+                  actionLoading || selecionandoTodos || titulosPdfSelecionados.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-50"
+              >
+                <Download size={14} />
+                Baixar PDF em lote
+              </button>
             </div>
           </div>
         ) : null}
@@ -1317,6 +1384,15 @@ export function TitulosList({
           titulos={titulosWhatsAppSelecionados}
           resultado={whatsappLoteResultado}
           onConfirm={() => void confirmarWhatsAppLote()}
+          loading={actionLoading}
+        />
+
+        <TituloPdfLoteDialog
+          visible={pdfLoteDialogOpen}
+          onHide={fecharPdfLoteDialog}
+          titulos={titulosPdfSelecionados}
+          resultado={pdfLoteResultado}
+          onConfirm={() => void confirmarPdfLote()}
           loading={actionLoading}
         />
       </div>

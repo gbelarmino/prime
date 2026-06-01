@@ -1,6 +1,6 @@
 import { apiFetch } from "./api-fetch";
 
-function tryGetFilenameFromDisposition(disposition: string | null): string | null {
+export function tryGetFilenameFromDisposition(disposition: string | null): string | null {
   if (!disposition) return null;
   const m = disposition.match(/filename="?([^";]+)"?/i);
   return m?.[1]?.trim() ?? null;
@@ -29,7 +29,7 @@ function abrirUrl(url: string): void {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function baixarBlob(blob: Blob, filename: string): void {
+export function baixarBlob(blob: Blob, filename: string): void {
   const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = objectUrl;

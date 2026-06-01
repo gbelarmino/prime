@@ -1,5 +1,9 @@
 import { apiFetch } from "./api-fetch";
-import { baixarBoletoPdf } from "./baixar-boleto-pdf";
+import {
+  baixarBlob,
+  baixarBoletoPdf,
+  tryGetFilenameFromDisposition,
+} from "./baixar-boleto-pdf";
 import {
   getFinConvenioAtivoUrl,
   getFinConvenioEmpreendimentoUrl,
@@ -46,6 +50,7 @@ import {
   getFinTitulosListUrl,
   getFinTitulosLoteUrl,
   getFinTitulosIdsElegiveisRegistroUrl,
+  getFinTitulosPdfLoteUrl,
   getFinTitulosRegistrarLoteUrl,
   getFinTitulosUrl,
   getFinTituloAvulsoUrl,
@@ -144,6 +149,23 @@ export interface TituloWhatsAppCobrancaLoteResult {
   falhas: number;
   itens: TituloWhatsAppCobrancaLoteItem[];
 }
+
+export interface TituloPdfLoteItem {
+  tituloId: string;
+  sucesso: boolean;
+  mensagem?: string | null;
+}
+
+export interface TituloPdfLoteResult {
+  total: number;
+  sucesso: number;
+  falhas: number;
+  itens: TituloPdfLoteItem[];
+}
+
+export type TituloPdfLoteDownload =
+  | { ok: true; filename: string }
+  | { ok: false; resultado: TituloPdfLoteResult };
 
 export interface ConvenioBanco {
   id: string;
@@ -800,6 +822,48 @@ export const finService = {
     status?: TituloCobrancaStatus,
   ): Promise<void> {
     await baixarBoletoPdf(id, { urlBoleto, pdfUrl: getFinTituloPdfUrl(id), status });
+  },
+
+  async downloadPdfLote(tituloIds: string[]): Promise<TituloPdfLoteDownload> {
+    const res = await apiFetch(getFinTitulosPdfLoteUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tituloIds }),
+    });
+    const contentType = res.headers.get("content-type") ?? "";
+    if (res.ok && contentType.includes("pdf")) {
+      const blob = await res.blob();
+      const filename =
+        tryGetFilenameFromDisposition(res.headers.get("content-disposition")) ??
+        `boletos-lote-${tituloIds.length}.pdf`;
+      baixarBlob(blob, filename);
+      return { ok: true, filename };
+    }
+    const text = await res.text().catch(() => "");
+    if (res.status === 422 && text.trim()) {
+      try {
+        const resultado = JSON.parse(text) as TituloPdfLoteResult;
+        if (Array.isArray(resultado.itens)) {
+          return { ok: false, resultado };
+        }
+      } catch {
+        // resposta não estruturada
+      }
+    }
+    let detail = "Erro ao baixar PDF em lote";
+    if (text.trim()) {
+      try {
+        const errBody = JSON.parse(text) as { message?: string };
+        if (errBody.message?.trim()) {
+          detail = errBody.message.trim();
+        } else {
+          detail = text.trim();
+        }
+      } catch {
+        detail = text.trim();
+      }
+    }
+    throw new Error(detail);
   },
 
   /** Somente convênios ativos (seleção em títulos, conciliação, etc.). */
