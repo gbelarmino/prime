@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,7 +16,6 @@ import { Message } from "primereact/message";
 import { Divider } from "primereact/divider";
 
 import {
-  getContratantesListUrl,
   getContratoHonorariosByIdUrl,
   getContratoHonorariosUrl,
   getContratoProximoNumeroUrl,
@@ -55,10 +54,20 @@ import {
   type PrecoLoteResponse,
 } from "@/lib/validations/contrato-honorarios";
 import { numberToBrlInputValue } from "@/lib/currency-brl";
+import { formatCpfDisplay } from "@/lib/format-cpf";
+import {
+  fetchContratanteOption,
+  mergeContratanteOptions,
+  searchContratantes,
+  type ContratanteOption,
+} from "@/lib/contratante-service";
 
 type SpringPage<T> = { content: T[] };
 
-type ClienteOpt = { id: string; nome: string };
+const CLIENTES_SEARCH_MIN_CHARS = 2;
+const CLIENTES_SEARCH_DEBOUNCE_MS = 350;
+
+type ClienteOpt = ContratanteOption;
 type ImobOpt = { id: string; razaoSocial: string; email?: string };
 type CorretorOpt = { id: string; nome: string; imobiliariaId: string; email?: string };
 type ImovelOption = {
@@ -82,6 +91,9 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
   );
   const [optsLoading, setOptsLoading] = useState(true);
   const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [clientesLoading, setClientesLoading] = useState(false);
+  const clientesSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clientesSearchSeqRef = useRef(0);
   const [imobiliarias, setImobiliarias] = useState<ImobOpt[]>([]);
   const [corretores, setCorretores] = useState<CorretorOpt[]>([]);
   const [imoveis, setImoveis] = useState<ImovelOption[]>([]);
@@ -127,9 +139,84 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
     }
   }, [errors]);
 
+  const contratanteId = watch("contratanteId");
   const imobiliariaId = watch("imobiliariaId");
   const imovelId = watch("imovelId");
   const dataAssinatura = watch("dataAssinatura");
+
+  const ensureClienteSelectedInOptions = useCallback(async (id: string) => {
+    if (!id) return;
+    const opt = await fetchContratanteOption(Number(id));
+    if (!opt) return;
+    setClientes((prev) => {
+      if (prev.some((c) => c.id === id)) return prev;
+      return mergeContratanteOptions(prev, opt);
+    });
+  }, []);
+
+  const runClientesSearch = useCallback(
+    async (rawFilter: string) => {
+      const term = rawFilter.trim();
+      if (term.length > 0 && term.length < CLIENTES_SEARCH_MIN_CHARS) {
+        setClientes((prev) => {
+          const selected =
+            contratanteId && contratanteId !== ""
+              ? prev.find((c) => c.id === contratanteId) ?? null
+              : null;
+          return selected ? [selected] : [];
+        });
+        return;
+      }
+
+      const seq = ++clientesSearchSeqRef.current;
+      setClientesLoading(true);
+      try {
+        const found = await searchContratantes(term);
+        if (seq !== clientesSearchSeqRef.current) return;
+        setClientes((prev) => {
+          const selected =
+            contratanteId && contratanteId !== ""
+              ? prev.find((c) => c.id === contratanteId) ?? null
+              : null;
+          return mergeContratanteOptions(found, selected);
+        });
+      } catch {
+        if (seq === clientesSearchSeqRef.current) {
+          toast.error("Não foi possível buscar clientes.");
+        }
+      } finally {
+        if (seq === clientesSearchSeqRef.current) {
+          setClientesLoading(false);
+        }
+      }
+    },
+    [contratanteId],
+  );
+
+  const scheduleClientesSearch = useCallback(
+    (filter: string) => {
+      if (clientesSearchTimerRef.current) {
+        clearTimeout(clientesSearchTimerRef.current);
+      }
+      clientesSearchTimerRef.current = setTimeout(() => {
+        void runClientesSearch(filter);
+      }, CLIENTES_SEARCH_DEBOUNCE_MS);
+    },
+    [runClientesSearch],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (clientesSearchTimerRef.current) {
+        clearTimeout(clientesSearchTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!contratanteId) return;
+    void ensureClienteSelectedInOptions(contratanteId);
+  }, [contratanteId, ensureClienteSelectedInOptions]);
 
   const isImobiliaria = isAuthImobiliaria();
   const isCorretor = isAuthCorretor();
@@ -165,17 +252,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
             ? Promise.resolve(null)
             : apiFetch(getImobiliariasListUrl(0, 500), { headers, credentials: "omit" });
 
-        const [r1, rImob, r3, r4] = await Promise.all([
-          apiFetch(getContratantesListUrl(0, 500), { headers, credentials: "omit" }),
+        const [rImob, r3, r4] = await Promise.all([
           imobListPromise,
           apiFetch(getCorretoresListUrl(0, 500), { headers, credentials: "omit" }),
           apiFetch(getImoveisQuadrasUrl(situacaoFiltro), { headers, credentials: "omit" }),
         ]);
 
-        if (r1.ok) {
-          const p = (await r1.json()) as SpringPage<{ id: number; nome: string }>;
-          setClientes((p.content ?? []).map(c => ({ ...c, id: String(c.id) })));
-        }
         if (rImob?.ok) {
           if (isImobiliaria) {
             const i = (await rImob.json()) as { id: number; razaoSocial: string; email?: string };
@@ -407,6 +489,14 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
         const data = (await res.json()) as ContratoHonorariosApiResponse;
         skipNextFetchRef.current = true;
         reset(contratoResponseToFormValues(data));
+        if (data.contratante) {
+          setClientes([
+            {
+              id: String(data.contratante.id),
+              nome: data.contratante.label,
+            },
+          ]);
+        }
         setOrigemAssinatura(data.origemAssinatura ?? null);
         setLinkPdfAssinado(data.linkPdfAssinado ?? null);
         const st = data.status != null ? Number(data.status) : null;
@@ -714,9 +804,30 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                     optionLabel="nome"
                     optionValue="id"
                     filter
-                    placeholder={optsLoading ? "Carregando..." : "Selecione o cliente"}
+                    filterBy="nome,cpf,email"
+                    onFilter={(e) => scheduleClientesSearch(e.filter)}
+                    onShow={() => {
+                      if (clientes.length === 0 && field.value) {
+                        void ensureClienteSelectedInOptions(String(field.value));
+                      }
+                    }}
+                    loading={clientesLoading}
+                    placeholder="Digite nome, CPF ou e-mail para buscar"
+                    emptyFilterMessage={`Digite ao menos ${CLIENTES_SEARCH_MIN_CHARS} caracteres`}
+                    emptyMessage="Nenhum cliente encontrado"
                     className={cn("w-full", { "p-invalid": errors.contratanteId })}
-                    disabled={optsLoading}
+                    itemTemplate={(option: ClienteOpt) => (
+                      <div className="flex flex-col gap-0.5 py-0.5">
+                        <span className="text-sm text-white">{option.nome}</span>
+                        {(option.cpf || option.email) && (
+                          <span className="text-[10px] text-white/45">
+                            {[option.cpf ? formatCpfDisplay(option.cpf) : null, option.email]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   />
                 )}
               />
