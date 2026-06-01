@@ -80,7 +80,7 @@ const STATUS_TONES: Record<string, string> = {
   ERRO_REGISTRO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 12;
 const LOTE_MAX = 50;
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
 const FILTER_INPUT_CLASS = "w-full rounded-xl border-white/10 bg-white/5 text-white";
