@@ -765,6 +765,10 @@ export function getFinTitulosWhatsAppCobrancaParcelaLoteUrl(): string {
   return `${getFinTitulosUrl()}/whatsapp/cobranca-parcela/lote`;
 }
 
+export function getFinTitulosEmailCobrancaParcelaLoteUrl(): string {
+  return `${getFinTitulosUrl()}/email/cobranca-parcela/lote`;
+}
+
 export function getFinTitulosIdsElegiveisWhatsAppUrl(opts?: FinTitulosListFilters): string {
   const base = getFinTitulosUrl();
   if (!base) return "";

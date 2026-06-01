@@ -12,7 +12,7 @@ import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
-import { Ban, Download, Eye, FileCheck, MessageCircle, RefreshCw } from "lucide-react";
+import { Ban, Download, Eye, FileCheck, Mail, MessageCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import {
@@ -30,6 +30,7 @@ import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/d
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
 import { TituloPdfLoteDialog } from "@/components/dashboard/fin/TituloPdfLoteDialog";
 import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegistrarLoteDialog";
+import { TituloEmailLoteDialog } from "@/components/dashboard/fin/TituloEmailLoteDialog";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import {
   finService,
@@ -38,6 +39,7 @@ import {
   type TituloContextoLote,
   type TituloPdfLoteResult,
   type TituloRegistrarLoteResult,
+  type TituloEmailCobrancaLoteResult,
   type TituloWhatsAppCobrancaLoteResult,
 } from "@/lib/fin-service";
 import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
@@ -195,6 +197,9 @@ export function TitulosList({
   const [whatsappLoteDialogOpen, setWhatsappLoteDialogOpen] = useState(false);
   const [whatsappLoteResultado, setWhatsappLoteResultado] =
     useState<TituloWhatsAppCobrancaLoteResult | null>(null);
+  const [emailLoteDialogOpen, setEmailLoteDialogOpen] = useState(false);
+  const [emailLoteResultado, setEmailLoteResultado] =
+    useState<TituloEmailCobrancaLoteResult | null>(null);
   const [pdfLoteDialogOpen, setPdfLoteDialogOpen] = useState(false);
   const [pdfLoteResultado, setPdfLoteResultado] = useState<TituloPdfLoteResult | null>(null);
   const [selecionandoTodos, setSelecionandoTodos] = useState(false);
@@ -786,6 +791,53 @@ export function TitulosList({
     }
   };
 
+  const abrirEmailLote = () => {
+    if (titulosWhatsAppSelecionados.length === 0) {
+      toast.info("Selecione títulos na situação Emitido.");
+      return;
+    }
+    if (titulosWhatsAppSelecionados.length > LOTE_MAX) {
+      toast.error(`Selecione no máximo ${LOTE_MAX} títulos por operação.`);
+      return;
+    }
+    setEmailLoteResultado(null);
+    setEmailLoteDialogOpen(true);
+  };
+
+  const fecharEmailLoteDialog = () => {
+    setEmailLoteDialogOpen(false);
+    setEmailLoteResultado(null);
+    if (emailLoteResultado && emailLoteResultado.emailsEnfileirados > 0) {
+      setSelectedTitulos([]);
+    }
+  };
+
+  const confirmarEmailLote = async () => {
+    if (titulosWhatsAppSelecionados.length === 0) return;
+    setActionLoading(true);
+    try {
+      const resultado = await finService.enfileirarEmailCobrancaParcelaEmLote(
+        titulosWhatsAppSelecionados.map((t) => t.id),
+      );
+      setEmailLoteResultado(resultado);
+      if (resultado.emailsFalhas === 0) {
+        toast.success(
+          `${resultado.emailsEnfileirados} e-mail(s) enfileirado(s) na fila de envio.`,
+        );
+      } else if (resultado.emailsEnfileirados > 0) {
+        toast.warning(
+          `${resultado.emailsEnfileirados} enfileirado(s), ${resultado.emailsFalhas} falha(s). Veja o detalhe.`,
+        );
+      } else {
+        toast.error("Nenhum e-mail foi enfileirado.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enfileirar e-mail em lote.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const abrirPdfLote = () => {
     if (titulosPdfSelecionados.length === 0) {
       toast.info("Selecione títulos com boleto/PDF disponível para download.");
@@ -1239,6 +1291,17 @@ export function TitulosList({
               </button>
               <button
                 type="button"
+                onClick={abrirEmailLote}
+                disabled={
+                  actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-sky-200 transition hover:bg-sky-500/20 disabled:opacity-50"
+              >
+                <Mail size={14} />
+                Enviar e-mail
+              </button>
+              <button
+                type="button"
                 onClick={abrirWhatsAppLote}
                 disabled={
                   actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
@@ -1375,6 +1438,15 @@ export function TitulosList({
           titulos={titulosRegistraveisSelecionados}
           resultado={registrarLoteResultado}
           onConfirm={() => void confirmarRegistrarLote()}
+          loading={actionLoading}
+        />
+
+        <TituloEmailLoteDialog
+          visible={emailLoteDialogOpen}
+          onHide={fecharEmailLoteDialog}
+          titulos={titulosWhatsAppSelecionados}
+          resultado={emailLoteResultado}
+          onConfirm={() => void confirmarEmailLote()}
           loading={actionLoading}
         />
 
