@@ -32,6 +32,21 @@ function formatDateIso(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Mínimo selecionável: amanhã (vencimento avulso deve ser estritamente após hoje). */
+function minimoVencimentoAvulso(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 1);
+  return d;
+}
+
+function isVencimentoFuturo(vencimento: Date): boolean {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const v = new Date(vencimento.getFullYear(), vencimento.getMonth(), vencimento.getDate());
+  return v.getTime() > hoje.getTime();
+}
+
 function formatMoney(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -83,6 +98,7 @@ export function TituloAvulsoEmitirWorkspace() {
     valorNominal != null &&
     valorNominal > 0 &&
     vencimento != null &&
+    isVencimentoFuturo(vencimento) &&
     !contexto.avisoConvenio &&
     (!contexto.convenioId || contexto.convenioId === selectedConvenioId);
 
@@ -147,7 +163,11 @@ export function TituloAvulsoEmitirWorkspace() {
           ctx.primeiroTituloLote && ctx.dataPrimeiraParcelaContrato
             ? ctx.dataPrimeiraParcelaContrato
             : ctx.vencimentoSugerido;
-        setVencimento(parseIsoDate(vencIso));
+        let vencDate = parseIsoDate(vencIso);
+        if (!vencDate || !isVencimentoFuturo(vencDate)) {
+          vencDate = minimoVencimentoAvulso();
+        }
+        setVencimento(vencDate);
         if (ctx.convenioId) {
           setSelectedConvenioId(ctx.convenioId);
         }
@@ -173,6 +193,11 @@ export function TituloAvulsoEmitirWorkspace() {
     }
     if (contexto.convenioId && contexto.convenioId !== selectedConvenioId) {
       toast.error("O convênio selecionado deve ser o atrelado ao empreendimento do lote.");
+      return;
+    }
+
+    if (!isVencimentoFuturo(vencimento)) {
+      toast.error("Vencimento deve ser uma data futura (após hoje).");
       return;
     }
 
@@ -397,20 +422,20 @@ export function TituloAvulsoEmitirWorkspace() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className={FORM_LABEL_CLASS}>
-                {contexto?.primeiroTituloLote && numeroParcela === 1
-                  ? "Data da 1ª parcela"
-                  : "Vencimento"}
-              </label>
+              <label className={FORM_LABEL_CLASS}>Vencimento</label>
               <Calendar
                 value={vencimento}
                 onChange={(e) => setVencimento(e.value ?? null)}
                 dateFormat="dd/mm/yy"
                 showIcon
+                minDate={minimoVencimentoAvulso()}
                 disabled={!contexto}
                 className="w-full"
                 inputClassName={FORM_INPUT_CLASS}
               />
+              <p className="text-xs text-white/35">
+                Qualquer data futura; não precisa coincidir com o dia de vencimento do contrato.
+              </p>
             </div>
           </div>
 
