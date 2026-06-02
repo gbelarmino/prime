@@ -874,6 +874,12 @@ export function getFinTituloLegadoManualUrl(): string {
   return `${base}/legado-manual`;
 }
 
+export function getFinTituloLegadoManualByIdUrl(id: string): string {
+  const base = getFinTituloByIdUrl(id);
+  if (!base) return "";
+  return `${base}/legado-manual`;
+}
+
 export function getFinTituloAvulsoUrl(): string {
   const base = getFinTitulosUrl();
   if (!base) return "";

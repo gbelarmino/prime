@@ -15,11 +15,13 @@ import {
   FileCheck,
   FileText,
   History,
+  Pencil,
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dashboardCellText, dashboardStatusBadge } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
+import { TituloLegadoManualDialog } from "@/components/dashboard/fin/TituloLegadoManualDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
 import { labelAcaoBoletoPdf, podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import { atendimentoService } from "@/lib/atendimento-service";
@@ -127,6 +129,7 @@ export function TituloDetalhe({
   const [dataPagamento, setDataPagamento] = useState<Date | null>(new Date());
   const [registrarDialogOpen, setRegistrarDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [editLegadoOpen, setEditLegadoOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -306,6 +309,11 @@ export function TituloDetalhe({
               {tituloTitulo}
             </h1>
             {dashboardStatusBadge(titulo.status, STATUS_TONES)}
+            {titulo.legado ? (
+              <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-300">
+                Legado
+              </span>
+            ) : null}
           </div>
           {titulo.convenioNome && (
             <p className="mt-2 text-sm font-medium text-white/40">{titulo.convenioNome}</p>
@@ -313,6 +321,14 @@ export function TituloDetalhe({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {!isAtendimentoView && titulo.legado && (
+            <ActionButton
+              label="Editar legado"
+              icon={<Pencil size={14} />}
+              disabled={actionLoading}
+              onClick={() => setEditLegadoOpen(true)}
+            />
+          )}
           {!isAtendimentoView && podeRegistrar && (
             <ActionButton
               label="Registrar"
@@ -544,6 +560,16 @@ export function TituloDetalhe({
             convenioNome={titulo.convenioNome}
             onConfirm={() => void confirmarRegistrar()}
             loading={actionLoading}
+          />
+
+          <TituloLegadoManualDialog
+            visible={editLegadoOpen}
+            tituloId={tituloId}
+            onHide={() => setEditLegadoOpen(false)}
+            onCreated={() => {
+              setEditLegadoOpen(false);
+              void load();
+            }}
           />
         </>
       )}

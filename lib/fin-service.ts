@@ -58,6 +58,7 @@ import {
   getFinTituloAvulsoUrl,
   getFinTituloContextoLoteUrl,
   getFinTituloLegadoManualUrl,
+  getFinTituloLegadoManualByIdUrl,
   getImoveisEmpreendimentosUrl,
   getImoveisListUrl,
   getImoveisQuadrasUrl,
@@ -90,6 +91,7 @@ export interface TituloCobranca {
   linhaDigitavel?: string | null;
   codigoBarras?: string | null;
   pixCopiaCola?: string | null;
+  idExternoBanco?: string | null;
   urlBoleto?: string | null;
   codigoInstrucaoBaixa?: string | null;
   status: TituloCobrancaStatus;
@@ -101,6 +103,7 @@ export interface TituloCobranca {
   cadastroEm: string;
   alteradoEm: string;
   usuarioNome?: string | null;
+  legado?: boolean;
 }
 
 export interface TituloHistoricoItem {
@@ -363,6 +366,8 @@ export interface TituloLegadoManualCreate {
   valorTarifa?: number;
   observacao?: string;
 }
+
+export type TituloLegadoManualUpdate = Omit<TituloLegadoManualCreate, "contratoId" | "convenioId">;
 
 export interface TituloLiquidarPayload {
   valorPago: number;
@@ -678,6 +683,18 @@ export const finService = {
   async criarTituloLegadoManual(body: TituloLegadoManualCreate): Promise<TituloCobranca> {
     const res = await apiFetch(getFinTituloLegadoManualUrl(), {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async atualizarTituloLegadoManual(
+    id: string,
+    body: TituloLegadoManualUpdate,
+  ): Promise<TituloCobranca> {
+    const res = await apiFetch(getFinTituloLegadoManualByIdUrl(id), {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
