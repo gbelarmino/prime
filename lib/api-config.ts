@@ -757,6 +757,10 @@ export function getFinTitulosRegistrarLoteUrl(): string {
   return `${getFinTitulosUrl()}/registrar/lote`;
 }
 
+export function getFinTitulosMarcarVencidosUrl(): string {
+  return `${getFinTitulosUrl()}/jobs/marcar-vencidos`;
+}
+
 export function getFinTitulosPdfLoteUrl(): string {
   return `${getFinTitulosUrl()}/pdf/lote`;
 }

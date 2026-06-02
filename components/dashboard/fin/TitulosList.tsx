@@ -12,7 +12,7 @@ import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
-import { Ban, Download, Eye, FileCheck, Mail, MessageCircle, RefreshCw } from "lucide-react";
+import { Ban, CalendarClock, Download, Eye, FileCheck, Mail, MessageCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import {
@@ -177,6 +177,7 @@ export function TitulosList({
   const [filterEmissaoAte, setFilterEmissaoAte] = useState("");
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [marcandoVencidos, setMarcandoVencidos] = useState(false);
   const hasLoadedRef = useRef(false);
   const [pageData, setPageData] = useState<SpringPage<TituloCobranca> | null>(null);
   const [saving, setSaving] = useState(false);
@@ -1119,6 +1120,34 @@ export function TitulosList({
   const totalRecords = pageData?.totalElements ?? 0;
   const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
 
+  const marcarEmitidosComoVencidos = async () => {
+    if (
+      !window.confirm(
+        "Marcar como vencidos todos os títulos EMITIDOS com data de vencimento anterior a hoje?",
+      )
+    ) {
+      return;
+    }
+    setMarcandoVencidos(true);
+    try {
+      const { marcados } = await finService.marcarTitulosVencidos();
+      if (marcados > 0) {
+        toast.success(
+          marcados === 1
+            ? "1 título atualizado para Vencido."
+            : `${marcados} títulos atualizados para Vencido.`,
+        );
+        await load(true);
+      } else {
+        toast.info("Nenhum título EMITIDO em atraso para atualizar.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao marcar títulos vencidos.");
+    } finally {
+      setMarcandoVencidos(false);
+    }
+  };
+
   return (
     <>
       <div className={cn("flex flex-col gap-5", !embedded && "px-4")}>
@@ -1133,15 +1162,29 @@ export function TitulosList({
                 </span>
               ) : null}
             </p>
-            <button
-              type="button"
-              onClick={() => void load(true)}
-              disabled={refreshing}
-              className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 disabled:pointer-events-none disabled:opacity-50 md:self-auto"
-            >
-              <RefreshCw size={14} className={cn("shrink-0", refreshing && "animate-spin")} />
-              Atualizar
-            </button>
+            <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+              <button
+                type="button"
+                onClick={() => void marcarEmitidosComoVencidos()}
+                disabled={marcandoVencidos || refreshing}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-rose-200 transition-all hover:bg-rose-500/20 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <CalendarClock
+                  size={14}
+                  className={cn("shrink-0", marcandoVencidos && "animate-pulse")}
+                />
+                {marcandoVencidos ? "A processar…" : "Marcar vencidos"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void load(true)}
+                disabled={refreshing || marcandoVencidos}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={cn("shrink-0", refreshing && "animate-spin")} />
+                Atualizar
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

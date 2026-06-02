@@ -52,6 +52,7 @@ import {
   getFinTitulosLoteUrl,
   getFinTitulosIdsElegiveisRegistroUrl,
   getFinTitulosPdfLoteUrl,
+  getFinTitulosMarcarVencidosUrl,
   getFinTitulosRegistrarLoteUrl,
   getFinTitulosUrl,
   getFinTituloAvulsoUrl,
@@ -771,6 +772,12 @@ export const finService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tituloIds }),
     });
+    return parseJson(res);
+  },
+
+  /** EMITIDO com vencimento anterior a hoje passam para VENCIDO (mesmo job diário da API). */
+  async marcarTitulosVencidos(): Promise<{ marcados: number }> {
+    const res = await apiFetch(getFinTitulosMarcarVencidosUrl(), { method: "POST" });
     return parseJson(res);
   },
 
