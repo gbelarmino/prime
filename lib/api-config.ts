@@ -274,8 +274,9 @@ export function getContratosHonorariosListUrl(
   const params = new URLSearchParams({
     page: String(page),
     size: String(size),
-    sort: "dataAssinatura,desc",
   });
+  params.append("sort", "criadoEm,desc");
+  params.append("sort", "id,desc");
   const term = q?.trim();
   if (term) params.set("q", term);
   if (status) params.set("status", status);

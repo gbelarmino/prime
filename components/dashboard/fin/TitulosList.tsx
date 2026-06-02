@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataTablePageEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { InputNumber } from "primereact/inputnumber";
 import { Calendar } from "primereact/calendar";
@@ -178,6 +179,7 @@ export function TitulosList({
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [marcandoVencidos, setMarcandoVencidos] = useState(false);
+  const [marcarVencidosDialogOpen, setMarcarVencidosDialogOpen] = useState(false);
   const hasLoadedRef = useRef(false);
   const [pageData, setPageData] = useState<SpringPage<TituloCobranca> | null>(null);
   const [saving, setSaving] = useState(false);
@@ -1120,17 +1122,11 @@ export function TitulosList({
   const totalRecords = pageData?.totalElements ?? 0;
   const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
 
-  const marcarEmitidosComoVencidos = async () => {
-    if (
-      !window.confirm(
-        "Marcar como vencidos todos os títulos EMITIDOS com data de vencimento anterior a hoje?",
-      )
-    ) {
-      return;
-    }
+  const confirmarMarcarVencidos = async () => {
     setMarcandoVencidos(true);
     try {
       const { marcados } = await finService.marcarTitulosVencidos();
+      setMarcarVencidosDialogOpen(false);
       if (marcados > 0) {
         toast.success(
           marcados === 1
@@ -1165,7 +1161,7 @@ export function TitulosList({
             <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
               <button
                 type="button"
-                onClick={() => void marcarEmitidosComoVencidos()}
+                onClick={() => setMarcarVencidosDialogOpen(true)}
                 disabled={marcandoVencidos || refreshing}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-rose-200 transition-all hover:bg-rose-500/20 disabled:pointer-events-none disabled:opacity-50"
               >
@@ -2033,6 +2029,23 @@ export function TitulosList({
         </div>
       </DashboardDialog>
       ) : null}
+
+      <DashboardConfirmDialog
+        visible={marcarVencidosDialogOpen}
+        onHide={() => setMarcarVencidosDialogOpen(false)}
+        onConfirm={() => void confirmarMarcarVencidos()}
+        header="Marcar títulos vencidos"
+        tone="warning"
+        confirmLabel="Marcar vencidos"
+        loading={marcandoVencidos}
+        message={
+          <p>
+            Todos os títulos com status <span className="font-semibold text-white">Emitido</span> e data de
+            vencimento anterior a hoje passarão para{" "}
+            <span className="font-semibold text-rose-300">Vencido</span>.
+          </p>
+        }
+      />
     </>
   );
 }

@@ -26,6 +26,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Button } from "primereact/button";
 import { Menu } from "primereact/menu";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
+import { DashboardPromptDialog } from "@/components/dashboard/DashboardPromptDialog";
 import { toast } from "sonner";
 import { usePaginatedSpringList } from "@/hooks/use-paginated-spring-list";
 import {
@@ -87,6 +88,8 @@ export function ContratosList() {
   const [confirmCancelarId, setConfirmCancelarId] = useState<number | null>(null);
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [confirmClicksignId, setConfirmClicksignId] = useState<number | null>(null);
+  const [confirmReprovarId, setConfirmReprovarId] = useState<number | null>(null);
+  const [reprovarMotivo, setReprovarMotivo] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -249,22 +252,31 @@ export function ContratosList() {
     }
   };
 
-  const handleReprovar = async (id: number) => {
-    const motivo = window.prompt("Informe o motivo da reprovação:");
-    if (motivo === null) return;
+  const processReprovar = async () => {
+    if (!confirmReprovarId || isProcessing) return;
+    const motivo = reprovarMotivo.trim();
+    if (!motivo) {
+      toast.error("Informe o motivo da reprovação.");
+      return;
+    }
+    setIsProcessing(true);
     try {
-      const res = await apiFetch(getContratoReprovarUrl(id), {
+      const res = await apiFetch(getContratoReprovarUrl(confirmReprovarId), {
         method: "POST",
-        body: JSON.stringify(motivo)
+        body: JSON.stringify(motivo),
       });
       if (!res.ok) {
         toast.error("Não foi possível reprovar o contrato.");
         return;
       }
       toast.success("Contrato reprovado.");
+      setConfirmReprovarId(null);
+      setReprovarMotivo("");
       reload();
     } catch {
       toast.error("Erro ao reprovar contrato.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -524,7 +536,13 @@ export function ContratosList() {
           label: 'Reprovar',
           icon: 'pi pi-times',
           template: (item: any) => (
-            <button onClick={() => handleReprovar(r.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group">
+            <button
+              onClick={() => {
+                setReprovarMotivo("");
+                setConfirmReprovarId(r.id);
+              }}
+              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group"
+            >
               <X size={16} className="text-rose-400 group-hover:scale-110 transition-transform" />
               <span className="text-xs font-bold uppercase tracking-widest text-white/70 text-left whitespace-nowrap">{item.label}</span>
             </button>
@@ -960,6 +978,24 @@ export function ContratosList() {
           </div>
         </div>
       </DashboardDialog>
+
+      <DashboardPromptDialog
+        visible={!!confirmReprovarId}
+        onHide={() => {
+          if (isProcessing) return;
+          setConfirmReprovarId(null);
+          setReprovarMotivo("");
+        }}
+        onSubmit={() => void processReprovar()}
+        header="Reprovar contrato"
+        message="Informe o motivo da reprovação. Esta ação ficará registada no histórico do contrato."
+        value={reprovarMotivo}
+        onValueChange={setReprovarMotivo}
+        placeholder="Descreva o motivo da reprovação…"
+        submitLabel="Reprovar"
+        loading={isProcessing}
+        multiline
+      />
 
     </div>
   );

@@ -6,6 +6,7 @@ import {
   type WhatsAppLinhaComStatus,
 } from "@/lib/whatsapp-service";
 import { toast } from "sonner";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { QRCodeSVG } from "qrcode.react";
 import {
   RefreshCw,
@@ -93,6 +94,10 @@ export function WhatsAppStatus() {
   const [novoAccountId, setNovoAccountId] = useState("");
   const [novoNome, setNovoNome] = useState("");
   const [novoPadrao, setNovoPadrao] = useState(false);
+  const [confirmRecreateOpen, setConfirmRecreateOpen] = useState(false);
+  const [confirmRemoveLinha, setConfirmRemoveLinha] = useState<{ id: string; nome: string } | null>(
+    null,
+  );
 
   const loadLinhas = useCallback(async (silent = false) => {
     try {
@@ -238,13 +243,13 @@ export function WhatsAppStatus() {
     }
   };
 
-  const handleRecreate = async () => {
+  const confirmRecreate = async () => {
     if (!selectedAccountId) return;
-    if (!confirm("Apaga a sessão guardada e força novo pareamento nesta linha. Continuar?")) return;
     setConnecting(true);
     try {
       await whatsappService.recreate(selectedAccountId);
       toast.success("Sessão reposta. A gerar novo QR…");
+      setConfirmRecreateOpen(false);
       window.setTimeout(() => void handleConnect(), 2000);
       void loadLinhas(true);
     } catch {
@@ -274,11 +279,12 @@ export function WhatsAppStatus() {
     }
   };
 
-  const handleRemoverLinha = async (id: string, nome: string) => {
-    if (!confirm(`Remover a linha «${nome}»? A sessão no relay será desligada.`)) return;
+  const confirmRemoverLinha = async () => {
+    if (!confirmRemoveLinha) return;
     try {
-      await whatsappService.deleteLinha(id);
+      await whatsappService.deleteLinha(confirmRemoveLinha.id);
       toast.success("Linha removida.");
+      setConfirmRemoveLinha(null);
       await loadLinhas(true);
     } catch {
       toast.error("Falha ao remover linha.");
@@ -405,7 +411,7 @@ export function WhatsAppStatus() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => void handleRemoverLinha(l.id, l.nome)}
+                      onClick={() => setConfirmRemoveLinha({ id: l.id, nome: l.nome })}
                       className="inline-flex items-center gap-1 rounded-lg border border-rose-500/25 px-2 py-1 text-[10px] font-bold uppercase text-rose-300/90 hover:bg-rose-500/10"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -635,7 +641,7 @@ export function WhatsAppStatus() {
                   <button
                     type="button"
                     disabled={connecting || !selectedRow?.ativo}
-                    onClick={() => void handleRecreate()}
+                    onClick={() => setConfirmRecreateOpen(true)}
                     className="text-[11px] font-semibold uppercase tracking-widest text-rose-300/70 underline-offset-4 transition hover:text-rose-200 hover:underline disabled:opacity-40"
                   >
                     Redefinir sessão (apagar pareamento)
@@ -709,6 +715,35 @@ export function WhatsAppStatus() {
           </div>
         </div>
       )}
+      <DashboardConfirmDialog
+        visible={confirmRecreateOpen}
+        onHide={() => setConfirmRecreateOpen(false)}
+        onConfirm={() => void confirmRecreate()}
+        header="Repor sessão"
+        tone="warning"
+        confirmLabel="Repor e gerar QR"
+        loading={connecting}
+        message={
+          <p>
+            A sessão guardada nesta linha será apagada e será necessário um novo pareamento com o WhatsApp.
+          </p>
+        }
+      />
+
+      <DashboardConfirmDialog
+        visible={!!confirmRemoveLinha}
+        onHide={() => setConfirmRemoveLinha(null)}
+        onConfirm={() => void confirmRemoverLinha()}
+        header="Remover linha"
+        tone="danger"
+        confirmLabel="Remover"
+        message={
+          <p>
+            Remover a linha <span className="font-semibold text-white">«{confirmRemoveLinha?.nome}»</span>? A sessão
+            no relay será desligada.
+          </p>
+        }
+      />
     </div>
   );
 }
