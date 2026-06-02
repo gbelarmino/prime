@@ -1,47 +1,20 @@
 "use client";
 
-import { ReactNode, useState, useEffect, useRef, type ComponentType } from "react";
+import { ReactNode, useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { addLocale, locale } from "primereact/api";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { 
-  Gauge, 
-  Users, 
-  Building2, 
-  UserSquare, 
-  MapPin, 
-  FileText, 
+import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Bell,
-  Settings,
-  Search,
-  Contact,
-  User,
   ChevronDown,
-  LayoutGrid,
-  Home,
-  UserCircle,
-  Mail,
+  User,
   Menu as MenuIcon,
   X,
-  MessageCircle,
-  Zap,
-  Send,
-  FlaskConical,
-  ListOrdered,
-  Receipt,
-  FilePlus,
-  BookOpen,
-  Scale,
-  GitCompareArrows,
-  Headset,
-  Link2,
-  ScrollText,
-  TrendingUp,
-  Calculator,
-  Kanban,
+  LayoutGrid,
+  Search,
+  Mail,
 } from "lucide-react";
 import { Menu } from "primereact/menu";
 import { AppLogo } from "@/components/AppLogo";
@@ -71,185 +44,26 @@ import {
 } from "@/hooks/use-unicred-webhook-pendentes";
 import { useRealtimeSocketKeeper } from "@/hooks/use-realtime-socket-keeper";
 import { useCrmFunilEnabled } from "@/hooks/use-crm-funil-enabled";
-
-type MenuIcon = ComponentType<{ size?: number; className?: string }>;
-
-type MenuLinkItem = {
-  kind: "link";
-  href: string;
-  label: string;
-  icon: MenuIcon;
-  roles?: string[];
-};
-
-type MenuGroupItem = {
-  kind: "group";
-  label: string;
-  icon: MenuIcon;
-  roles?: string[];
-  prefix: string;
-  children: { href: string; label: string; icon: MenuIcon; roles?: string[] }[];
-};
-
-const ATENDIMENTO_MENU_PREFIX = "/dashboard/atendimento";
-const WHATSAPP_MENU_PREFIX = "/dashboard/whatsapp";
-const EMAIL_MENU_PREFIX = "/dashboard/email";
-
-const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
-  { kind: "link", href: ADMIN_DASHBOARD_HOME, label: "Início", icon: Home, roles: ["ADMIN"] },
-  {
-    kind: "link",
-    href: WELCOME_DASHBOARD_PATH,
-    label: "Início",
-    icon: Home,
-    roles: ["CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
-  },
-  {
-    kind: "link",
-    href: "/dashboard/clientes",
-    label: "Clientes",
-    icon: Contact,
-    roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
-  },
-  {
-    kind: "link",
-    href: "/dashboard/crm/funil",
-    label: "Funil CRM",
-    icon: Kanban,
-    roles: ["ADMIN"],
-  },
-  { kind: "link", href: "/dashboard/imobiliarias", label: "Imobiliárias", icon: Building2, roles: ["ADMIN"] },
-  {
-    kind: "link",
-    href: "/dashboard/corretores",
-    label: "Corretores",
-    icon: UserSquare,
-    roles: ["ADMIN", "IMOBILIARIA"],
-  },
-  {
-    kind: "link",
-    href: "/dashboard/imoveis",
-    label: "Imóveis",
-    icon: MapPin,
-    roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
-  },
-  { kind: "link", href: "/dashboard/usuarios", label: "Usuários", icon: Users, roles: ["ADMIN"] },
-  { kind: "link", href: "/dashboard/auditoria", label: "Auditoria", icon: ScrollText, roles: ["ADMIN"] },
-  {
-    kind: "link",
-    href: "/dashboard/contratos",
-    label: "Contratos",
-    icon: FileText,
-    roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
-  },
-  {
-    kind: "group",
-    label: "Atendimento",
-    icon: Headset,
-    roles: ["ADMIN", "ATENDIMENTO", "ADMINISTRATIVO"],
-    prefix: "/dashboard/atendimento",
-    children: [
-      { href: "/dashboard/atendimento", label: "Consulta", icon: Search },
-    ],
-  },
-  {
-    kind: "group",
-    label: "Financeiro",
-    icon: Receipt,
-    roles: ["ADMIN", "ADMINISTRATIVO"],
-    prefix: "/dashboard/financeiro",
-    children: [
-      { href: "/dashboard/financeiro/titulos", label: "Títulos", icon: Receipt },
-      { href: "/dashboard/financeiro/titulos-avulso", label: "Título avulso", icon: FilePlus },
-      { href: "/dashboard/financeiro/simulacao-ipca", label: "Simulação IPCA", icon: Calculator },
-      { href: "/dashboard/financeiro/simulacao-igpm", label: "Simulação IGP-M", icon: Calculator },
-      { href: "/dashboard/financeiro/convenios", label: "Convênios", icon: Building2 },
-      { href: "/dashboard/financeiro/conciliacao", label: "Conciliação", icon: GitCompareArrows },
-      { href: "/dashboard/financeiro/unicred-webhooks", label: "Webhooks Unicred", icon: Link2 },
-      { href: "/dashboard/financeiro/lancamentos", label: "Lançamentos", icon: BookOpen },
-      { href: "/dashboard/financeiro/por-imovel", label: "Por imóvel", icon: Home },
-      { href: "/dashboard/financeiro/plano-contas", label: "Plano de contas", icon: Scale },
-      { href: "/dashboard/financeiro/indices-ipca", label: "IPCA", icon: TrendingUp },
-      { href: "/dashboard/financeiro/indices-igpm", label: "IGP-M", icon: TrendingUp },
-    ],
-  },
-  { kind: "link", href: "/dashboard/clicksign", label: "Portal Clicksign", icon: FileText, roles: ["ADMIN"] },
-  {
-    kind: "group",
-    label: "WhatsApp",
-    icon: MessageCircle,
-    roles: ["ADMIN", "ATENDIMENTO"],
-    prefix: WHATSAPP_MENU_PREFIX,
-    children: [
-      {
-        href: "/dashboard/whatsapp/conexao",
-        label: "Conexão",
-        icon: MessageCircle,
-        roles: ["ADMIN", "ATENDIMENTO"],
-      },
-      { href: "/dashboard/whatsapp/modelos", label: "Modelos de mensagem", icon: FileText, roles: ["ADMIN"] },
-      { href: "/dashboard/whatsapp/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
-      { href: "/dashboard/whatsapp/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
-      { href: "/dashboard/whatsapp/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
-      { href: "/dashboard/whatsapp/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN"] },
-    ],
-  },
-  {
-    kind: "group",
-    label: "E-mail",
-    icon: Mail,
-    roles: ["ADMIN"],
-    prefix: EMAIL_MENU_PREFIX,
-    children: [
-      { href: "/dashboard/email/conta", label: "Conta SMTP", icon: Mail, roles: ["ADMIN"] },
-      { href: "/dashboard/email/modelos", label: "Modelos de e-mail", icon: FileText, roles: ["ADMIN"] },
-      { href: "/dashboard/email/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
-      { href: "/dashboard/email/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
-      { href: "/dashboard/email/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
-      { href: "/dashboard/email/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN"] },
-    ],
-  },
-];
-
-function menuChildVisible(
-  child: { roles?: string[] },
-  role: string | null,
-): boolean {
-  if (!child.roles) return true;
-  return Boolean(role && child.roles.includes(role));
-}
-
-function menuItemVisible(
-  item: MenuLinkItem | MenuGroupItem,
-  role: string | null,
-  crmFunilEnabled: boolean | null,
-) {
-  if (role === "ATENDIMENTO") {
-    if (item.kind === "group" && item.prefix === ATENDIMENTO_MENU_PREFIX) {
-      return true;
-    }
-    if (item.kind === "group" && item.prefix === WHATSAPP_MENU_PREFIX) {
-      return item.children.some((c) => menuChildVisible(c, role));
-    }
-    return false;
-  }
-  if (role === "ADMINISTRATIVO") {
-    if (!item.roles?.includes("ADMINISTRATIVO")) return false;
-    if (item.kind === "group") {
-      return item.children.some((c) => menuChildVisible(c, role));
-    }
-    return true;
-  }
-  if (!item.roles) return true;
-  if (!role || !item.roles.includes(role)) return false;
-  if (
-    item.kind === "link" &&
-    (item.href === "/dashboard/crm/funil" || item.href.startsWith("/dashboard/crm/"))
-  ) {
-    return crmFunilEnabled === true;
-  }
-  return true;
-}
+import {
+  DASHBOARD_MENU_ITEMS,
+  filterVisibleMenuChildren,
+  menuChildVisible,
+  menuItemVisible,
+  type MenuChildDef,
+  type MenuGroupItem,
+} from "@/lib/dashboard-menu-items";
+import {
+  applyMenuPreference,
+  buildMenuPreferenceFromItems,
+  clearMenuPreference,
+  loadMenuPreference,
+  saveMenuPreference,
+  type MenuPreference,
+} from "@/lib/dashboard-menu-preferences";
+import {
+  createDraftPreference,
+  DashboardMenuCustomizer,
+} from "@/components/dashboard/DashboardMenuCustomizer";
 
 function MenuDangerBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -282,7 +96,7 @@ function SidebarNavGroup({
     if (pathname.startsWith(item.prefix)) setOpen(true);
   }, [pathname, item.prefix]);
 
-  const visibleChildren = item.children.filter((c) => menuChildVisible(c, role));
+  const visibleChildren = item.children.filter((c: MenuChildDef) => menuChildVisible(c, role));
   const labelsVisible = expanded || mobileMenuOpen;
   const anyActive = pathname.startsWith(item.prefix);
   const ParentIcon = item.icon;
@@ -346,7 +160,7 @@ function SidebarNavGroup({
               c.href === FIN_UNICRED_WEBHOOKS_PATH ? unicredWebhookPendentes : 0;
             return (
               <Link
-                key={c.href}
+                key={c.id}
                 href={c.href}
                 onClick={onNavigate}
                 className={cn(
@@ -378,8 +192,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [peeking, setPeeking] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [menuEditing, setMenuEditing] = useState(false);
+  const [menuPreference, setMenuPreference] = useState<MenuPreference | null>(null);
+  const [menuDraft, setMenuDraft] = useState<MenuPreference | null>(null);
   const menuUser = useRef<Menu>(null);
-  
+
   const userEmail = mounted ? (getUserEmail() || "...") : "";
   const userInitial = userEmail !== "..." ? userEmail.charAt(0).toUpperCase() : "?";
 
@@ -421,6 +238,52 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const crmFunilEnabled = useCrmFunilEnabled(mounted && role === "ADMIN");
   const { pendentes: unicredWebhookPendentes } = useUnicredWebhookPendentes(finMenuEnabled);
   useRealtimeSocketKeeper(mounted);
+
+  useEffect(() => {
+    if (!mounted || !role || userEmail === "...") return;
+    setMenuPreference(loadMenuPreference(userEmail, role));
+  }, [mounted, role, userEmail]);
+
+  const visibleMenuBase = useMemo(() => {
+    return DASHBOARD_MENU_ITEMS.filter((item) => menuItemVisible(item, role, crmFunilEnabled)).map(
+      (item) => (item.kind === "group" ? filterVisibleMenuChildren(item, role) : item),
+    );
+  }, [role, crmFunilEnabled]);
+
+  const orderedMenuItems = useMemo(() => {
+    const pref = menuEditing ? menuDraft : menuPreference;
+    return applyMenuPreference(visibleMenuBase, pref);
+  }, [visibleMenuBase, menuPreference, menuDraft, menuEditing]);
+
+  const startMenuEditing = useCallback(() => {
+    setExpanded(true);
+    setPeeking(false);
+    setMenuDraft(
+      menuPreference ?? buildMenuPreferenceFromItems(visibleMenuBase),
+    );
+    setMenuEditing(true);
+  }, [menuPreference, visibleMenuBase]);
+
+  const saveMenuOrder = useCallback(() => {
+    if (!role || userEmail === "..." || !menuDraft) return;
+    saveMenuPreference(userEmail, role, menuDraft);
+    setMenuPreference(menuDraft);
+    setMenuEditing(false);
+    toast.success("Ordem do menu salva.");
+  }, [menuDraft, role, userEmail]);
+
+  const cancelMenuEditing = useCallback(() => {
+    setMenuDraft(null);
+    setMenuEditing(false);
+  }, []);
+
+  const resetMenuOrder = useCallback(() => {
+    if (!role || userEmail === "...") return;
+    clearMenuPreference(userEmail, role);
+    setMenuPreference(null);
+    setMenuDraft(createDraftPreference(visibleMenuBase));
+    toast.success("Menu restaurado ao padrão.");
+  }, [role, userEmail, visibleMenuBase]);
 
   if (!mounted) return null;
 
@@ -565,32 +428,63 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-6 flex flex-col gap-2 overflow-y-auto">
-          {MENU_ITEMS.filter((item) => menuItemVisible(item, role, crmFunilEnabled)).map((item) =>
-            item.kind === "link" ? (
-              <div key={item.href} onClick={() => setMobileMenuOpen(false)}>
-                <SidebarItem
-                  icon={<item.icon size={20} />}
-                  label={item.label}
-                  href={item.href}
+          {menuEditing && menuDraft && (isSidebarOpen || mobileMenuOpen) ? (
+            <DashboardMenuCustomizer
+              items={visibleMenuBase}
+              preference={menuDraft}
+              onPreferenceChange={setMenuDraft}
+              onSave={saveMenuOrder}
+              onCancel={cancelMenuEditing}
+              onReset={resetMenuOrder}
+            />
+          ) : (
+            orderedMenuItems.map((item) =>
+              item.kind === "link" ? (
+                <div key={item.id} onClick={() => setMobileMenuOpen(false)}>
+                  <SidebarItem
+                    icon={<item.icon size={20} />}
+                    label={item.label}
+                    href={item.href}
+                    expanded={isSidebarOpen || mobileMenuOpen}
+                  />
+                </div>
+              ) : (
+                <SidebarNavGroup
+                  key={item.id}
+                  item={item}
                   expanded={isSidebarOpen || mobileMenuOpen}
+                  mobileMenuOpen={mobileMenuOpen}
+                  pathname={pathname}
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  role={role}
+                  unicredWebhookPendentes={unicredWebhookPendentes}
                 />
-              </div>
-            ) : (
-              <SidebarNavGroup
-                key={item.prefix}
-                item={item}
-                expanded={isSidebarOpen || mobileMenuOpen}
-                mobileMenuOpen={mobileMenuOpen}
-                pathname={pathname}
-                onNavigate={() => setMobileMenuOpen(false)}
-                role={role}
-                unicredWebhookPendentes={unicredWebhookPendentes}
-              />
+              ),
             )
           )}
         </nav>
 
         <div className="p-3 border-t border-white/5 flex flex-col gap-2">
+          {(isSidebarOpen || mobileMenuOpen) && !menuEditing ? (
+            <button
+              type="button"
+              onClick={startMenuEditing}
+              className="flex items-center gap-4 px-4 py-3 rounded-xl text-white/60 hover:bg-white/5 hover:text-white transition-all w-full text-left"
+            >
+              <LayoutGrid size={20} className="shrink-0" />
+              <span className="font-medium animate-in fade-in duration-300">Organizar menu</span>
+            </button>
+          ) : null}
+          {menuEditing && (isSidebarOpen || mobileMenuOpen) ? (
+            <button
+              type="button"
+              onClick={cancelMenuEditing}
+              className="flex items-center gap-4 px-4 py-3 rounded-xl text-white/50 hover:bg-white/5 hover:text-white transition-all w-full text-left text-sm"
+            >
+              <ChevronLeft size={18} className="shrink-0" />
+              <span>Voltar ao menu</span>
+            </button>
+          ) : null}
           <button 
             onClick={handleLogout}
             className={cn(
