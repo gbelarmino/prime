@@ -540,7 +540,7 @@ export function TitulosList({
       ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
       excedente: false,
       parcelaReajuste: false,
-      valor: contexto.valorNominal,
+      valor: contexto.valorNominal ?? null,
     }));
 
     const itensExcedentes: typeof itens = [];
@@ -567,7 +567,7 @@ export function TitulosList({
           ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
           excedente: true,
           parcelaReajuste: isParcelaReajuste(parcela),
-          valor: contexto.valorNominal,
+          valor: contexto.valorNominal ?? null,
         });
       }
     }
@@ -577,7 +577,7 @@ export function TitulosList({
       parcelaInicial,
       parcelaFinal,
       quantidade: qtd,
-      valorTotal: contexto.valorNominal * qtd,
+      valorTotal: (contexto.valorNominal ?? 0) * qtd,
       ajustadosPorDiaUtil,
       parcelaReajusteLimite,
       ultimaParcelaEmitivel,
@@ -1805,7 +1805,7 @@ export function TitulosList({
                   Valor nominal
                 </label>
                 <InputNumber
-                  value={contexto.valorNominal}
+                  value={contexto.valorNominal ?? null}
                   mode="currency"
                   currency="BRL"
                   locale="pt-BR"

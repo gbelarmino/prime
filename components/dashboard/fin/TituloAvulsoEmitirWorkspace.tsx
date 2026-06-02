@@ -142,7 +142,7 @@ export function TituloAvulsoEmitirWorkspace() {
       .then((ctx) => {
         setContexto(ctx);
         setNumeroParcela(ctx.numeroParcela);
-        setValorNominal(ctx.valorNominal);
+        setValorNominal(ctx.valorNominal ?? null);
         const vencIso =
           ctx.primeiroTituloLote && ctx.dataPrimeiraParcelaContrato
             ? ctx.dataPrimeiraParcelaContrato
@@ -150,6 +150,9 @@ export function TituloAvulsoEmitirWorkspace() {
         setVencimento(parseIsoDate(vencIso));
         if (ctx.convenioId) {
           setSelectedConvenioId(ctx.convenioId);
+        }
+        if (ctx.avisoValorNominal) {
+          toast.warning(ctx.avisoValorNominal);
         }
       })
       .catch((e) => {
