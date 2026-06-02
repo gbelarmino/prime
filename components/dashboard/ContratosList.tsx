@@ -408,27 +408,8 @@ export function ContratosList() {
       )
     });
 
-    // Legado: baixar PDF anexado (upload). Demais: gerar PDF a partir do template.
-    if (isLegado) {
-      if (r.linkPdfAssinado) {
-        items.push({
-          label: "Baixar PDF",
-          icon: "pi pi-file-pdf",
-          template: (item: { label: string }) => (
-            <button
-              type="button"
-              onClick={() => void downloadContratoPdfAssinado(r.id)}
-              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 transition-colors group"
-            >
-              <Download size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold uppercase tracking-widest text-emerald-400/80 text-left whitespace-nowrap">
-                {item.label}
-              </span>
-            </button>
-          ),
-        });
-      }
-    } else {
+    // Fluxo digital: gerar PDF do template. Legado não gera PDF pelo sistema.
+    if (!isLegado) {
       items.push({
         label: "Gerar PDF",
         icon: "pi pi-file-pdf",
@@ -445,26 +426,28 @@ export function ContratosList() {
           </button>
         ),
       });
+    }
 
-      // PDF assinado via Clicksign
-      if (isAssinado && r.linkPdfAssinado) {
-        items.push({
-          label: "PDF Assinado",
-          icon: "pi pi-file-pdf",
-          template: (item: { label: string }) => (
-            <button
-              type="button"
-              onClick={() => void downloadContratoPdfAssinado(r.id)}
-              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 transition-colors group"
-            >
-              <FileText size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold uppercase tracking-widest text-emerald-400/80 text-left whitespace-nowrap">
-                {item.label}
-              </span>
-            </button>
-          ),
-        });
-      }
+    // PDF assinado: Clicksign exige link no registro; legado importado (SQL) costuma não ter
+    // link_pdf_assinado preenchido, mas status ASSINADO — a ação chama GET /pdf-assinado na API.
+    const showPdfAssinado = isAssinado && (isLegado || Boolean(r.linkPdfAssinado));
+    if (showPdfAssinado) {
+      items.push({
+        label: "PDF Assinado",
+        icon: "pi pi-file-pdf",
+        template: (item: { label: string }) => (
+          <button
+            type="button"
+            onClick={() => void downloadContratoPdfAssinado(r.id)}
+            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 transition-colors group"
+          >
+            <FileText size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400/80 text-left whitespace-nowrap">
+              {item.label}
+            </span>
+          </button>
+        ),
+      });
     }
 
     // Ações de Corretor (fluxo digital apenas)
