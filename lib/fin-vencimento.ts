@@ -1,3 +1,11 @@
+/** Piso da referência na emissão: nunca antes de hoje (títulos legados com vencimento antigo). */
+export function referenciaEfetivaParaEmissao(referencia: Date): Date {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const ref = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
+  return ref.getTime() > hoje.getTime() ? ref : hoje;
+}
+
 /** Próxima data de vencimento no dia do mês do contrato, estritamente após `referencia`. */
 export function calcularProximoVencimentoBruto(diaVencimento: number, referencia: Date): Date {
   const ref = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
@@ -45,7 +53,7 @@ export function calcularVencimentosParcelasDetalhe(
 ): VencimentoParcelaDetalhe[] {
   if (quantidade < 1) return [];
   const vencimentos: VencimentoParcelaDetalhe[] = [];
-  let cursor = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
+  let cursor = referenciaEfetivaParaEmissao(referencia);
   for (let i = 0; i < quantidade; i++) {
     const bruto = calcularProximoVencimentoBruto(diaVencimento, cursor);
     const venc = ajustarParaProximoDiaUtil(bruto);

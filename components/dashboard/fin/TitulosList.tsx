@@ -520,8 +520,14 @@ export function TitulosList({
     const parcelaInicial = contexto.numeroParcela;
     const parcelaFinal = parcelaInicial + qtd - 1;
 
-    const vencimentosDetalhe =
-      contexto.primeiroTituloLote && dataPrimeiraParcela
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const usarDataPrimeiraContrato =
+      contexto.primeiroTituloLote &&
+      dataPrimeiraParcela != null &&
+      dataPrimeiraParcela.getTime() > hoje.getTime();
+
+    const vencimentosDetalhe = usarDataPrimeiraContrato
         ? calcularVencimentosComPrimeiraParcelaDetalhe(
             dataPrimeiraParcela,
             contexto.diaVencimentoMensal,
@@ -547,10 +553,9 @@ export function TitulosList({
     if (qtd === maxParcelasPermitidas && parcelaFinal < parcelaReajusteLimite) {
       for (let parcela = parcelaFinal + 1; parcela <= parcelaReajusteLimite; parcela++) {
         const offset = parcela - parcelaInicial + 1;
-        const detalhe =
-          contexto.primeiroTituloLote && dataPrimeiraParcela
+        const detalhe = usarDataPrimeiraContrato
             ? calcularVencimentosComPrimeiraParcelaDetalhe(
-                dataPrimeiraParcela,
+                dataPrimeiraParcela!,
                 contexto.diaVencimentoMensal,
                 offset,
               ).at(-1)
