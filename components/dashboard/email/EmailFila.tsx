@@ -345,7 +345,7 @@ export function EmailFila() {
         loading={actionLoading}
         message={
           <p>
-            O e-mail para <span className="font-semibold text-white">{cancelConfirmRow?.destino}</span> deixará de
+            O e-mail para <span className="font-semibold text-white">{cancelConfirmRow?.destinatario}</span> deixará de
             ser enviado automaticamente.
           </p>
         }
