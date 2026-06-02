@@ -264,7 +264,7 @@ export interface TituloContextoLote {
   quadra: string;
   lote: number;
   numeroParcela: number;
-  valorNominal: number;
+  valorNominal?: number | null;
   diaVencimentoMensal: number;
   vencimentoSugerido: string;
   primeiroTituloLote: boolean;
@@ -279,6 +279,7 @@ export interface TituloContextoLote {
   convenioId?: string | null;
   convenioNome?: string | null;
   avisoConvenio?: string | null;
+  avisoValorNominal?: string | null;
 }
 
 export interface EmpreendimentoConvenioItem {

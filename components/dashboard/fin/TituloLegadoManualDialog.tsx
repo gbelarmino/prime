@@ -169,8 +169,11 @@ export function TituloLegadoManualDialog({
       .then((ctx) => {
         setContexto(ctx);
         setNumeroParcela(ctx.numeroParcela);
-        setValorNominal(ctx.valorNominal);
+        setValorNominal(ctx.valorNominal ?? null);
         setVencimento(parseIsoDate(ctx.vencimentoSugerido));
+        if (ctx.avisoValorNominal) {
+          toast.warning(ctx.avisoValorNominal);
+        }
       })
       .catch((e) => {
         setContexto(null);
@@ -326,6 +329,12 @@ export function TituloLegadoManualDialog({
               {formatContratoRef(contexto.numeroContrato, contexto.contratoId)}
             </span>
             {contextoLoading ? " — a carregar…" : null}
+          </div>
+        ) : null}
+
+        {contexto?.avisoValorNominal ? (
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200/90 sm:col-span-2">
+            {contexto.avisoValorNominal} Informe o valor nominal manualmente.
           </div>
         ) : null}
 
