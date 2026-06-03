@@ -55,6 +55,8 @@ import {
   calcularVencimentosParcelasDetalhe,
   diaSemanaCurto,
   formatIsoDate,
+  isVencimentoFuturo,
+  isVencimentoValidoParaContrato,
   parseIsoDate,
 } from "@/lib/fin-vencimento";
 import type { SpringPage } from "@/lib/spring-page";
@@ -485,11 +487,20 @@ export function TitulosList({
         setQuantidadeParcelas((q) =>
           maxPermitidas === 0 ? 0 : Math.min(Math.max(1, q), maxPermitidas),
         );
-        if (ctx.primeiroTituloLote && ctx.dataPrimeiraParcelaContrato) {
-          setDataPrimeiraParcela(parseIsoDate(ctx.dataPrimeiraParcelaContrato));
-        } else {
-          setDataPrimeiraParcela(null);
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        let vencLote = parseIsoDate(ctx.vencimentoSugerido);
+        if (
+          ctx.primeiroTituloLote &&
+          ctx.dataPrimeiraParcelaContrato &&
+          parseIsoDate(ctx.dataPrimeiraParcelaContrato).getTime() > hoje.getTime()
+        ) {
+          vencLote = parseIsoDate(ctx.dataPrimeiraParcelaContrato);
         }
+        if (!isVencimentoFuturo(vencLote)) {
+          vencLote = parseIsoDate(ctx.vencimentoSugerido);
+        }
+        setDataPrimeiraParcela(vencLote);
       })
       .catch((e) => {
         setContexto(null);
@@ -520,14 +531,10 @@ export function TitulosList({
     const parcelaInicial = contexto.numeroParcela;
     const parcelaFinal = parcelaInicial + qtd - 1;
 
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const usarDataPrimeiraContrato =
-      contexto.primeiroTituloLote &&
-      dataPrimeiraParcela != null &&
-      dataPrimeiraParcela.getTime() > hoje.getTime();
+    const usarDataPrimeiraLote =
+      dataPrimeiraParcela != null && isVencimentoFuturo(dataPrimeiraParcela);
 
-    const vencimentosDetalhe = usarDataPrimeiraContrato
+    const vencimentosDetalhe = usarDataPrimeiraLote
         ? calcularVencimentosComPrimeiraParcelaDetalhe(
             dataPrimeiraParcela,
             contexto.diaVencimentoMensal,
@@ -553,7 +560,7 @@ export function TitulosList({
     if (qtd === maxParcelasPermitidas && parcelaFinal < parcelaReajusteLimite) {
       for (let parcela = parcelaFinal + 1; parcela <= parcelaReajusteLimite; parcela++) {
         const offset = parcela - parcelaInicial + 1;
-        const detalhe = usarDataPrimeiraContrato
+        const detalhe = usarDataPrimeiraLote
             ? calcularVencimentosComPrimeiraParcelaDetalhe(
                 dataPrimeiraParcela!,
                 contexto.diaVencimentoMensal,
@@ -1060,8 +1067,17 @@ export function TitulosList({
       toast.error(contexto.avisoConvenio);
       return null;
     }
-    if (contexto.primeiroTituloLote && !dataPrimeiraParcela) {
-      toast.error("Informe a data da 1ª parcela.");
+    if (!dataPrimeiraParcela || !isVencimentoFuturo(dataPrimeiraParcela)) {
+      toast.error("Informe o vencimento da primeira parcela deste lote (data futura).");
+      return null;
+    }
+    if (
+      !contexto.primeiroTituloLote &&
+      !isVencimentoValidoParaContrato(dataPrimeiraParcela, contexto.diaVencimentoMensal)
+    ) {
+      toast.error(
+        `O vencimento deve ser no dia ${contexto.diaVencimentoMensal} do mês (ou na segunda-feira seguinte se cair em fim de semana), conforme o contrato.`,
+      );
       return null;
     }
     if (maxParcelasPermitidas < 1) {
@@ -1093,9 +1109,7 @@ export function TitulosList({
       const resultado = await finService.criarTitulosEmLote({
         contratoId: contexto.contratoId,
         quantidadeParcelas: qtd,
-        ...(contexto.primeiroTituloLote && dataPrimeiraParcela
-          ? { dataPrimeiraParcela: formatIsoDate(dataPrimeiraParcela) }
-          : {}),
+        dataPrimeiraParcela: formatIsoDate(dataPrimeiraParcela),
       });
       setPage(0);
       setStatusFilter("RASCUNHO");
@@ -1671,7 +1685,8 @@ export function TitulosList({
                     !!contexto?.avisoConvenio ||
                     maxParcelasPermitidas < 1 ||
                     quantidadeParcelas < 1 ||
-                    (contexto?.primeiroTituloLote && !dataPrimeiraParcela)
+                    !dataPrimeiraParcela ||
+                    !isVencimentoFuturo(dataPrimeiraParcela ?? new Date(0))
                   }
                   onClick={irParaConfirmacao}
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
@@ -1819,25 +1834,26 @@ export function TitulosList({
                   disabled
                 />
               </div>
-              {contexto.primeiroTituloLote ? (
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
-                    Data da 1ª parcela
-                  </label>
-                  <p className="text-xs text-white/40">
-                    Valor do contrato; pode ajustar antes de gerar. As parcelas seguintes vencem no dia{" "}
-                    {contexto.diaVencimentoMensal} de cada mês (dia útil se cair em fim de semana).
-                  </p>
-                  <Calendar
-                    value={dataPrimeiraParcela}
-                    onChange={(e) => setDataPrimeiraParcela(e.value ?? null)}
-                    dateFormat="dd/mm/yy"
-                    showIcon
-                    className="w-full"
-                    inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25"
-                  />
-                </div>
-              ) : null}
+              <div className="flex flex-col gap-2 sm:col-span-3">
+                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+                  Vencimento da parcela {contexto.numeroParcela} (1.ª deste lote)
+                </label>
+                <p className="text-xs text-white/40">
+                  {contexto.primeiroTituloLote
+                    ? "Pode usar a data do contrato ou outra data futura. "
+                    : `Deve ser no dia ${contexto.diaVencimentoMensal} do mês (dia útil se cair em fim de semana). `}
+                  As parcelas seguintes deste lote vencem no dia {contexto.diaVencimentoMensal} de cada mês.
+                </p>
+                <Calendar
+                  value={dataPrimeiraParcela}
+                  onChange={(e) => setDataPrimeiraParcela(e.value ?? null)}
+                  dateFormat="dd/mm/yy"
+                  showIcon
+                  disabled={contextoLoading}
+                  className="w-full"
+                  inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25"
+                />
+              </div>
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
                   Quantidade de parcelas

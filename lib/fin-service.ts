@@ -329,6 +329,7 @@ export interface TituloCobrancaLoteCreate {
   contratoId: number;
   convenioId?: string;
   quantidadeParcelas: number;
+  /** Vencimento da 1ª parcela desta emissão; demais parcelas seguem o dia mensal do contrato. */
   dataPrimeiraParcela?: string;
 }
 

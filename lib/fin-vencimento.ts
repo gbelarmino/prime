@@ -145,11 +145,16 @@ export function vencimentoCorrespondeAoDiaContrato(vencimento: Date, diaContrato
   return sameCalendarDay(v, noMesAnterior);
 }
 
-export function isVencimentoValidoParaContrato(vencimento: Date, diaContrato: number): boolean {
+/** Estritamente após hoje (sem validar dia do contrato). */
+export function isVencimentoFuturo(vencimento: Date): boolean {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const v = new Date(vencimento.getFullYear(), vencimento.getMonth(), vencimento.getDate());
-  if (v.getTime() <= hoje.getTime()) return false;
+  return v.getTime() > hoje.getTime();
+}
+
+export function isVencimentoValidoParaContrato(vencimento: Date, diaContrato: number): boolean {
+  if (!isVencimentoFuturo(vencimento)) return false;
   return vencimentoCorrespondeAoDiaContrato(vencimento, diaContrato);
 }
 
