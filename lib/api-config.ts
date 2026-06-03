@@ -990,7 +990,8 @@ export function getFinLancamentosListUrl(
   page = 0,
   size = 20,
   opts?: {
-    contratoId?: number;
+    contrato?: string;
+    conta?: string;
     tituloId?: string;
     competenciaDe?: string;
     competenciaAte?: string;
@@ -1005,7 +1006,8 @@ export function getFinLancamentosListUrl(
     size: String(size),
     sort: "competencia,desc",
   });
-  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
+  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
+  if (opts?.conta?.trim()) params.set("conta", opts.conta.trim());
   if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
   if (opts?.tituloId) params.set("tituloId", opts.tituloId);
   if (opts?.competenciaDe) params.set("competenciaDe", opts.competenciaDe);

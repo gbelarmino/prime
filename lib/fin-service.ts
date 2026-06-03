@@ -428,7 +428,8 @@ export interface LancamentoContabil {
 }
 
 export interface LancamentosListFilters {
-  contratoId?: number;
+  contrato?: string;
+  conta?: string;
   imovelId?: number;
   tituloId?: string;
   competenciaDe?: string;
