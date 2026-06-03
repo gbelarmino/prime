@@ -97,6 +97,9 @@ export interface TituloCobranca {
   status: TituloCobrancaStatus;
   valorNominal: number;
   valorPago?: number | null;
+  valorJuros?: number | null;
+  valorMulta?: number | null;
+  valorTarifa?: number | null;
   vencimento: string;
   dataPagamento?: string | null;
   versao: number;

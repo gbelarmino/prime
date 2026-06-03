@@ -71,6 +71,10 @@ function formatMoney(v: number | null | undefined): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function hasValorPositivo(v: number | null | undefined): boolean {
+  return v != null && v > 0;
+}
+
 type ActionButtonProps = {
   label: string;
   icon: ReactNode;
@@ -412,6 +416,24 @@ export function TituloDetalhe({
             <div>
               <span className={LABEL_CLASS}>Data pagamento</span>
               <p className={VALUE_CLASS}>{formatDate(titulo.dataPagamento)}</p>
+            </div>
+          )}
+          {hasValorPositivo(titulo.valorJuros) && (
+            <div>
+              <span className={LABEL_CLASS}>Juros</span>
+              <p className={cn(VALUE_CLASS, "text-amber-300")}>{formatMoney(titulo.valorJuros)}</p>
+            </div>
+          )}
+          {hasValorPositivo(titulo.valorMulta) && (
+            <div>
+              <span className={LABEL_CLASS}>Multa</span>
+              <p className={cn(VALUE_CLASS, "text-amber-300")}>{formatMoney(titulo.valorMulta)}</p>
+            </div>
+          )}
+          {hasValorPositivo(titulo.valorTarifa) && (
+            <div>
+              <span className={LABEL_CLASS}>Taxas bancárias</span>
+              <p className={cn(VALUE_CLASS, "text-white/70")}>{formatMoney(titulo.valorTarifa)}</p>
             </div>
           )}
           <div className="sm:col-span-2 lg:col-span-3">
