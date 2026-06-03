@@ -1103,7 +1103,7 @@ export function TitulosList({
 
   const confirmarCriacaoTitulos = async () => {
     const qtd = validarFormNovoTitulo();
-    if (qtd == null || !contexto) return;
+    if (qtd == null || !contexto || !dataPrimeiraParcela) return;
     setSaving(true);
     try {
       const resultado = await finService.criarTitulosEmLote({
