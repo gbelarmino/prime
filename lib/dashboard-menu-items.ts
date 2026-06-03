@@ -186,7 +186,7 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     id: "grupo-whatsapp",
     label: "WhatsApp",
     icon: MessageCircle,
-    roles: ["ADMIN", "ATENDIMENTO"],
+    roles: ["ADMIN", "ATENDIMENTO", "ADMINISTRATIVO"],
     prefix: WHATSAPP_MENU_PREFIX,
     children: [
       {
@@ -200,7 +200,7 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
       { id: "wa-gatilhos", href: "/dashboard/whatsapp/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
       { id: "wa-teste", href: "/dashboard/whatsapp/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
       { id: "wa-teste-eventos", href: "/dashboard/whatsapp/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
-      { id: "wa-fila", href: "/dashboard/whatsapp/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN"] },
+      { id: "wa-fila", href: "/dashboard/whatsapp/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN", "ADMINISTRATIVO"] },
     ],
   },
   {
@@ -208,7 +208,7 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     id: "grupo-email",
     label: "E-mail",
     icon: Mail,
-    roles: ["ADMIN"],
+    roles: ["ADMIN", "ADMINISTRATIVO"],
     prefix: EMAIL_MENU_PREFIX,
     children: [
       { id: "email-conta", href: "/dashboard/email/conta", label: "Conta SMTP", icon: Mail, roles: ["ADMIN"] },
@@ -216,7 +216,7 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
       { id: "email-gatilhos", href: "/dashboard/email/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
       { id: "email-teste", href: "/dashboard/email/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
       { id: "email-teste-eventos", href: "/dashboard/email/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
-      { id: "email-fila", href: "/dashboard/email/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN"] },
+      { id: "email-fila", href: "/dashboard/email/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN", "ADMINISTRATIVO"] },
     ],
   },
 ];

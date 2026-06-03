@@ -24,6 +24,8 @@ const ADMINISTRATIVO_ALLOWED_PREFIXES = [
   "/dashboard/contratos",
   ATENDIMENTO_PATH_PREFIX,
   FINANCEIRO_PATH_PREFIX,
+  "/dashboard/whatsapp/fila",
+  "/dashboard/email/fila",
 ] as const;
 
 const CRM_PATH_PREFIX = "/dashboard/crm";
