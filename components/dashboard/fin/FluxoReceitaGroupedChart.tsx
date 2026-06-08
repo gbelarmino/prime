@@ -31,6 +31,18 @@ type BarTooltip = {
   clientY: number;
 };
 
+type ChartBar = {
+  key: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  value: number;
+  mes: string;
+  serie: string;
+};
+
 function formatMoney(v: number): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -120,7 +132,7 @@ export function FluxoReceitaGroupedChart({
     return { width, gridLines, bars, groupWidth, innerH };
   }, [labels, series, height]);
 
-  const showTooltip = (bar: (typeof chart)["bars"][number], clientX: number, clientY: number) => {
+  const showTooltip = (bar: ChartBar, clientX: number, clientY: number) => {
     setTooltip({
       serie: bar.serie,
       mes: bar.mes,
