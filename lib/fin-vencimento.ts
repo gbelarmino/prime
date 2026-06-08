@@ -151,11 +151,37 @@ export function inicioDoDiaHoje(): Date {
   return hoje;
 }
 
+/** Meia-noite local do dia civil (ignora hora/fuso no valor recebido). */
+export function normalizarDataCalendario(data: Date | null | undefined): Date | null {
+  if (!data || Number.isNaN(data.getTime())) return null;
+  return new Date(data.getFullYear(), data.getMonth(), data.getDate());
+}
+
+/** Compara apenas o dia civil (YYYY-MM-DD), sem hora. */
+export function compararDiaCalendario(a: Date, b: Date): number {
+  const da = formatIsoDate(a);
+  const db = formatIsoDate(b);
+  if (da < db) return -1;
+  if (da > db) return 1;
+  return 0;
+}
+
 /** Hoje ou posterior (sem validar dia do contrato). */
 export function isVencimentoFuturo(vencimento: Date): boolean {
-  const hoje = inicioDoDiaHoje();
-  const v = new Date(vencimento.getFullYear(), vencimento.getMonth(), vencimento.getDate());
-  return v.getTime() >= hoje.getTime();
+  const v = normalizarDataCalendario(vencimento);
+  if (!v) return false;
+  return compararDiaCalendario(v, new Date()) >= 0;
+}
+
+/** 1.ª parcela flexível ou vencimento alinhado ao dia do contrato. */
+export function isVencimentoValidoParaNovoTitulo(
+  vencimento: Date,
+  diaContrato: number,
+  primeiroTituloLote: boolean,
+): boolean {
+  if (!isVencimentoFuturo(vencimento)) return false;
+  if (primeiroTituloLote) return true;
+  return vencimentoCorrespondeAoDiaContrato(vencimento, diaContrato);
 }
 
 export function isVencimentoValidoParaContrato(vencimento: Date, diaContrato: number): boolean {

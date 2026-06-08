@@ -57,7 +57,8 @@ import {
   formatIsoDate,
   inicioDoDiaHoje,
   isVencimentoFuturo,
-  isVencimentoValidoParaContrato,
+  isVencimentoValidoParaNovoTitulo,
+  normalizarDataCalendario,
   parseIsoDate,
 } from "@/lib/fin-vencimento";
 import type { SpringPage } from "@/lib/spring-page";
@@ -501,7 +502,7 @@ export function TitulosList({
         if (!isVencimentoFuturo(vencLote)) {
           vencLote = parseIsoDate(ctx.vencimentoSugerido);
         }
-        setDataPrimeiraParcela(vencLote);
+        setDataPrimeiraParcela(normalizarDataCalendario(vencLote));
       })
       .catch((e) => {
         setContexto(null);
@@ -525,6 +526,24 @@ export function TitulosList({
     () => (contexto ? resolveUltimaParcelaEmitivel(contexto) : 12),
     [contexto],
   );
+
+  const minVencimentoEmissao = useMemo(() => inicioDoDiaHoje(), []);
+
+  const podeRevisarNovoTitulo = useMemo(() => {
+    if (!contexto || contexto.avisoConvenio) return false;
+    if (maxParcelasPermitidas < 1 || quantidadeParcelas < 1) return false;
+    if (!dataPrimeiraParcela) return false;
+    return isVencimentoValidoParaNovoTitulo(
+      dataPrimeiraParcela,
+      contexto.diaVencimentoMensal,
+      contexto.primeiroTituloLote,
+    );
+  }, [
+    contexto,
+    dataPrimeiraParcela,
+    maxParcelasPermitidas,
+    quantidadeParcelas,
+  ]);
 
   const previewLote = useMemo(() => {
     if (!contexto || maxParcelasPermitidas < 1 || quantidadeParcelas < 1) return null;
@@ -1073,8 +1092,11 @@ export function TitulosList({
       return null;
     }
     if (
-      !contexto.primeiroTituloLote &&
-      !isVencimentoValidoParaContrato(dataPrimeiraParcela, contexto.diaVencimentoMensal)
+      !isVencimentoValidoParaNovoTitulo(
+        dataPrimeiraParcela,
+        contexto.diaVencimentoMensal,
+        contexto.primeiroTituloLote,
+      )
     ) {
       toast.error(
         `O vencimento deve ser no dia ${contexto.diaVencimentoMensal} do mês (ou na segunda-feira seguinte se cair em fim de semana), conforme o contrato.`,
@@ -1683,11 +1705,7 @@ export function TitulosList({
                   disabled={
                     !contexto ||
                     contextoLoading ||
-                    !!contexto?.avisoConvenio ||
-                    maxParcelasPermitidas < 1 ||
-                    quantidadeParcelas < 1 ||
-                    !dataPrimeiraParcela ||
-                    !isVencimentoFuturo(dataPrimeiraParcela ?? new Date(0))
+                    !podeRevisarNovoTitulo
                   }
                   onClick={irParaConfirmacao}
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
@@ -1847,10 +1865,10 @@ export function TitulosList({
                 </p>
                 <Calendar
                   value={dataPrimeiraParcela}
-                  onChange={(e) => setDataPrimeiraParcela(e.value ?? null)}
+                  onChange={(e) => setDataPrimeiraParcela(normalizarDataCalendario(e.value))}
                   dateFormat="dd/mm/yy"
                   showIcon
-                  minDate={inicioDoDiaHoje()}
+                  minDate={minVencimentoEmissao}
                   disabled={contextoLoading}
                   className="w-full"
                   inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25"

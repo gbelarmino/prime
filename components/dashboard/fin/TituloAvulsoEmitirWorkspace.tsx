@@ -16,7 +16,7 @@ import {
 import {
   convenioEmpreendimentoDropdownOptions,
 } from "@/lib/convenio-label";
-import { inicioDoDiaHoje, isVencimentoFuturo, parseIsoDate } from "@/lib/fin-vencimento";
+import { inicioDoDiaHoje, isVencimentoFuturo, normalizarDataCalendario, parseIsoDate } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -410,7 +410,7 @@ export function TituloAvulsoEmitirWorkspace() {
               <label className={FORM_LABEL_CLASS}>Vencimento</label>
               <Calendar
                 value={vencimento}
-                onChange={(e) => setVencimento(e.value ?? null)}
+                onChange={(e) => setVencimento(normalizarDataCalendario(e.value))}
                 dateFormat="dd/mm/yy"
                 showIcon
                 minDate={inicioDoDiaHoje()}
