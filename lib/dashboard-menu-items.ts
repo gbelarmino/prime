@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import {
+  BarChart3,
   BookOpen,
   Building2,
   Calculator,
@@ -167,6 +168,7 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
       { id: "fin-conciliacao", href: "/dashboard/financeiro/conciliacao", label: "Conciliação", icon: GitCompareArrows },
       { id: "fin-unicred-webhooks", href: "/dashboard/financeiro/unicred-webhooks", label: "Webhooks Unicred", icon: Link2 },
       { id: "fin-lancamentos", href: "/dashboard/financeiro/lancamentos", label: "Lançamentos", icon: BookOpen },
+      { id: "fin-fluxo-receita", href: "/dashboard/financeiro/fluxo-receita", label: "Fluxo de receita", icon: BarChart3 },
       { id: "fin-por-imovel", href: "/dashboard/financeiro/por-imovel", label: "Por imóvel", icon: Home },
       { id: "fin-plano-contas", href: "/dashboard/financeiro/plano-contas", label: "Plano de contas", icon: Scale },
       { id: "fin-indices-ipca", href: "/dashboard/financeiro/indices-ipca", label: "IPCA", icon: TrendingUp },

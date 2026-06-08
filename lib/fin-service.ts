@@ -11,6 +11,7 @@ import {
   getFinConveniosGestaoUrl,
   getFinConveniosUrl,
   getFinDashboardResumoUrl,
+  getFinFluxoReceitaUrl,
   getFinIndicesIpcaSincronizarUrl,
   getFinIndicesIpcaUltimoUrl,
   getFinIndicesIpcaUrl,
@@ -260,6 +261,27 @@ export interface FinDashboardResumo {
   titulosPagos: number;
   titulosVencidos: number;
   valorNominalAberto: number;
+}
+
+export interface FinFluxoReceitaMes {
+  mes: string;
+  recebidoLiquido: number;
+  emitido: number;
+  inadimplencia: number;
+  taxas: number;
+}
+
+export interface FinFluxoReceitaEmpreendimento {
+  empreendimento: string;
+  mesInicial: string;
+  mesFinal: string;
+  meses: FinFluxoReceitaMes[];
+}
+
+export interface FinFluxoReceita {
+  mesInicial: string | null;
+  mesFinal: string | null;
+  empreendimentos: FinFluxoReceitaEmpreendimento[];
 }
 
 export interface TituloContextoLote {
@@ -998,6 +1020,11 @@ export const finService = {
 
   async dashboardResumo(): Promise<FinDashboardResumo> {
     const res = await apiFetch(getFinDashboardResumoUrl());
+    return parseJson(res);
+  },
+
+  async fluxoReceita(options?: FinFetchOptions): Promise<FinFluxoReceita> {
+    const res = await apiFetch(getFinFluxoReceitaUrl(), { skipLoading: options?.skipLoading });
     return parseJson(res);
   },
 

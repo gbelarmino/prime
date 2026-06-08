@@ -55,6 +55,7 @@ import {
   calcularVencimentosParcelasDetalhe,
   diaSemanaCurto,
   formatIsoDate,
+  inicioDoDiaHoje,
   isVencimentoFuturo,
   isVencimentoValidoParaContrato,
   parseIsoDate,
@@ -493,7 +494,7 @@ export function TitulosList({
         if (
           ctx.primeiroTituloLote &&
           ctx.dataPrimeiraParcelaContrato &&
-          parseIsoDate(ctx.dataPrimeiraParcelaContrato).getTime() > hoje.getTime()
+          parseIsoDate(ctx.dataPrimeiraParcelaContrato).getTime() >= hoje.getTime()
         ) {
           vencLote = parseIsoDate(ctx.dataPrimeiraParcelaContrato);
         }
@@ -1068,7 +1069,7 @@ export function TitulosList({
       return null;
     }
     if (!dataPrimeiraParcela || !isVencimentoFuturo(dataPrimeiraParcela)) {
-      toast.error("Informe o vencimento da primeira parcela deste lote (data futura).");
+      toast.error("Informe o vencimento da primeira parcela deste lote (hoje ou data futura).");
       return null;
     }
     if (
@@ -1840,7 +1841,7 @@ export function TitulosList({
                 </label>
                 <p className="text-xs text-white/40">
                   {contexto.primeiroTituloLote
-                    ? "Pode usar a data do contrato ou outra data futura. "
+                    ? "Pode usar a data do contrato, hoje ou outra data futura. "
                     : `Deve ser no dia ${contexto.diaVencimentoMensal} do mês (dia útil se cair em fim de semana). `}
                   As parcelas seguintes deste lote vencem no dia {contexto.diaVencimentoMensal} de cada mês.
                 </p>
@@ -1849,6 +1850,7 @@ export function TitulosList({
                   onChange={(e) => setDataPrimeiraParcela(e.value ?? null)}
                   dateFormat="dd/mm/yy"
                   showIcon
+                  minDate={inicioDoDiaHoje()}
                   disabled={contextoLoading}
                   className="w-full"
                   inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25"

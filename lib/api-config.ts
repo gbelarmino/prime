@@ -26,6 +26,7 @@ const API_PATHS = {
   finPorImovel: "/api/fin/por-imovel",
   finConvenios: "/api/fin/convenios",
   finDashboard: "/api/fin/dashboard",
+  finFluxoReceita: "/api/fin/fluxo-receita",
   finPlanoContas: "/api/fin/plano-contas",
   finConciliacao: "/api/fin/conciliacao",
   finUnicredWebhookConciliacao: "/api/fin/unicred-webhooks/conciliacao",
@@ -932,6 +933,10 @@ export function getFinConvenioEmpreendimentoUrl(nomeEmpreendimento: string): str
 
 export function getFinDashboardResumoUrl(): string {
   return withBase(getApiBaseUrl(), `${API_PATHS.finDashboard}/resumo`);
+}
+
+export function getFinFluxoReceitaUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.finFluxoReceita);
 }
 
 export function getFinIndicesIpcaUrl(opts?: { desde?: string; ate?: string }): string {
