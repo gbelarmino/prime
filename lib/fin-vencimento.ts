@@ -173,15 +173,9 @@ export function isVencimentoFuturo(vencimento: Date): boolean {
   return compararDiaCalendario(v, new Date()) >= 0;
 }
 
-/** 1.ª parcela flexível ou vencimento alinhado ao dia do contrato. */
-export function isVencimentoValidoParaNovoTitulo(
-  vencimento: Date,
-  diaContrato: number,
-  primeiroTituloLote: boolean,
-): boolean {
-  if (!isVencimentoFuturo(vencimento)) return false;
-  if (primeiroTituloLote) return true;
-  return vencimentoCorrespondeAoDiaContrato(vencimento, diaContrato);
+/** Vencimento da 1ª parcela deste lote: hoje ou posterior (data livre). */
+export function isVencimentoValidoParaNovoTitulo(vencimento: Date): boolean {
+  return isVencimentoFuturo(vencimento);
 }
 
 export function isVencimentoValidoParaContrato(vencimento: Date, diaContrato: number): boolean {

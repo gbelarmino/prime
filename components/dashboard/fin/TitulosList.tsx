@@ -533,11 +533,7 @@ export function TitulosList({
     if (!contexto || contexto.avisoConvenio) return false;
     if (maxParcelasPermitidas < 1 || quantidadeParcelas < 1) return false;
     if (!dataPrimeiraParcela) return false;
-    return isVencimentoValidoParaNovoTitulo(
-      dataPrimeiraParcela,
-      contexto.diaVencimentoMensal,
-      contexto.primeiroTituloLote,
-    );
+    return isVencimentoValidoParaNovoTitulo(dataPrimeiraParcela);
   }, [
     contexto,
     dataPrimeiraParcela,
@@ -1087,20 +1083,8 @@ export function TitulosList({
       toast.error(contexto.avisoConvenio);
       return null;
     }
-    if (!dataPrimeiraParcela || !isVencimentoFuturo(dataPrimeiraParcela)) {
+    if (!dataPrimeiraParcela || !isVencimentoValidoParaNovoTitulo(dataPrimeiraParcela)) {
       toast.error("Informe o vencimento da primeira parcela deste lote (hoje ou data futura).");
-      return null;
-    }
-    if (
-      !isVencimentoValidoParaNovoTitulo(
-        dataPrimeiraParcela,
-        contexto.diaVencimentoMensal,
-        contexto.primeiroTituloLote,
-      )
-    ) {
-      toast.error(
-        `O vencimento deve ser no dia ${contexto.diaVencimentoMensal} do mês (ou na segunda-feira seguinte se cair em fim de semana), conforme o contrato.`,
-      );
       return null;
     }
     if (maxParcelasPermitidas < 1) {
@@ -1858,10 +1842,9 @@ export function TitulosList({
                   Vencimento da parcela {contexto.numeroParcela} (1.ª deste lote)
                 </label>
                 <p className="text-xs text-white/40">
-                  {contexto.primeiroTituloLote
-                    ? "Pode usar a data do contrato, hoje ou outra data futura. "
-                    : `Deve ser no dia ${contexto.diaVencimentoMensal} do mês (dia útil se cair em fim de semana). `}
-                  As parcelas seguintes deste lote vencem no dia {contexto.diaVencimentoMensal} de cada mês.
+                  Pode ser hoje ou qualquer data futura. As parcelas seguintes deste lote vencem no dia{" "}
+                  {contexto.diaVencimentoMensal} de cada mês
+                  {contexto.primeiroTituloLote ? "" : " (dia útil se cair em fim de semana)"}.
                 </p>
                 <Calendar
                   value={dataPrimeiraParcela}
