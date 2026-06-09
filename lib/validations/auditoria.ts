@@ -17,6 +17,10 @@ export type UsuarioAtividadeApi = {
   ipOrigem: string | null;
   metadados: Record<string, unknown> | null;
   alteracoes: Record<string, unknown> | null;
+  imovelId?: number | null;
+  imovelEmpreendimento?: string | null;
+  imovelQuadra?: string | null;
+  imovelLote?: number | null;
 };
 
 export const MODULO_AUDITORIA_OPTIONS = [

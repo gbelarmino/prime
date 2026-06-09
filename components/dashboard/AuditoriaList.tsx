@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, User, ExternalLink, Clock, FileText } from "lucide-react";
+import { Search, User, ExternalLink, Clock, FileText, Home } from "lucide-react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
@@ -122,6 +122,16 @@ function entidadeHref(row: UsuarioAtividadeApi): string | null {
     return `/dashboard/contratos/edit?id=${contratoFromMeta}`;
   }
   return null;
+}
+
+function imovelLabel(row: UsuarioAtividadeApi): string | null {
+  const empreendimento = row.imovelEmpreendimento?.trim();
+  if (!empreendimento) return null;
+  const parts = [empreendimento];
+  const quadra = row.imovelQuadra?.trim();
+  if (quadra) parts.push(`Q. ${quadra}`);
+  if (row.imovelLote != null) parts.push(`Lt. ${row.imovelLote}`);
+  return parts.join(" · ");
 }
 
 function entidadeLabel(row: UsuarioAtividadeApi): string {
@@ -247,6 +257,27 @@ export function AuditoriaList() {
   const acaoBodyTemplate = (rowData: UsuarioAtividadeApi) => (
     <span className="text-sm text-white/60">{labelAcaoAuditoria(rowData.acao)}</span>
   );
+
+  const imovelBodyTemplate = (rowData: UsuarioAtividadeApi) => {
+    const label = imovelLabel(rowData);
+    if (!label) {
+      return <span className="text-sm text-white/20">—</span>;
+    }
+    if (rowData.imovelId) {
+      return (
+        <Link
+          href={`/dashboard/imoveis/edit?id=${rowData.imovelId}`}
+          className="inline-flex items-center gap-2 text-sm text-cyan-400 no-underline transition-colors hover:text-cyan-300"
+          title={label}
+        >
+          <Home size={14} className="shrink-0 text-cyan-400/60" />
+          <span className="line-clamp-2">{label}</span>
+          <ExternalLink size={12} className="shrink-0 opacity-60" />
+        </Link>
+      );
+    }
+    return <span className="line-clamp-2 text-sm text-white/60">{label}</span>;
+  };
 
   const descricaoBodyTemplate = (rowData: UsuarioAtividadeApi) => {
     const desc = rowData.descricao?.trim();
@@ -394,6 +425,7 @@ export function AuditoriaList() {
         <Column header="Módulo" body={moduloBodyTemplate} />
         <Column header="Ação" body={acaoBodyTemplate} />
         <Column header="Descrição" body={descricaoBodyTemplate} />
+        <Column header="Imóvel" body={imovelBodyTemplate} />
         <Column header="Entidade" body={entidadeBodyTemplate} />
         <Column header="Ações" body={actionBodyTemplate} align="right" />
       </DataTable>
