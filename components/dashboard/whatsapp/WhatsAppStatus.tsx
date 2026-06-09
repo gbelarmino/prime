@@ -304,7 +304,7 @@ export function WhatsAppStatus() {
   const handleMarcarPadrao = async (id: string) => {
     try {
       await whatsappService.updateLinha(id, { padrao: true });
-      toast.success("Linha padrão actualizada.");
+      toast.success("Linha padrão atualizada.");
       await loadLinhas(true);
     } catch {
       toast.error("Falha ao definir linha padrão.");

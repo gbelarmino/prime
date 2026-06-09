@@ -153,7 +153,7 @@ export const whatsappService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("Erro ao actualizar linha WhatsApp");
+    if (!res.ok) throw new Error("Erro ao atualizar linha WhatsApp");
     return res.json();
   },
 
