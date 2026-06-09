@@ -58,6 +58,8 @@ import {
   getFinTitulosUrl,
   getFinTituloAvulsoUrl,
   getFinTituloContextoLoteUrl,
+  getFinTituloLegadoManualQuadrasUrl,
+  getFinTituloLegadoManualLotesUrl,
   getFinTituloLegadoManualUrl,
   getFinTituloLegadoManualByIdUrl,
   getImoveisEmpreendimentosUrl,
@@ -704,6 +706,29 @@ export const finService = {
     lote: number,
   ): Promise<TituloContextoLote> {
     const res = await apiFetch(getFinTituloContextoLoteUrl(empreendimento, quadra, lote));
+    return parseJson(res);
+  },
+
+  /** Quadras com contrato assinado — seletor do boleto legado manual. */
+  async listQuadrasLegadoManual(
+    empreendimento: string,
+    options?: FinFetchOptions,
+  ): Promise<string[]> {
+    const res = await apiFetch(getFinTituloLegadoManualQuadrasUrl(empreendimento), {
+      skipLoading: options?.skipLoading,
+    });
+    return parseJson(res);
+  },
+
+  /** Lotes com contrato assinado — seletor do boleto legado manual. */
+  async listLotesLegadoManual(
+    opts: { empreendimento: string; quadra: string },
+    options?: FinFetchOptions,
+  ): Promise<number[]> {
+    const res = await apiFetch(
+      getFinTituloLegadoManualLotesUrl(opts.empreendimento, opts.quadra),
+      { skipLoading: options?.skipLoading },
+    );
     return parseJson(res);
   },
 

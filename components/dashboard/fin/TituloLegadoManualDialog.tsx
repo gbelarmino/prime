@@ -214,9 +214,9 @@ export function TituloLegadoManualDialog({
     }
     setQuadrasLoading(true);
     finService
-      .listQuadrasImovel({ empreendimento: selectedEmpreendimento }, { skipLoading: true })
+      .listQuadrasLegadoManual(selectedEmpreendimento, { skipLoading: true })
       .then(setQuadras)
-      .catch(() => toast.error("Falha ao carregar quadras."))
+      .catch(() => toast.error("Falha ao carregar quadras com contrato assinado."))
       .finally(() => setQuadrasLoading(false));
   }, [visible, isEditMode, selectedEmpreendimento]);
 
@@ -227,12 +227,12 @@ export function TituloLegadoManualDialog({
     }
     setLotesLoading(true);
     finService
-      .listLotesImovel(
+      .listLotesLegadoManual(
         { empreendimento: selectedEmpreendimento ?? "", quadra: selectedQuadra },
         { skipLoading: true },
       )
       .then(setLotes)
-      .catch(() => toast.error("Falha ao carregar lotes."))
+      .catch(() => toast.error("Falha ao carregar lotes com contrato assinado."))
       .finally(() => setLotesLoading(false));
   }, [visible, isEditMode, selectedEmpreendimento, selectedQuadra]);
 
@@ -481,9 +481,10 @@ export function TituloLegadoManualDialog({
         <div className="flex flex-col gap-2">
           <label className={FORM_LABEL_CLASS}>Vencimento</label>
           <Calendar
+            inputId="titulo-legado-vencimento"
             value={vencimento}
             onChange={(e) => setVencimento(normalizarDataCalendario(e.value as Date | null))}
-            dateFormat="dd/mm/yyyy"
+            dateFormat="dd/mm/yy"
             placeholder="dd/mm/aaaa"
             mask="99/99/9999"
             showIcon
@@ -584,9 +585,10 @@ export function TituloLegadoManualDialog({
             <div className="flex flex-col gap-2">
               <label className={FORM_LABEL_CLASS}>Data pagamento</label>
               <Calendar
+                inputId="titulo-legado-data-pagamento"
                 value={dataPagamento}
                 onChange={(e) => setDataPagamento(normalizarDataCalendario(e.value as Date | null))}
-                dateFormat="dd/mm/yyyy"
+                dateFormat="dd/mm/yy"
                 placeholder="dd/mm/aaaa"
                 mask="99/99/9999"
                 showIcon

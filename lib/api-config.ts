@@ -859,6 +859,26 @@ export function getFinTituloContextoLoteUrl(
   return `${base}/contexto-lote?${params.toString()}`;
 }
 
+export function getFinTituloLegadoManualQuadrasUrl(empreendimento: string): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  const params = new URLSearchParams({ empreendimento: empreendimento.trim() });
+  return `${base}/legado-manual/quadras?${params.toString()}`;
+}
+
+export function getFinTituloLegadoManualLotesUrl(
+  empreendimento: string,
+  quadra: string,
+): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  const params = new URLSearchParams({
+    empreendimento: empreendimento.trim(),
+    quadra: quadra.trim(),
+  });
+  return `${base}/legado-manual/lotes?${params.toString()}`;
+}
+
 export function getFinTituloByIdUrl(id: string): string {
   const base = getFinTitulosUrl();
   if (!base) return "";
