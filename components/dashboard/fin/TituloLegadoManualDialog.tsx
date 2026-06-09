@@ -16,7 +16,7 @@ import {
   type TituloLegadoManualStatus,
   type TituloLegadoManualUpdate,
 } from "@/lib/fin-service";
-import { normalizarDataCalendario, parseIsoDate } from "@/lib/fin-vencimento";
+import { parseIsoDate } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -38,27 +38,36 @@ const DROPDOWN_PT = {
 
 const CALENDAR_INPUT_CLASS = `${FORM_INPUT_CLASS} rounded-r-none`;
 
-const CALENDAR_PT = {
-  panel: {
-    className: "bg-[#071C33] border-white/10 shadow-2xl overflow-hidden",
-  },
+/** Mesmo padrão do campo Data de Nascimento em `DadosPessoais`. */
+const DASHBOARD_CALENDAR_PT = {
+  panel: { className: "bg-[#071C33] border-white/10 shadow-2xl" },
   header: { className: "bg-transparent border-white/5 p-2" },
-  title: {
-    className:
-      "w-full text-white font-bold flex flex-wrap items-center justify-center gap-2 mx-auto",
-  },
-  monthTitle: { className: "text-white" },
-  yearTitle: { className: "text-white" },
-  monthPicker: { className: "flex flex-wrap justify-center w-full max-w-full" },
-  yearPicker: { className: "flex flex-wrap justify-center w-full max-w-full" },
+  title: { className: "text-white font-bold flex gap-2 justify-center" },
   dropdownButton: {
     root: {
       className:
-        "bg-blue-600 border-none rounded-r-xl w-12 flex shrink-0 items-center justify-center",
+        "bg-blue-600 border-none rounded-r-xl w-12 flex items-center justify-center",
     },
     icon: { className: "text-white text-lg" },
   },
 };
+
+function calendarValueFromDate(date: Date | null): Date | null {
+  if (!date) return null;
+  return new Date(`${formatDateIso(date)}T00:00:00`);
+}
+
+function onCalendarDateChange(
+  value: Date | Date[] | null | undefined,
+  setter: (date: Date | null) => void,
+) {
+  if (value instanceof Date) {
+    const d = value;
+    setter(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+    return;
+  }
+  setter(null);
+}
 
 const STATUS_LEGADO_OPTIONS: { label: string; value: TituloLegadoManualStatus }[] = [
   { label: "Emitido (aberto)", value: "EMITIDO" },
@@ -84,12 +93,7 @@ function statusLegadoFromTitulo(status: string): TituloLegadoManualStatus {
 
 function parseDataPagamento(iso: string | null | undefined): Date | null {
   if (!iso) return null;
-  try {
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? null : d;
-  } catch {
-    return null;
-  }
+  return parseIsoDate(iso.slice(0, 10));
 }
 
 type TituloLegadoManualDialogProps = {
@@ -481,18 +485,17 @@ export function TituloLegadoManualDialog({
         <div className="flex flex-col gap-2">
           <label className={FORM_LABEL_CLASS}>Vencimento</label>
           <Calendar
-            inputId="titulo-legado-vencimento"
-            value={vencimento}
-            onChange={(e) => setVencimento(normalizarDataCalendario(e.value as Date | null))}
+            value={calendarValueFromDate(vencimento)}
+            onChange={(e) => onCalendarDateChange(e.value, setVencimento)}
             dateFormat="dd/mm/yy"
-            placeholder="dd/mm/aaaa"
+            placeholder="00/00/0000"
             mask="99/99/9999"
             showIcon
             locale="pt-BR"
             icon="pi pi-calendar"
             className="w-full"
             inputClassName={CALENDAR_INPUT_CLASS}
-            pt={CALENDAR_PT}
+            pt={DASHBOARD_CALENDAR_PT}
             disabled={!isEditMode && !contexto}
           />
         </div>
@@ -585,18 +588,17 @@ export function TituloLegadoManualDialog({
             <div className="flex flex-col gap-2">
               <label className={FORM_LABEL_CLASS}>Data pagamento</label>
               <Calendar
-                inputId="titulo-legado-data-pagamento"
-                value={dataPagamento}
-                onChange={(e) => setDataPagamento(normalizarDataCalendario(e.value as Date | null))}
+                value={calendarValueFromDate(dataPagamento)}
+                onChange={(e) => onCalendarDateChange(e.value, setDataPagamento)}
                 dateFormat="dd/mm/yy"
-                placeholder="dd/mm/aaaa"
+                placeholder="00/00/0000"
                 mask="99/99/9999"
                 showIcon
                 locale="pt-BR"
                 icon="pi pi-calendar"
                 className="w-full"
                 inputClassName={CALENDAR_INPUT_CLASS}
-                pt={CALENDAR_PT}
+                pt={DASHBOARD_CALENDAR_PT}
               />
             </div>
             <div className="flex flex-col gap-2">
