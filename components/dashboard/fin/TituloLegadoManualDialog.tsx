@@ -16,7 +16,7 @@ import {
   type TituloLegadoManualStatus,
   type TituloLegadoManualUpdate,
 } from "@/lib/fin-service";
-import { parseIsoDate } from "@/lib/fin-vencimento";
+import { normalizarDataCalendario, parseIsoDate } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -34,6 +34,30 @@ const DIALOG_PT = {
 
 const DROPDOWN_PT = {
   input: { className: FORM_INPUT_CLASS },
+};
+
+const CALENDAR_INPUT_CLASS = `${FORM_INPUT_CLASS} rounded-r-none`;
+
+const CALENDAR_PT = {
+  panel: {
+    className: "bg-[#071C33] border-white/10 shadow-2xl overflow-hidden",
+  },
+  header: { className: "bg-transparent border-white/5 p-2" },
+  title: {
+    className:
+      "w-full text-white font-bold flex flex-wrap items-center justify-center gap-2 mx-auto",
+  },
+  monthTitle: { className: "text-white" },
+  yearTitle: { className: "text-white" },
+  monthPicker: { className: "flex flex-wrap justify-center w-full max-w-full" },
+  yearPicker: { className: "flex flex-wrap justify-center w-full max-w-full" },
+  dropdownButton: {
+    root: {
+      className:
+        "bg-blue-600 border-none rounded-r-xl w-12 flex shrink-0 items-center justify-center",
+    },
+    icon: { className: "text-white text-lg" },
+  },
 };
 
 const STATUS_LEGADO_OPTIONS: { label: string; value: TituloLegadoManualStatus }[] = [
@@ -458,11 +482,16 @@ export function TituloLegadoManualDialog({
           <label className={FORM_LABEL_CLASS}>Vencimento</label>
           <Calendar
             value={vencimento}
-            onChange={(e) => setVencimento(e.value as Date | null)}
-            dateFormat="dd/mm/yy"
+            onChange={(e) => setVencimento(normalizarDataCalendario(e.value as Date | null))}
+            dateFormat="dd/mm/yyyy"
+            placeholder="dd/mm/aaaa"
+            mask="99/99/9999"
             showIcon
+            locale="pt-BR"
+            icon="pi pi-calendar"
             className="w-full"
-            inputClassName={FORM_INPUT_CLASS}
+            inputClassName={CALENDAR_INPUT_CLASS}
+            pt={CALENDAR_PT}
             disabled={!isEditMode && !contexto}
           />
         </div>
@@ -556,11 +585,16 @@ export function TituloLegadoManualDialog({
               <label className={FORM_LABEL_CLASS}>Data pagamento</label>
               <Calendar
                 value={dataPagamento}
-                onChange={(e) => setDataPagamento(e.value as Date | null)}
-                dateFormat="dd/mm/yy"
+                onChange={(e) => setDataPagamento(normalizarDataCalendario(e.value as Date | null))}
+                dateFormat="dd/mm/yyyy"
+                placeholder="dd/mm/aaaa"
+                mask="99/99/9999"
                 showIcon
+                locale="pt-BR"
+                icon="pi pi-calendar"
                 className="w-full"
-                inputClassName={FORM_INPUT_CLASS}
+                inputClassName={CALENDAR_INPUT_CLASS}
+                pt={CALENDAR_PT}
               />
             </div>
             <div className="flex flex-col gap-2">
