@@ -91,6 +91,8 @@ const LOTE_MAX = 50;
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
 const FILTER_INPUT_CLASS =
   "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white/70 placeholder:text-white/25 focus:border-blue-500/50 focus:outline-none transition-all [color-scheme:dark]";
+const FILTER_LABEL_CLASS =
+  "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35 leading-none";
 const FILTER_DATE_CLASS =
   "bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white/70 focus:outline-none focus:border-blue-500/50 transition-all min-w-[140px] [color-scheme:dark]";
 const FILTRO_TODOS = "";
@@ -1217,7 +1219,7 @@ export function TitulosList({
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label className={FILTER_LABEL_CLASS}>
                 Contrato
               </label>
               <InputText
@@ -1228,7 +1230,7 @@ export function TitulosList({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label className={FILTER_LABEL_CLASS}>
                 Nome
               </label>
               <InputText
@@ -1239,7 +1241,7 @@ export function TitulosList({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label className={FILTER_LABEL_CLASS}>
                 CPF
               </label>
               <InputText
@@ -1250,20 +1252,20 @@ export function TitulosList({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label className={FILTER_LABEL_CLASS}>
                 Nosso número
               </label>
               <InputText
                 value={filterNossoNumero}
                 onChange={(e) => setFilterNossoNumero(e.target.value)}
                 placeholder="Número do boleto"
-                className={cn(FILTER_INPUT_CLASS, "font-mono")}
+                className={FILTER_INPUT_CLASS}
               />
             </div>
             {!embedded || imovelId == null ? (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <label className={FILTER_LABEL_CLASS}>
                     Empreendimento
                   </label>
                   <Dropdown
@@ -1287,7 +1289,7 @@ export function TitulosList({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <label className={FILTER_LABEL_CLASS}>
                     Quadra
                   </label>
                   <Dropdown
@@ -1314,7 +1316,7 @@ export function TitulosList({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <label className={FILTER_LABEL_CLASS}>
                     Lote
                   </label>
                   <Dropdown
@@ -1335,7 +1337,7 @@ export function TitulosList({
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="titulo-venc-de"
-                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+                className={FILTER_LABEL_CLASS}
               >
                 Vencimento de
               </label>
@@ -1350,7 +1352,7 @@ export function TitulosList({
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="titulo-venc-ate"
-                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+                className={FILTER_LABEL_CLASS}
               >
                 Vencimento até
               </label>
@@ -1365,7 +1367,7 @@ export function TitulosList({
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="titulo-emissao-de"
-                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+                className={FILTER_LABEL_CLASS}
               >
                 Emissão de
               </label>
@@ -1380,7 +1382,7 @@ export function TitulosList({
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="titulo-emissao-ate"
-                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+                className={FILTER_LABEL_CLASS}
               >
                 Emissão até
               </label>
@@ -1393,7 +1395,7 @@ export function TitulosList({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label className={FILTER_LABEL_CLASS}>
                 Status
               </label>
               <select
