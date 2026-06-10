@@ -173,11 +173,16 @@ export function getImovelUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.imoveis);
 }
 
-export function getImoveisQuadrasUrl(situacao?: number | null): string {
+export function getImoveisQuadrasUrl(
+  situacao?: number | null,
+  empreendimento?: string | null,
+): string {
   const base = getImovelUrl();
   if (!base) return "";
   const url = new URL(`${base}/quadras`, "http://localhost"); // base URL doesn't matter for query params
   if (situacao != null) url.searchParams.set("situacao", String(situacao));
+  const emp = empreendimento?.trim();
+  if (emp) url.searchParams.set("empreendimento", emp);
   return `${base}/quadras${url.search}`;
 }
 

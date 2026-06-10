@@ -25,10 +25,10 @@ import {
   getCorretoresListUrl,
   getImobiliariaMeUrl,
   getImobiliariasListUrl,
+  getImoveisEmpreendimentosUrl,
   getImoveisListUrl,
   getImovelByIdUrl,
   getImovelPrecoUrl,
-  getImovelPrecoByLotUrl,
   getImoveisQuadrasUrl,
   getParametroByNomeUrl,
   isApiConfigured,
@@ -96,10 +96,13 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
   const clientesSearchSeqRef = useRef(0);
   const [imobiliarias, setImobiliarias] = useState<ImobOpt[]>([]);
   const [corretores, setCorretores] = useState<CorretorOpt[]>([]);
-  const [imoveis, setImoveis] = useState<ImovelOption[]>([]);
+  const [empreendimentos, setEmpreendimentos] = useState<string[]>([]);
+  const [selectedEmpreendimento, setSelectedEmpreendimento] = useState<string>("");
   const [quadras, setQuadras] = useState<string[]>([]);
+  const [quadrasLoading, setQuadrasLoading] = useState(false);
   const [selectedQuadra, setSelectedQuadra] = useState<string>("");
   const [filteredLotes, setFilteredLotes] = useState<ImovelOption[]>([]);
+  const [lotesLoading, setLotesLoading] = useState(false);
   const [isAutomatico, setIsAutomatico] = useState(false);
   const [pdfLegado, setPdfLegado] = useState<File | null>(null);
   const [origemAssinatura, setOrigemAssinatura] = useState<string | null>(null);
@@ -255,7 +258,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
         const [rImob, r3, r4] = await Promise.all([
           imobListPromise,
           apiFetch(getCorretoresListUrl(0, 500), { headers, credentials: "omit" }),
-          apiFetch(getImoveisQuadrasUrl(situacaoFiltro), { headers, credentials: "omit" }),
+          apiFetch(getImoveisEmpreendimentosUrl(), { headers, credentials: "omit" }),
         ]);
 
         if (rImob?.ok) {
@@ -274,8 +277,8 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           setCorretores((p.content ?? []).map(c => ({ ...c, id: String(c.id), imobiliariaId: String(c.imobiliariaId) })));
         }
         if (r4.ok) {
-          const qds = (await r4.json()) as string[];
-          setQuadras(qds);
+          const emps = (await r4.json()) as string[];
+          setEmpreendimentos(emps);
         }
 
         // Busca parâmetro de numeração automática
@@ -353,10 +356,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
     }
 
     const fetchPreco = async () => {
-      const selectedImovel = imoveis.find((o) => String(o.id) === String(imovelId));
-      const url = (selectedImovel?.quadra && selectedImovel?.lote)
-        ? getImovelPrecoByLotUrl(selectedImovel.quadra, selectedImovel.lote)
-        : getImovelPrecoUrl(Number(imovelId));
+      const url = getImovelPrecoUrl(Number(imovelId));
       const token = getAuthToken();
       try {
         const res = await apiFetch(url, {
@@ -396,14 +396,17 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
     };
 
     fetchPreco();
-  }, [imovelId, mode, setValue, imoveis, canEditValoresFinanceiros]);
+  }, [imovelId, mode, setValue, canEditValoresFinanceiros]);
 
-  // Sync selectedQuadra when imovelId changes (important for edit mode)
+  // Sync empreendimento/quadra when imovelId changes (important for edit mode)
   useEffect(() => {
     if (!imovelId) return;
 
-    // Se já temos a quadra selecionada e o imovelId pertence a ela, não fazemos nada
-    if (selectedQuadra && filteredLotes.some(i => String(i.id) === String(imovelId))) {
+    if (
+      selectedEmpreendimento &&
+      selectedQuadra &&
+      filteredLotes.some((i) => String(i.id) === String(imovelId))
+    ) {
       return;
     }
 
@@ -419,49 +422,102 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
         const res = await apiFetch(url, { headers, credentials: "omit" });
         if (res.ok) {
           const data = (await res.json()) as ImovelOption;
+          if (data.empreendimento) {
+            setSelectedEmpreendimento(data.empreendimento);
+          }
           if (data.quadra) {
             setSelectedQuadra(data.quadra);
           }
         }
       } catch (err) {
-        console.error("Erro ao buscar detalhe do imóvel para sincronizar quadra:", err);
+        console.error("Erro ao buscar detalhe do imóvel para sincronizar localização:", err);
       }
     };
 
     fetchImovelDetail();
   }, [imovelId]);
 
-  // Update filteredLotes when selectedQuadra changes
+  // Quadras do empreendimento selecionado
   useEffect(() => {
-    if (!selectedQuadra) {
-      setFilteredLotes([]);
+    if (!selectedEmpreendimento) {
+      setQuadras([]);
       return;
     }
 
-    const fetchLotes = async () => {
+    const fetchQuadras = async () => {
       const situacaoFiltro = mode === "create" ? 1 : undefined;
-      const url = getImoveisListUrl(0, 500, undefined, selectedQuadra, situacaoFiltro);
+      const url = getImoveisQuadrasUrl(situacaoFiltro, selectedEmpreendimento);
       const token = getAuthToken();
       const headers = {
         Accept: "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
+      setQuadrasLoading(true);
+      try {
+        const res = await apiFetch(url, { headers, credentials: "omit" });
+        if (res.ok) {
+          const qds = (await res.json()) as string[];
+          setQuadras(qds);
+          setSelectedQuadra((prev) => {
+            if (prev && !qds.includes(prev)) {
+              setValue("imovelId", "");
+              return "";
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar quadras do empreendimento:", err);
+      } finally {
+        setQuadrasLoading(false);
+      }
+    };
+
+    fetchQuadras();
+  }, [selectedEmpreendimento, mode, setValue]);
+
+  // Lotes da quadra dentro do empreendimento
+  useEffect(() => {
+    if (!selectedEmpreendimento || !selectedQuadra) {
+      setFilteredLotes([]);
+      return;
+    }
+
+    const fetchLotes = async () => {
+      const situacaoFiltro = mode === "create" ? 1 : undefined;
+      const url = getImoveisListUrl(
+        0,
+        500,
+        undefined,
+        selectedQuadra,
+        situacaoFiltro,
+        selectedEmpreendimento,
+      );
+      const token = getAuthToken();
+      const headers = {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      setLotesLoading(true);
       try {
         const res = await apiFetch(url, { headers, credentials: "omit" });
         if (res.ok) {
           const p = (await res.json()) as SpringPage<ImovelOption>;
-          const list = (p.content ?? []).map(i => ({ ...i, id: String(i.id) }));
+          const list = (p.content ?? []).map((i) => ({ ...i, id: String(i.id) }));
           list.sort((a, b) => (a.lote ?? 0) - (b.lote ?? 0));
           setFilteredLotes(list);
         }
       } catch (err) {
         console.error("Erro ao carregar lotes da quadra:", err);
+      } finally {
+        setLotesLoading(false);
       }
     };
 
     fetchLotes();
-  }, [selectedQuadra, mode]);
+  }, [selectedEmpreendimento, selectedQuadra, mode]);
 
   // Load Entity if Edit Mode
   useEffect(() => {
@@ -877,18 +933,35 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-white/90 font-medium">Quadra <span className="text-rose-400">*</span></label>
+              <label className="text-white/90 font-medium">Empreendimento <span className="text-rose-400">*</span></label>
               <Dropdown
-                value={selectedQuadra}
-                options={quadras.map(q => ({ label: `Quadra ${q}`, value: q }))}
+                value={selectedEmpreendimento || null}
+                options={empreendimentos.map((emp) => ({ label: emp, value: emp }))}
                 onChange={(e) => {
-                  setSelectedQuadra(e.value);
-                  setValue("imovelId", ""); // Reseta o lote ao mudar a quadra
+                  setSelectedEmpreendimento(e.value ?? "");
+                  setSelectedQuadra("");
+                  setValue("imovelId", "");
                 }}
-                placeholder="Selecione a quadra"
+                placeholder="Selecione o empreendimento"
                 className="w-full"
                 filter
                 disabled={optsLoading}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-white/90 font-medium">Quadra <span className="text-rose-400">*</span></label>
+              <Dropdown
+                value={selectedQuadra || null}
+                options={quadras.map((q) => ({ label: `Quadra ${q}`, value: q }))}
+                onChange={(e) => {
+                  setSelectedQuadra(e.value ?? "");
+                  setValue("imovelId", "");
+                }}
+                placeholder={selectedEmpreendimento ? "Selecione a quadra" : "Selecione primeiro o empreendimento"}
+                className="w-full"
+                filter
+                disabled={optsLoading || !selectedEmpreendimento || quadrasLoading}
               />
             </div>
 
@@ -904,9 +977,15 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                     optionLabel="lote"
                     optionValue="id"
                     filter
-                    placeholder={selectedQuadra ? "Selecione o lote" : "Selecione primeiro a quadra"}
+                    placeholder={
+                      !selectedEmpreendimento
+                        ? "Selecione primeiro o empreendimento"
+                        : selectedQuadra
+                          ? "Selecione o lote"
+                          : "Selecione primeiro a quadra"
+                    }
                     className={cn("w-full", { "p-invalid": errors.imovelId })}
-                    disabled={optsLoading || !selectedQuadra}
+                    disabled={optsLoading || !selectedEmpreendimento || !selectedQuadra || lotesLoading}
                     itemTemplate={(opt: ImovelOption) => `Lote ${opt.lote}`}
                     valueTemplate={(opt: ImovelOption, props) => {
                       if (!opt) return props.placeholder;
