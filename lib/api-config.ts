@@ -33,6 +33,7 @@ const API_PATHS = {
   finIndicesIpca: "/api/fin/indices/ipca",
   finIndicesIgpm: "/api/fin/indices/igpm",
   finReajusteSimular: "/api/fin/reajuste/simular",
+  finCobrancaRegua: "/api/fin/cobranca-regua",
   atendimento: "/api/atendimento",
   auditoria: "/api/auditoria",
   tenantsMe: "/api/tenants/me",
@@ -1005,6 +1006,45 @@ export function getFinIndicesIgpmSincronizarUrl(): string {
 
 export function getFinReajusteSimularUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finReajusteSimular);
+}
+
+export function getFinCobrancaReguaUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.finCobrancaRegua);
+}
+
+export function getFinCobrancaReguaAtivaUrl(id: string): string {
+  return `${getFinCobrancaReguaUrl()}/${id}/ativa`;
+}
+
+export function getFinCobrancaReguaEtapasUrl(reguaId: string): string {
+  return `${getFinCobrancaReguaUrl()}/${reguaId}/etapas`;
+}
+
+export function getFinCobrancaReguaEtapaUrl(reguaId: string, etapaId: string): string {
+  return `${getFinCobrancaReguaEtapasUrl(reguaId)}/${etapaId}`;
+}
+
+export function getFinCobrancaReguaExecucoesUrl(): string {
+  return `${getFinCobrancaReguaUrl()}/execucoes`;
+}
+
+export function getFinCobrancaReguaExecutarJobUrl(): string {
+  return `${getFinCobrancaReguaUrl()}/jobs/executar`;
+}
+
+export function getFinCobrancaReguaTesteUrl(): string {
+  return `${getFinCobrancaReguaUrl()}/teste`;
+}
+
+export function getFinCobrancaReguaTesteTituloResolvidoUrl(
+  contratanteId: number,
+  etapaId: string,
+): string {
+  const params = new URLSearchParams({
+    contratanteId: String(contratanteId),
+    etapaId,
+  });
+  return `${getFinCobrancaReguaUrl()}/teste/titulo-resolvido?${params.toString()}`;
 }
 
 export function getFinLancamentosUrl(): string {

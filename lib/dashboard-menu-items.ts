@@ -161,6 +161,7 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     prefix: "/dashboard/financeiro",
     children: [
       { id: "fin-titulos", href: "/dashboard/financeiro/titulos", label: "Títulos", icon: Receipt },
+      { id: "fin-regua-cobranca", href: "/dashboard/financeiro/regua-cobranca", label: "Régua de cobrança", icon: ListOrdered },
       { id: "fin-titulos-avulso", href: "/dashboard/financeiro/titulos-avulso", label: "Título avulso", icon: FilePlus },
       { id: "fin-sim-ipca", href: "/dashboard/financeiro/simulacao-ipca", label: "Simulação IPCA", icon: Calculator },
       { id: "fin-sim-igpm", href: "/dashboard/financeiro/simulacao-igpm", label: "Simulação IGP-M", icon: Calculator },
