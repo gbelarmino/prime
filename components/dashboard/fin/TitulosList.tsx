@@ -169,6 +169,7 @@ export function TitulosList({
   const [filterContrato, setFilterContrato] = useState("");
   const [filterNome, setFilterNome] = useState("");
   const [filterCpf, setFilterCpf] = useState("");
+  const [filterNossoNumero, setFilterNossoNumero] = useState("");
   const [filterEmpreendimento, setFilterEmpreendimento] = useState(FILTRO_TODOS);
   const [filterQuadra, setFilterQuadra] = useState(FILTRO_TODOS);
   const [filterLote, setFilterLote] = useState<number | null>(null);
@@ -256,6 +257,7 @@ export function TitulosList({
       contrato: filterContrato.trim() || undefined,
       nome: filterNome.trim() || undefined,
       cpf: filterCpf.trim() || undefined,
+      nossoNumero: filterNossoNumero.trim() || undefined,
       vencimentoDe: filterVencimentoDe || undefined,
       vencimentoAte: filterVencimentoAte || undefined,
       cadastroDe: filterEmissaoDe || undefined,
@@ -270,6 +272,7 @@ export function TitulosList({
       filterContrato,
       filterNome,
       filterCpf,
+      filterNossoNumero,
       filterVencimentoDe,
       filterVencimentoAte,
       filterEmissaoDe,
@@ -320,6 +323,7 @@ export function TitulosList({
     filterContrato,
     filterNome,
     filterCpf,
+    filterNossoNumero,
     filterEmpreendimento,
     filterQuadra,
     filterLote,
@@ -400,6 +404,7 @@ export function TitulosList({
     setFilterContrato("");
     setFilterNome("");
     setFilterCpf("");
+    setFilterNossoNumero("");
     setFilterEmpreendimento(FILTRO_TODOS);
     setFilterQuadra(FILTRO_TODOS);
     setFilterLote(null);
@@ -415,6 +420,7 @@ export function TitulosList({
     !!filterContrato.trim() ||
     !!filterNome.trim() ||
     !!filterCpf.trim() ||
+    !!filterNossoNumero.trim() ||
     !!filterEmpreendimento.trim() ||
     !!filterQuadra.trim() ||
     filterLote != null ||
@@ -1241,6 +1247,17 @@ export function TitulosList({
                 onChange={(e) => setFilterCpf(e.target.value)}
                 placeholder="000.000.000-00"
                 className={FILTER_INPUT_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                Nosso número
+              </label>
+              <InputText
+                value={filterNossoNumero}
+                onChange={(e) => setFilterNossoNumero(e.target.value)}
+                placeholder="Número do boleto"
+                className={cn(FILTER_INPUT_CLASS, "font-mono")}
               />
             </div>
             {!embedded || imovelId == null ? (

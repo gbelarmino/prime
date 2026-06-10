@@ -813,6 +813,7 @@ export type FinTitulosListFilters = {
   contrato?: string;
   nome?: string;
   cpf?: string;
+  nossoNumero?: string;
 };
 
 function appendFinTitulosListFilterParams(
@@ -832,6 +833,7 @@ function appendFinTitulosListFilterParams(
   if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
   if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
   if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  if (opts?.nossoNumero?.trim()) params.set("nossoNumero", opts.nossoNumero.trim());
 }
 
 export function getFinTitulosListUrl(

@@ -612,6 +612,7 @@ export const finService = {
       contrato?: string;
       nome?: string;
       cpf?: string;
+      nossoNumero?: string;
     },
     options?: FinFetchOptions,
   ): Promise<SpringPage<TituloCobranca>> {
@@ -629,6 +630,7 @@ export const finService = {
       contrato: filters?.contrato,
       nome: filters?.nome,
       cpf: filters?.cpf,
+      nossoNumero: filters?.nossoNumero,
     });
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
@@ -814,6 +816,7 @@ export const finService = {
       contrato?: string;
       nome?: string;
       cpf?: string;
+      nossoNumero?: string;
     },
     options?: FinFetchOptions,
   ): Promise<TituloIdsElegiveisRegistro> {
@@ -831,6 +834,7 @@ export const finService = {
       contrato: filters?.contrato,
       nome: filters?.nome,
       cpf: filters?.cpf,
+      nossoNumero: filters?.nossoNumero,
     });
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
@@ -871,6 +875,7 @@ export const finService = {
       contrato?: string;
       nome?: string;
       cpf?: string;
+      nossoNumero?: string;
     },
     options?: FinFetchOptions,
   ): Promise<TituloIdsElegiveisRegistro> {
@@ -888,6 +893,7 @@ export const finService = {
       contrato: filters?.contrato,
       nome: filters?.nome,
       cpf: filters?.cpf,
+      nossoNumero: filters?.nossoNumero,
     });
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
