@@ -860,7 +860,7 @@ export function TitulosList({
   const fecharWhatsAppLoteDialog = () => {
     setWhatsappLoteDialogOpen(false);
     setWhatsappLoteResultado(null);
-    if (whatsappLoteResultado && whatsappLoteResultado.enfileirados > 0) {
+    if (whatsappLoteResultado && whatsappLoteResultado.mensagensEnfileiradas > 0) {
       setSelectedTitulos([]);
     }
   };
@@ -873,11 +873,13 @@ export function TitulosList({
         titulosWhatsAppSelecionados.map((t) => t.id),
       );
       setWhatsappLoteResultado(resultado);
-      if (resultado.falhas === 0) {
-        toast.success(`${resultado.enfileirados} envio(s) enfileirado(s) na fila do WhatsApp.`);
-      } else if (resultado.enfileirados > 0) {
+      if (resultado.mensagensFalhas === 0) {
+        toast.success(
+          `${resultado.mensagensEnfileiradas} envio(s) enfileirado(s) na fila do WhatsApp.`,
+        );
+      } else if (resultado.mensagensEnfileiradas > 0) {
         toast.warning(
-          `${resultado.enfileirados} enfileirado(s), ${resultado.falhas} falha(s). Veja o detalhe.`,
+          `${resultado.mensagensEnfileiradas} enfileirado(s), ${resultado.mensagensFalhas} falha(s). Veja o detalhe.`,
         );
       } else {
         toast.error("Nenhum envio foi enfileirado.");

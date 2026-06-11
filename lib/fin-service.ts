@@ -148,18 +148,20 @@ export interface TituloWhatsAppCobrancaResult {
   mensagem?: string | null;
 }
 
-export interface TituloWhatsAppCobrancaLoteItem {
-  tituloId: string;
+export interface TituloWhatsAppCobrancaLoteGrupo {
+  contratoId: number;
+  quantidadeTitulos: number;
   enfileirado: boolean;
   filaId?: number | null;
   mensagem?: string | null;
 }
 
 export interface TituloWhatsAppCobrancaLoteResult {
-  total: number;
-  enfileirados: number;
-  falhas: number;
-  itens: TituloWhatsAppCobrancaLoteItem[];
+  totalTitulos: number;
+  titulosIgnorados: number;
+  mensagensEnfileiradas: number;
+  mensagensFalhas: number;
+  grupos: TituloWhatsAppCobrancaLoteGrupo[];
 }
 
 export interface TituloEmailCobrancaLoteGrupo {
