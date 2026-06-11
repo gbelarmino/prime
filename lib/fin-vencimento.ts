@@ -194,3 +194,17 @@ export function formatIsoDate(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+/** Data de pagamento (Instant ISO da API) como dia civil — evita deslocamento de fuso na exibição. */
+export function formatDataPagamentoExibicao(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const part = iso.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(part)) {
+    try {
+      return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    } catch {
+      return iso;
+    }
+  }
+  return parseIsoDate(part).toLocaleDateString("pt-BR");
+}

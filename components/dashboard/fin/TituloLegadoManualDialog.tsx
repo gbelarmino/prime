@@ -16,7 +16,7 @@ import {
   type TituloLegadoManualStatus,
   type TituloLegadoManualUpdate,
 } from "@/lib/fin-service";
-import { parseIsoDate } from "@/lib/fin-vencimento";
+import { parseIsoDate, formatIsoDate } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -54,7 +54,7 @@ const DASHBOARD_CALENDAR_PT = {
 
 function calendarValueFromDate(date: Date | null): Date | null {
   if (!date) return null;
-  return new Date(`${formatDateIso(date)}T00:00:00`);
+  return new Date(`${formatIsoDate(date)}T00:00:00`);
 }
 
 function onCalendarDateChange(
@@ -77,13 +77,6 @@ const STATUS_LEGADO_OPTIONS: { label: string; value: TituloLegadoManualStatus }[
   { label: "Cancelado", value: "CANCELADO" },
 ];
 
-function formatDateIso(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 function statusLegadoFromTitulo(status: string): TituloLegadoManualStatus {
   if (STATUS_LEGADO_OPTIONS.some((o) => o.value === status)) {
     return status as TituloLegadoManualStatus;
@@ -99,7 +92,7 @@ function parseDataPagamento(iso: string | null | undefined): Date | null {
 type TituloLegadoManualDialogProps = {
   visible: boolean;
   onHide: () => void;
-  onCreated?: () => void;
+  onCreated?: (titulo?: TituloCobranca) => void;
   /** Modo edição: apenas títulos com `legado=true`. */
   tituloId?: string | null;
 };
@@ -197,6 +190,9 @@ export function TituloLegadoManualDialog({
           setUrlBoleto(t.urlBoleto ?? "");
           setValorPago(t.valorPago ?? null);
           setDataPagamento(parseDataPagamento(t.dataPagamento));
+          setValorJuros(t.valorJuros ?? null);
+          setValorMulta(t.valorMulta ?? null);
+          setValorTarifa(t.valorTarifa ?? null);
           setObservacao("");
         })
         .catch(() => toast.error("Falha ao carregar título legado."))
@@ -284,7 +280,7 @@ export function TituloLegadoManualDialog({
     const body: TituloLegadoManualUpdate = {
       numeroParcela: numeroParcela!,
       valorNominal: valorNominal!,
-      vencimento: formatDateIso(vencimento!),
+      vencimento: formatIsoDate(vencimento!),
       statusFinal,
       nossoNumero: nossoNumero.trim() || undefined,
       linhaDigitavel: linhaDigitavel.trim() || undefined,
@@ -295,7 +291,7 @@ export function TituloLegadoManualDialog({
     };
     if (statusFinal === "PAGO" && valorPago != null && dataPagamento) {
       body.valorPago = valorPago;
-      body.dataPagamento = formatDateIso(dataPagamento);
+      body.dataPagamento = formatIsoDate(dataPagamento);
       if (valorJuros != null) body.valorJuros = valorJuros;
       if (valorMulta != null) body.valorMulta = valorMulta;
       if (valorDesconto != null) body.valorDesconto = valorDesconto;
@@ -318,6 +314,9 @@ export function TituloLegadoManualDialog({
       if (isEditMode && tituloId) {
         const atualizado = await finService.atualizarTituloLegadoManual(tituloId, buildPayloadBase());
         toast.success(`Título legado atualizado (parcela ${atualizado.numeroParcela}, ${atualizado.status}).`);
+        handleHide();
+        onCreated?.(atualizado);
+        return;
       } else {
         if (!contexto) {
           toast.error("Selecione o lote do contrato.");

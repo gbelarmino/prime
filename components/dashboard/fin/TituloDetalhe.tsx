@@ -19,6 +19,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDataPagamentoExibicao } from "@/lib/fin-vencimento";
 import { dashboardCellText, dashboardStatusBadge } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloLegadoManualDialog } from "@/components/dashboard/fin/TituloLegadoManualDialog";
@@ -415,7 +416,7 @@ export function TituloDetalhe({
           {titulo.dataPagamento && (
             <div>
               <span className={LABEL_CLASS}>Data pagamento</span>
-              <p className={VALUE_CLASS}>{formatDate(titulo.dataPagamento)}</p>
+              <p className={VALUE_CLASS}>{formatDataPagamentoExibicao(titulo.dataPagamento)}</p>
             </div>
           )}
           {hasValorPositivo(titulo.valorJuros) && (
@@ -588,8 +589,11 @@ export function TituloDetalhe({
             visible={editLegadoOpen}
             tituloId={tituloId}
             onHide={() => setEditLegadoOpen(false)}
-            onCreated={() => {
+            onCreated={(atualizado) => {
               setEditLegadoOpen(false);
+              if (atualizado) {
+                setTitulo(atualizado);
+              }
               void load();
             }}
           />

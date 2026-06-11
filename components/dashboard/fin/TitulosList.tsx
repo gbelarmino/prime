@@ -54,6 +54,7 @@ import {
   calcularVencimentosComPrimeiraParcelaDetalhe,
   calcularVencimentosParcelasDetalhe,
   diaSemanaCurto,
+  formatDataPagamentoExibicao,
   formatIsoDate,
   inicioDoDiaHoje,
   isVencimentoFuturo,
@@ -1654,7 +1655,9 @@ export function TitulosList({
             />
             <Column
               header="Pagamento"
-              body={(row: TituloCobranca) => dashboardCellText(formatDate(row.dataPagamento))}
+              body={(row: TituloCobranca) =>
+                dashboardCellText(formatDataPagamentoExibicao(row.dataPagamento))
+              }
               style={{ width: "6rem", maxWidth: "6rem" }}
             />
             <Column
