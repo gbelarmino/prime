@@ -183,6 +183,8 @@ export function TitulosList({
   const [filterVencimentoAte, setFilterVencimentoAte] = useState("");
   const [filterEmissaoDe, setFilterEmissaoDe] = useState("");
   const [filterEmissaoAte, setFilterEmissaoAte] = useState("");
+  const [filterPagamentoDe, setFilterPagamentoDe] = useState("");
+  const [filterPagamentoAte, setFilterPagamentoAte] = useState("");
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [marcandoVencidos, setMarcandoVencidos] = useState(false);
@@ -264,6 +266,8 @@ export function TitulosList({
       vencimentoAte: filterVencimentoAte || undefined,
       cadastroDe: filterEmissaoDe || undefined,
       cadastroAte: filterEmissaoAte || undefined,
+      pagamentoDe: filterPagamentoDe || undefined,
+      pagamentoAte: filterPagamentoAte || undefined,
     }),
     [
       statusFilter,
@@ -279,6 +283,8 @@ export function TitulosList({
       filterVencimentoAte,
       filterEmissaoDe,
       filterEmissaoAte,
+      filterPagamentoDe,
+      filterPagamentoAte,
     ],
   );
 
@@ -333,6 +339,8 @@ export function TitulosList({
     filterVencimentoAte,
     filterEmissaoDe,
     filterEmissaoAte,
+    filterPagamentoDe,
+    filterPagamentoAte,
   ]);
 
   useEffect(() => {
@@ -415,6 +423,8 @@ export function TitulosList({
     setFilterVencimentoAte("");
     setFilterEmissaoDe("");
     setFilterEmissaoAte("");
+    setFilterPagamentoDe("");
+    setFilterPagamentoAte("");
   };
 
   const temFiltrosAtivos =
@@ -429,7 +439,9 @@ export function TitulosList({
     !!filterVencimentoDe ||
     !!filterVencimentoAte ||
     !!filterEmissaoDe ||
-    !!filterEmissaoAte;
+    !!filterEmissaoAte ||
+    !!filterPagamentoDe ||
+    !!filterPagamentoAte;
 
   useEffect(() => {
     if (!showNovo) {
@@ -1395,6 +1407,36 @@ export function TitulosList({
               />
             </div>
             <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-pag-de"
+                className={FILTER_LABEL_CLASS}
+              >
+                Pagamento de
+              </label>
+              <input
+                id="titulo-pag-de"
+                type="date"
+                value={filterPagamentoDe}
+                onChange={(e) => setFilterPagamentoDe(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-pag-ate"
+                className={FILTER_LABEL_CLASS}
+              >
+                Pagamento até
+              </label>
+              <input
+                id="titulo-pag-ate"
+                type="date"
+                value={filterPagamentoAte}
+                onChange={(e) => setFilterPagamentoAte(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
               <label className={FILTER_LABEL_CLASS}>
                 Status
               </label>
@@ -1579,6 +1621,11 @@ export function TitulosList({
             <Column
               header="Vencimento"
               body={(row: TituloCobranca) => dashboardCellText(formatDate(row.vencimento))}
+              style={{ width: "6rem", maxWidth: "6rem" }}
+            />
+            <Column
+              header="Pagamento"
+              body={(row: TituloCobranca) => dashboardCellText(formatDate(row.dataPagamento))}
               style={{ width: "6rem", maxWidth: "6rem" }}
             />
             <Column

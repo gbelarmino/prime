@@ -818,6 +818,8 @@ export type FinTitulosListFilters = {
   vencimentoAte?: string;
   cadastroDe?: string;
   cadastroAte?: string;
+  pagamentoDe?: string;
+  pagamentoAte?: string;
   empreendimento?: string;
   quadra?: string;
   lote?: number;
@@ -838,6 +840,8 @@ function appendFinTitulosListFilterParams(
   if (opts?.vencimentoAte) params.set("vencimentoAte", opts.vencimentoAte);
   if (opts?.cadastroDe) params.set("cadastroDe", opts.cadastroDe);
   if (opts?.cadastroAte) params.set("cadastroAte", opts.cadastroAte);
+  if (opts?.pagamentoDe) params.set("pagamentoDe", opts.pagamentoDe);
+  if (opts?.pagamentoAte) params.set("pagamentoAte", opts.pagamentoAte);
   if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
   if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
   if (opts?.lote != null) params.set("lote", String(opts.lote));

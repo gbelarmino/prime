@@ -606,6 +606,8 @@ export const finService = {
       vencimentoAte?: string;
       cadastroDe?: string;
       cadastroAte?: string;
+      pagamentoDe?: string;
+      pagamentoAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
@@ -624,6 +626,8 @@ export const finService = {
       vencimentoAte: filters?.vencimentoAte,
       cadastroDe: filters?.cadastroDe,
       cadastroAte: filters?.cadastroAte,
+      pagamentoDe: filters?.pagamentoDe,
+      pagamentoAte: filters?.pagamentoAte,
       empreendimento: filters?.empreendimento,
       quadra: filters?.quadra,
       lote: filters?.lote,
@@ -810,6 +814,8 @@ export const finService = {
       vencimentoAte?: string;
       cadastroDe?: string;
       cadastroAte?: string;
+      pagamentoDe?: string;
+      pagamentoAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
@@ -828,6 +834,8 @@ export const finService = {
       vencimentoAte: filters?.vencimentoAte,
       cadastroDe: filters?.cadastroDe,
       cadastroAte: filters?.cadastroAte,
+      pagamentoDe: filters?.pagamentoDe,
+      pagamentoAte: filters?.pagamentoAte,
       empreendimento: filters?.empreendimento,
       quadra: filters?.quadra,
       lote: filters?.lote,
@@ -869,6 +877,8 @@ export const finService = {
       vencimentoAte?: string;
       cadastroDe?: string;
       cadastroAte?: string;
+      pagamentoDe?: string;
+      pagamentoAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
@@ -887,6 +897,8 @@ export const finService = {
       vencimentoAte: filters?.vencimentoAte,
       cadastroDe: filters?.cadastroDe,
       cadastroAte: filters?.cadastroAte,
+      pagamentoDe: filters?.pagamentoDe,
+      pagamentoAte: filters?.pagamentoAte,
       empreendimento: filters?.empreendimento,
       quadra: filters?.quadra,
       lote: filters?.lote,
