@@ -88,7 +88,25 @@ const STATUS_TONES: Record<string, string> = {
 
 const PAGE_SIZE = 12;
 const LOTE_MAX = 50;
+const PAGINATOR_TEMPLATE =
+  "FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport";
+const CURRENT_PAGE_REPORT_TEMPLATE = "{first}–{last} de {totalRecords}";
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
+const TABLE_PT_WITH_REPORT = {
+  ...TABLE_PT,
+  header: { className: "border-white/5 bg-transparent px-6 pt-5 pb-0" },
+  paginator: {
+    ...(TABLE_PT.paginator as Record<string, unknown>),
+    root: {
+      className:
+        "border-white/5 bg-transparent p-6 flex flex-wrap items-center justify-center gap-2",
+    },
+    current: {
+      className:
+        "text-[10px] font-bold text-white/40 uppercase tracking-widest ml-0 sm:ml-2 w-full text-center sm:w-auto sm:text-left",
+    },
+  },
+};
 const FILTER_INPUT_CLASS =
   "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white/70 placeholder:text-white/25 focus:border-blue-500/50 focus:outline-none transition-all [color-scheme:dark]";
 const FILTER_LABEL_CLASS =
@@ -1168,6 +1186,23 @@ export function TitulosList({
   const totalRecords = pageData?.totalElements ?? 0;
   const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
 
+  const titulosTableHeader = (
+    <div className="flex flex-col gap-1 py-1 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-white/40">
+        <span className="font-bold text-white">
+          {refreshing && pageData == null ? "…" : totalRecords}
+        </span>{" "}
+        título{totalRecords === 1 ? "" : "s"} encontrado{totalRecords === 1 ? "" : "s"}
+        {totalRecords > 0 ? (
+          <span className="text-white/30">
+            {" "}
+            · a mostrar {range.from}–{range.to}
+          </span>
+        ) : null}
+      </p>
+    </div>
+  );
+
   const confirmarMarcarVencidos = async () => {
     setMarcandoVencidos(true);
     try {
@@ -1194,16 +1229,7 @@ export function TitulosList({
     <>
       <div className={cn("flex flex-col gap-5", !embedded && "px-4")}>
         <div className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-white/40">
-              <span className="font-bold text-white">{totalRecords}</span> títulos encontrados
-              {totalRecords > 0 ? (
-                <span className="text-white/30">
-                  {" "}
-                  · a mostrar {range.from}–{range.to}
-                </span>
-              ) : null}
-            </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
             <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
               <button
                 type="button"
@@ -1558,12 +1584,15 @@ export function TitulosList({
             first={page * PAGE_SIZE}
             onPage={onPage}
             loading={refreshing}
+            header={titulosTableHeader}
+            paginatorTemplate={PAGINATOR_TEMPLATE}
+            currentPageReportTemplate={CURRENT_PAGE_REPORT_TEMPLATE}
             emptyMessage="Nenhum título encontrado."
             scrollable
             tableStyle={{ minWidth: "64rem" }}
             responsiveLayout="scroll"
             className={DASHBOARD_DATATABLE_CLASS}
-            pt={TABLE_PT}
+            pt={TABLE_PT_WITH_REPORT}
             rowHover
             selection={selectedTitulos}
             selectionMode="checkbox"
