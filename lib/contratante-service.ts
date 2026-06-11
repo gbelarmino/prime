@@ -1,5 +1,10 @@
 import { apiFetch } from "@/lib/api-fetch";
-import { getContratanteByIdUrl, getContratantesListUrl } from "@/lib/api-config";
+import {
+  getContratanteByIdUrl,
+  getContratantesExportAgendaUrl,
+  getContratantesListUrl,
+} from "@/lib/api-config";
+import { baixarBlob, tryGetFilenameFromDisposition } from "@/lib/baixar-boleto-pdf";
 import type { SpringPage } from "@/lib/spring-page";
 
 export type ContratanteOption = {
@@ -48,6 +53,38 @@ export async function fetchContratanteOption(
   if (!res.ok) return null;
   const row = (await res.json()) as ContratanteListRow;
   return toOption(row);
+}
+
+/** Exporta clientes com celular em vCard para a agenda do telemóvel. */
+export async function exportContratantesAgenda(q?: string): Promise<{
+  exported: number;
+  skipped: number;
+}> {
+  const url = getContratantesExportAgendaUrl(q);
+  if (!url) {
+    throw new Error("API não configurada.");
+  }
+  const res = await apiFetch(url);
+  if (!res.ok) {
+    let message = "Não foi possível exportar a agenda.";
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const body = (await res.json()) as { message?: string };
+      if (body.message?.trim()) message = body.message.trim();
+    } else {
+      const text = await res.text().catch(() => "");
+      if (text.trim()) message = text.trim();
+    }
+    throw new Error(message);
+  }
+  const blob = await res.blob();
+  const filename =
+    tryGetFilenameFromDisposition(res.headers.get("content-disposition")) ??
+    "clientes-aires.vcf";
+  baixarBlob(blob, filename);
+  const exported = Number(res.headers.get("x-aires-export-count") ?? "0");
+  const skipped = Number(res.headers.get("x-aires-export-skipped") ?? "0");
+  return { exported: Number.isFinite(exported) ? exported : 0, skipped: Number.isFinite(skipped) ? skipped : 0 };
 }
 
 /** Mantém o item selecionado visível após buscas remotas. */

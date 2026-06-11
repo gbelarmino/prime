@@ -14,7 +14,7 @@ import {
   MapPin,
   MoreVertical,
   MoreHorizontal,
-  FileText
+  FileText,
 } from "lucide-react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -24,6 +24,7 @@ import { Menu } from "primereact/menu";
 import { toast } from "sonner";
 import { usePaginatedSpringList } from "@/hooks/use-paginated-spring-list";
 import { getContratantesListUrl, isApiConfigured } from "@/lib/api-config";
+import { exportContratantesAgenda } from "@/lib/contratante-service";
 import { formatCpfDisplay } from "@/lib/format-cpf";
 import { formatPhoneDisplay } from "@/lib/format-phone";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ export function ClientesList() {
   const menuRef = useRef<Menu>(null);
   const [selectedRow, setSelectedRow] = useState<ContratanteListItem | null>(null);
   const [viewClientId, setViewClientId] = useState<number | null>(null);
+  const [isExportingAgenda, setIsExportingAgenda] = useState(false);
 
   const buildUrl = useCallback(
     (page: number, size: number, q: string) => getContratantesListUrl(page, size, q),
@@ -116,6 +118,21 @@ export function ClientesList() {
 
   const onPageChange = (event: any) => {
     setPage(event.page);
+  };
+
+  const handleExportAgenda = async () => {
+    setIsExportingAgenda(true);
+    try {
+      const { exported, skipped } = await exportContratantesAgenda(params.q);
+      const skippedNote =
+        skipped > 0 ? ` (${skipped} sem celular válido ignorado${skipped === 1 ? "" : "s"})` : "";
+      toast.success(`${exported} contato${exported === 1 ? "" : "s"} exportado${exported === 1 ? "" : "s"}${skippedNote}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Não foi possível exportar a agenda.";
+      toast.error(message);
+    } finally {
+      setIsExportingAgenda(false);
+    }
   };
 
   const nameBodyTemplate = (rowData: ContratanteListItem) => {
@@ -213,8 +230,20 @@ export function ClientesList() {
           className={DASHBOARD_SEARCH_INPUT_HEADER_CLASS}
         />
       </div>
-      <div className="text-sm text-white/40">
-        <span className="text-white font-bold">{totalRecords}</span> clientes encontrados
+      <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+        <div className="text-sm text-white/40 whitespace-nowrap">
+          <span className="text-white font-bold">{totalRecords}</span> clientes encontrados
+        </div>
+        <Button
+          label="Exportar agenda"
+          icon="pi pi-address-book"
+          className="bg-violet-600/10 hover:bg-violet-600/20 text-violet-300 border border-violet-500/20 text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-xl transition-all"
+          onClick={handleExportAgenda}
+          loading={isExportingAgenda}
+          disabled={isExportingAgenda || totalRecords === 0}
+          tooltip="Baixa vCard para importar no telemóvel (nome: Primeiro Nome - Empreendimento - Q L)"
+          tooltipOptions={{ position: "left" }}
+        />
       </div>
     </div>
   );

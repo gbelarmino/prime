@@ -94,6 +94,17 @@ export function getContratantesListUrl(page = 0, size = 50, q?: string): string 
   return `${base}?${params.toString()}`;
 }
 
+/** vCard para importação na agenda do telemóvel (respeita o mesmo filtro `q` da listagem). */
+export function getContratantesExportAgendaUrl(q?: string): string {
+  const base = getContratanteUrl();
+  if (!base) return "";
+  const params = new URLSearchParams();
+  const term = q?.trim();
+  if (term) params.set("q", term);
+  const qs = params.toString();
+  return qs ? `${base}/export-agenda?${qs}` : `${base}/export-agenda`;
+}
+
 export function getContratanteByIdUrl(id: number): string {
   const base = getContratanteUrl();
   if (!base) return "";
