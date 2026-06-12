@@ -36,11 +36,10 @@ import {
 import { apiFetch } from "@/lib/api-fetch";
 import { UFS_BRASIL } from "@/lib/ufs-brasil";
 import {
+  canEditContratoComoAdmin,
   canRegistrarContratoLegado,
   getAuthToken,
   getUserEmail,
-  isAdmin as isAuthAdmin,
-  isAdministrativo as isAuthAdministrativo,
   isCorretor as isAuthCorretor,
   isImobiliaria as isAuthImobiliaria,
 } from "@/lib/auth-storage";
@@ -224,9 +223,9 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
 
   const isImobiliaria = isAuthImobiliaria();
   const isCorretor = isAuthCorretor();
-  const canEditValoresFinanceiros = isAuthAdmin() || isAuthAdministrativo();
-  const canEditAgendamentoParcelas =
-    isAuthAdmin() || isAuthAdministrativo() || isCorretor || isImobiliaria;
+  const canEditComoAdmin = canEditContratoComoAdmin();
+  const canEditValoresFinanceiros = canEditComoAdmin;
+  const canEditAgendamentoParcelas = canEditComoAdmin || isCorretor || isImobiliaria;
 
   useEffect(() => {
     if (isLegado && !canRegistrarContratoLegado()) {
@@ -675,7 +674,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
 
     const token = getAuthToken();
     const payload = contratoToApiPayload(values);
-    if (mode === "edit" && isContratoLegado && contratoStatusOriginal != null) {
+    if (mode === "edit" && isContratoLegado && !canEditComoAdmin && contratoStatusOriginal != null) {
       payload.status = contratoStatusOriginal;
     }
 

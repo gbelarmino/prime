@@ -156,9 +156,14 @@ export function isContratosReadOnly(): boolean {
   return isAdministrativo();
 }
 
-/** Edição de contratos existentes (valores, partes, condições). */
+/** Edição de contratos existentes com as mesmas permissões do Admin (valores, partes, status, condições). */
 export function canEditContratos(): boolean {
   return isAdmin() || isAdministrativo();
+}
+
+/** Alias semântico para o formulário de edição. */
+export function canEditContratoComoAdmin(): boolean {
+  return canEditContratos();
 }
 
 /** Registo de contrato já assinado (legado/atípico) — admin e administrativo. */
