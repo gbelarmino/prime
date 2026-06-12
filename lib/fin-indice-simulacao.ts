@@ -16,6 +16,16 @@ import {
 
 export type TipoIndiceSimulacao = "IPCA" | "IGPM";
 
+/** Índice configurado no contrato para reajuste (IPCA/IGPM). */
+export function resolverTipoIndiceContrato(
+  tipoCorrecaoAnual?: string | null,
+): TipoIndiceSimulacao | null {
+  if (tipoCorrecaoAnual === "IGPM" || tipoCorrecaoAnual === "IPCA") {
+    return tipoCorrecaoAnual;
+  }
+  return null;
+}
+
 export type IndiceSimulacaoParcela = {
   parcela: number;
   vencimento: string;

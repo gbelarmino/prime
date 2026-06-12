@@ -304,7 +304,7 @@ export interface TituloContextoLote {
   referenciaVencimento: string;
   parcelaReajusteLimite: number;
   maxParcelasPermitidas: number;
-  percentualCorrecao?: number | null;
+  tipoCorrecaoAnual?: string | null;
   quantidadeParcelasFracionadas?: number | null;
   valorFracionadoVendedora?: number | null;
   valorParcela?: number | null;

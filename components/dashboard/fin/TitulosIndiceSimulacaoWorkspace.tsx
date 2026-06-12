@@ -9,6 +9,7 @@ import {
   formatPercentualIndice,
   periodoIndiceParaSimulacao,
   resolverParcelaLimiteMesAtual,
+  resolverTipoIndiceContrato,
   resumoBasesContrato,
   simularParcelasIndice,
   type IndiceSimulacaoParcela,
@@ -381,8 +382,17 @@ export function TitulosIndiceSimulacaoWorkspace({
       quantidadeParcelasFracionadas: contexto.quantidadeParcelasFracionadas ?? null,
       valorFracionadoVendedora: contexto.valorFracionadoVendedora ?? null,
       valorParcela: contexto.valorParcela,
+      tipoCorrecaoAnual: contexto.tipoCorrecaoAnual ?? null,
     };
   }, [contexto]);
+
+  const tipoIndiceContrato = useMemo(
+    () => resolverTipoIndiceContrato(contexto?.tipoCorrecaoAnual),
+    [contexto?.tipoCorrecaoAnual],
+  );
+
+  const tipoIndiceEfetivo = tipoIndiceContrato ?? tipoIndice;
+  const uiEfetivo = INDICE_UI[tipoIndiceEfetivo];
 
   const condicoesResumo = useMemo(() => {
     if (!condicoes) return "";
@@ -420,12 +430,12 @@ export function TitulosIndiceSimulacaoWorkspace({
     const periodo = periodoIndiceParaSimulacao(
       dataPrimeira,
       parcelaAtual,
-      tipoIndice,
+      tipoIndiceEfetivo,
       new Date(),
       condicoes.quantidadeParcelasFracionadas,
     );
 
-    void listarIndices(tipoIndice, periodo)
+    void listarIndices(tipoIndiceEfetivo, periodo)
       .then((indices) => {
         if (cancelled) return;
         setSimulacao(
@@ -459,7 +469,7 @@ export function TitulosIndiceSimulacaoWorkspace({
     parcelaAtual,
     condicoes,
     primeiraParcela,
-    tipoIndice,
+    tipoIndiceEfetivo,
     ui.erroIndices,
   ]);
 
@@ -561,7 +571,7 @@ export function TitulosIndiceSimulacaoWorkspace({
                 primeiraVencimento={
                   contexto?.dataPrimeiraParcelaContrato ?? primeiraParcela?.vencimento ?? ""
                 }
-                labelIndice={ui.labelIndice}
+                labelIndice={uiEfetivo.labelIndice}
               />
             )}
           </PainelCard>

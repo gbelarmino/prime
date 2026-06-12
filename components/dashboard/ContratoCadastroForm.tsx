@@ -378,7 +378,6 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           if (data.valorParcela != null) setValue("valorParcela", numberToBrlInputValue(data.valorParcela));
           if (data.numParcelas != null) setValue("numParcelasMensais", String(data.numParcelas));
           if (data.tipoCorrecaoAnual != null) setValue("tipoCorrecaoAnual", data.tipoCorrecaoAnual);
-          if (data.percentualCorrecao != null) setValue("percentualCorrecao", String(data.percentualCorrecao));
           if (data.periodicidadeCorrecao != null) setValue("periodicidadeCorrecao", data.periodicidadeCorrecao);
           if (data.taxaJurosRemuneratorios != null) setValue("taxaJurosRemuneratorios", String(data.taxaJurosRemuneratorios));
           if (data.periodicidadeJuros != null) setValue("periodicidadeJuros", data.periodicidadeJuros);
@@ -1292,18 +1291,6 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 )}
               />
               {errors.tipoCorrecaoAnual && <small className="p-error">{errors.tipoCorrecaoAnual.message}</small>}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-white/90 font-medium">% Correção <span className="text-rose-400">*</span></label>
-              <Controller
-                name="percentualCorrecao"
-                control={control}
-                render={({ field }) => (
-                  <InputText {...field} disabled={!canEditValoresFinanceiros} className={cn("w-full", { "p-invalid": errors.percentualCorrecao })} />
-                )}
-              />
-              {errors.percentualCorrecao && <small className="p-error">{errors.percentualCorrecao.message}</small>}
             </div>
 
             <div className="flex flex-col gap-2 md:col-span-2">

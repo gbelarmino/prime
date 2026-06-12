@@ -1,6 +1,6 @@
 /**
  * Espelha {@code TituloValorNominalCalculator} (aires-api): trilho fracionado,
- * reajuste 6% + IPCA (teto 12%) nas parcelas 13, 25, 37…
+ * reajuste 6% + índice do contrato (IPCA/IGPM, teto 12%) nas parcelas 13, 25, 37…
  */
 
 import {
@@ -15,6 +15,7 @@ export type CondicoesValorNominal = {
   quantidadeParcelasFracionadas: number | null;
   valorFracionadoVendedora: number | null;
   valorParcela: number;
+  tipoCorrecaoAnual?: string | null;
 };
 
 export type IndiceMensalLookup = {
@@ -118,9 +119,11 @@ export function aplicarReajuste(
   vencimento: Date,
   mesesIpca: number,
   lookup: IndiceMensalLookup,
+  tipoCorrecaoAnual?: string | null,
 ): { valor: number; ipcaAcumulado: number; percentualTotal: number } {
   const referenciaFim = anoMesReferenciaVencimento(vencimento);
-  const ipca = acumularVariacaoFraction(lookup, referenciaFim, mesesIpca);
+  const usaIndice = tipoCorrecaoAnual !== "NENHUM";
+  const ipca = usaIndice ? acumularVariacaoFraction(lookup, referenciaFim, mesesIpca) : 0;
   let total = REAJUSTE_PERCENTUAL_FIXO / 100 + ipca;
   if (total > REAJUSTE_PERCENTUAL_TETO / 100) {
     total = REAJUSTE_PERCENTUAL_TETO / 100;
@@ -170,13 +173,14 @@ function valorNaParcelaReajuste(
   if (parcelaReajuste === 13) {
     const base =
       13 <= qtdFracionadas && fracionado != null ? fracionado : valorParcela;
-    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup).valor;
+    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
   } else if (parcelaReajuste === 25) {
     resultado = aplicarReajuste(
       valorParcela,
       vencimento,
       mesesIpca,
       lookup,
+      ch.tipoCorrecaoAnual,
     ).valor;
   } else {
     const parcelaAnterior = parcelaReajuste - 12;
@@ -187,7 +191,7 @@ function valorNaParcelaReajuste(
       lookup,
       cache,
     );
-    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup).valor;
+    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
   }
 
   cache.set(parcelaReajuste, resultado);
@@ -305,7 +309,7 @@ export function detalheReajusteParcela(
     );
   }
 
-  const reajuste = aplicarReajuste(base, vencimento, mesesIpca, lookup);
+  const reajuste = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual);
 
   return {
     valorNominal,
