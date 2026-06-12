@@ -16,14 +16,17 @@ import {
 
 export type TipoIndiceSimulacao = "IPCA" | "IGPM";
 
-/** Índice configurado no contrato para reajuste (IPCA/IGPM). */
+/** Índice configurado no contrato para reajuste (IPCA/IGPM). Null legado → IGPM; NENHUM → sem índice. */
 export function resolverTipoIndiceContrato(
   tipoCorrecaoAnual?: string | null,
 ): TipoIndiceSimulacao | null {
-  if (tipoCorrecaoAnual === "IGPM" || tipoCorrecaoAnual === "IPCA") {
-    return tipoCorrecaoAnual;
+  if (tipoCorrecaoAnual === "NENHUM") {
+    return null;
   }
-  return null;
+  if (tipoCorrecaoAnual === "IPCA") {
+    return "IPCA";
+  }
+  return "IGPM";
 }
 
 export type IndiceSimulacaoParcela = {
