@@ -40,6 +40,7 @@ import {
   getAuthToken,
   getUserEmail,
   isAdmin as isAuthAdmin,
+  isAdministrativo as isAuthAdministrativo,
   isCorretor as isAuthCorretor,
   isImobiliaria as isAuthImobiliaria,
 } from "@/lib/auth-storage";
@@ -223,8 +224,9 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
 
   const isImobiliaria = isAuthImobiliaria();
   const isCorretor = isAuthCorretor();
-  const canEditValoresFinanceiros = isAuthAdmin();
-  const canEditAgendamentoParcelas = isAuthAdmin() || isCorretor || isImobiliaria;
+  const canEditValoresFinanceiros = isAuthAdmin() || isAuthAdministrativo();
+  const canEditAgendamentoParcelas =
+    isAuthAdmin() || isAuthAdministrativo() || isCorretor || isImobiliaria;
 
   useEffect(() => {
     if (isLegado && !canRegistrarContratoLegado()) {
@@ -1269,7 +1271,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           {!canEditValoresFinanceiros && (
             <Message
               severity="info"
-              text="Correção, juros e limites de reajuste seguem a tabela de preços e só podem ser editados por administradores."
+              text="Correção, juros e limites de reajuste seguem a tabela de preços e só podem ser editados pela equipe administrativa."
               className="w-full"
             />
           )}

@@ -182,7 +182,9 @@ export function ContratosList() {
   }, []);
 
   const isAdmin = role === "ADMIN";
-  const isReadOnlyContratos = role === "ADMINISTRATIVO";
+  const isAdministrativo = role === "ADMINISTRATIVO";
+  const isReadOnlyContratos = isAdministrativo;
+  const canEditContratos = isAdmin || isAdministrativo;
   const idStr = idFilter?.toLowerCase();
 
   // Redirecionar para tela de novo contrato se o ID for "novo" ou "novo.txt"
@@ -490,21 +492,24 @@ export function ContratosList() {
       }
     }
 
-    // Ações de ADMIN
-    if (isAdmin) {
+    // Edição: admin e administrativo (sem fluxo de aprovação para o back-office)
+    if (canEditContratos) {
       if (!isCancelado) {
         items.push({
           label: 'Editar',
           icon: 'pi pi-pencil',
           template: (item: any) => (
             <button onClick={() => router.push(`/dashboard/contratos/edit?id=${r.id}`)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group">
-              <Pencil size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+              <Pencil size={16} className={isAdministrativo ? "text-amber-400 group-hover:scale-110 transition-transform" : "text-blue-400 group-hover:scale-110 transition-transform"} />
               <span className="text-xs font-bold uppercase tracking-widest text-white/70 text-left whitespace-nowrap">{item.label}</span>
             </button>
           )
         });
       }
+    }
 
+    // Ações de fluxo (apenas ADMIN)
+    if (isAdmin) {
       if (!isLegado && (isProposta || isEnviada || isRevisado || isAprovado)) {
         if (isProposta) {
           items.push({
