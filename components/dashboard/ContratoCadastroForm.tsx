@@ -9,7 +9,6 @@ import { toast } from "sonner";
 // PrimeReact Components
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
-import { InputNumber } from "primereact/inputnumber";
 import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
 import { Message } from "primereact/message";
@@ -54,6 +53,7 @@ import {
   type PrecoLoteResponse,
 } from "@/lib/validations/contrato-honorarios";
 import { numberToBrlInputValue } from "@/lib/currency-brl";
+import { BrlMoneyInput } from "@/components/dashboard/BrlMoneyInput";
 import { formatCpfDisplay } from "@/lib/format-cpf";
 import {
   fetchContratanteOption,
@@ -1117,7 +1117,6 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           <Divider className="mt-0 opacity-20" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Usando InputNumber para facilitar a vida do usuário com BRL */}
             {[
               { name: "valorNegociacao", label: "Valor Negociação" },
               { name: "valorLote", label: "Valor do Lote" },
@@ -1133,11 +1132,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                   name={field.name as any}
                   control={control}
                   render={({ field: f }) => (
-                    <InputText
-                      {...f}
+                    <BrlMoneyInput
+                      value={f.value}
+                      onChange={f.onChange}
+                      onBlur={f.onBlur}
                       disabled={!canEditValoresFinanceiros}
-                      placeholder="R$ 0,00"
-                      className={cn("w-full tabular-nums", { "p-invalid": errors[field.name as keyof typeof errors] })}
+                      invalid={Boolean(errors[field.name as keyof typeof errors])}
                     />
                   )}
                 />
@@ -1229,7 +1229,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 name="valorFracionadoVendedora"
                 control={control}
                 render={({ field }) => (
-                  <InputText {...field} placeholder="R$ 0,00" className={cn("w-full tabular-nums", { "p-invalid": errors.valorFracionadoVendedora })} />
+                  <BrlMoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalid={Boolean(errors.valorFracionadoVendedora)}
+                  />
                 )}
               />
               {errors.valorFracionadoVendedora && <small className="p-error">{errors.valorFracionadoVendedora.message}</small>}
@@ -1241,7 +1246,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 name="valorFracionadoIntermediaria"
                 control={control}
                 render={({ field }) => (
-                  <InputText {...field} placeholder="R$ 0,00" className={cn("w-full tabular-nums", { "p-invalid": errors.valorFracionadoIntermediaria })} />
+                  <BrlMoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalid={Boolean(errors.valorFracionadoIntermediaria)}
+                  />
                 )}
               />
               {errors.valorFracionadoIntermediaria && <small className="p-error">{errors.valorFracionadoIntermediaria.message}</small>}
@@ -1253,7 +1263,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 name="valorBaseLeilao"
                 control={control}
                 render={({ field }) => (
-                  <InputText {...field} placeholder="R$ 0,00" className={cn("w-full tabular-nums", { "p-invalid": errors.valorBaseLeilao })} />
+                  <BrlMoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalid={Boolean(errors.valorBaseLeilao)}
+                  />
                 )}
               />
               {errors.valorBaseLeilao && <small className="p-error">{errors.valorBaseLeilao.message}</small>}
