@@ -674,7 +674,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
 
     const token = getAuthToken();
     const payload = contratoToApiPayload(values);
-    if (mode === "edit" && isContratoLegado && !canEditComoAdmin && contratoStatusOriginal != null) {
+    if (mode === "edit" && isContratoLegado && contratoStatusOriginal != null) {
       payload.status = contratoStatusOriginal;
     }
 
