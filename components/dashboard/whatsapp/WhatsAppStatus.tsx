@@ -67,9 +67,23 @@ function statusFingerprint(data: WhatsAppStatusPayload | null): string {
     data.instance?.state ?? "",
     data.provider ?? "",
     data.raw?.status ?? "",
+    data.raw?.hasQr ?? "",
     data.raw?.lastError ?? "",
     data.raw?.lazyRestore ?? "",
   ].join("|");
+}
+
+/** Relay já autenticou (CONNECTED), mesmo durante warmup de envio (sendReady=false → UI "connecting"). */
+function relayPaired(data: WhatsAppStatusPayload | null): boolean {
+  return data?.raw?.status === "CONNECTED" || data?.instance?.state === "open";
+}
+
+function shouldClearQrFromStatus(data: WhatsAppStatusPayload | null): boolean {
+  if (!data) return false;
+  if (relayPaired(data)) return true;
+  // QR expirou ou foi limpo no relay após scan — não manter imagem em cache.
+  if (data.raw?.hasQr === false && data.instance?.state === "connecting") return true;
+  return false;
 }
 
 function linhasFingerprint(list: WhatsAppLinhaComStatus[]): string {
@@ -117,12 +131,16 @@ export function WhatsAppStatus() {
     if (!selectedAccountId) return;
     try {
       const data = await whatsappService.fetchQr(selectedAccountId, { skipLoading: true });
-      const next = data ? qrFromConnectPayload(data) : null;
+      if (!data) {
+        setQrCode(null);
+        return;
+      }
+      const next = qrFromConnectPayload(data);
       if (next) {
         setQrCode((prev) => (prev === next ? prev : next));
       }
     } catch {
-      /* QR expirado ou indisponível — mantém o último código mostrado */
+      setQrCode(null);
     }
   }, [selectedAccountId]);
 
@@ -143,10 +161,12 @@ export function WhatsAppStatus() {
         setStatus((prev) => (statusFingerprint(prev) === statusFingerprint(data) ? prev : data));
         setFetchError(null);
         setLastSyncedAt(new Date());
-        if (data.instance?.state === "open") {
+        if (shouldClearQrFromStatus(data)) {
           setQrCode(null);
+        }
+        if (data.instance?.state === "open") {
           void loadLinhas(true);
-        } else if (!options?.skipQrRefresh && data.raw?.hasQr) {
+        } else if (!options?.skipQrRefresh && data.raw?.hasQr && !shouldClearQrFromStatus(data)) {
           void refreshQrFromRelay();
         }
       } catch {
@@ -168,8 +188,9 @@ export function WhatsAppStatus() {
 
   const relayError = status?.raw?.lastError;
 
-  const pairingActive = Boolean(qrCode);
-  const statusPollMs = pairingActive ? 12_000 : conn === "connecting" ? 10_000 : 18_000;
+  const pairedAwaitingReady = relayPaired(status) && conn !== "open";
+  const pairingActive = Boolean(qrCode) || pairedAwaitingReady;
+  const statusPollMs = pairingActive ? 6_000 : conn === "connecting" ? 10_000 : 18_000;
   const qrPollMs = 20_000;
 
   useEffect(() => {
@@ -197,12 +218,12 @@ export function WhatsAppStatus() {
   }, [fetchStatus, loadLinhas, statusPollMs, pairingActive]);
 
   useEffect(() => {
-    if (!pairingActive || !selectedAccountId) return;
+    if (!qrCode || !selectedAccountId) return;
     const id = window.setInterval(() => {
       void refreshQrFromRelay();
     }, qrPollMs);
     return () => window.clearInterval(id);
-  }, [pairingActive, selectedAccountId, refreshQrFromRelay]);
+  }, [qrCode, selectedAccountId, refreshQrFromRelay]);
 
   const handleConnect = async () => {
     if (!selectedAccountId) return;
@@ -651,7 +672,7 @@ export function WhatsAppStatus() {
             </div>
 
             <div className="flex min-h-[280px] flex-col items-center justify-center gap-6 lg:min-h-[320px]">
-              {qrCode && conn !== "open" ? (
+              {qrCode && conn !== "open" && !relayPaired(status) ? (
                 <div className="w-full max-w-[300px] animate-in zoom-in-95 duration-300">
                   <div className="rounded-3xl border border-white/10 bg-white p-5 shadow-2xl shadow-black/40">
                     <div className="overflow-hidden rounded-2xl bg-white">
@@ -685,6 +706,21 @@ export function WhatsAppStatus() {
                       Canal activo
                     </p>
                     <p className="mt-1 text-xs text-white/45">Gatilhos usam a linha padrão ou a linha definida no gatilho.</p>
+                  </div>
+                </div>
+              ) : pairedAwaitingReady ? (
+                <div className="flex w-full max-w-[300px] flex-col items-center gap-5 rounded-3xl border border-emerald-500/20 bg-emerald-500/[0.06] px-6 py-12 text-center animate-in fade-in duration-500">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-emerald-400/30 bg-emerald-500/15">
+                    <RefreshCw className="h-10 w-10 animate-spin text-emerald-200" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.35em] text-emerald-300/90">Pareado</p>
+                    <p className="mt-2 font-[family-name:var(--font-playfair)] text-xl font-semibold text-white">
+                      A activar envio
+                    </p>
+                    <p className="mt-1 text-xs text-white/45">
+                      O WhatsApp já autenticou; em alguns segundos o canal fica pronto para enviar.
+                    </p>
                   </div>
                 </div>
               ) : conn === "connecting" && !qrCode ? (
