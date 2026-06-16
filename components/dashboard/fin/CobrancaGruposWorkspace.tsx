@@ -14,6 +14,7 @@ import {
   type CobrancaGrupoEmitirSimulacao,
   type CobrancaGrupoSugestao,
   type ConvenioBanco,
+  type EmpreendimentoConvenioItem,
 } from "@/lib/fin-service";
 import { convenioEmpreendimentoDropdownOptions } from "@/lib/convenio-label";
 import { inicioDoDiaHoje, isVencimentoFuturo, normalizarDataCalendario } from "@/lib/fin-vencimento";
@@ -54,6 +55,9 @@ export function CobrancaGruposWorkspace() {
   const [grupos, setGrupos] = useState<CobrancaGrupo[]>([]);
   const [sugestoes, setSugestoes] = useState<CobrancaGrupoSugestao[]>([]);
   const [convenios, setConvenios] = useState<ConvenioBanco[]>([]);
+  const [empreendimentoConvenios, setEmpreendimentoConvenios] = useState<
+    EmpreendimentoConvenioItem[]
+  >([]);
 
   const [criandoId, setCriandoId] = useState<string | null>(null);
   const [liderPorSugestao, setLiderPorSugestao] = useState<Record<string, number>>({});
@@ -79,14 +83,16 @@ export function CobrancaGruposWorkspace() {
   const recarregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [g, s, c] = await Promise.all([
+      const [g, s, c, vinculos] = await Promise.all([
         finService.listCobrancaGrupos({ skipLoading: true }),
         finService.listCobrancaGruposSugestoes({ skipLoading: true }),
-        finService.listConvenios({ skipLoading: true }),
+        finService.listConvenios(),
+        finService.listEmpreendimentoConvenios(),
       ]);
       setGrupos(g);
       setSugestoes(s.filter((x) => !x.jaPossuiGrupoAtivo));
       setConvenios(c);
+      setEmpreendimentoConvenios(vinculos);
     } catch {
       toast.error("Falha ao carregar grupos de cobrança.");
     } finally {
@@ -110,11 +116,12 @@ export function CobrancaGruposWorkspace() {
     }
     setParcelas(next);
     setSimulacao(null);
-    const conv = convenios.find(
-      (c) => c.empreendimento?.toLowerCase() === grupoSelecionado.empreendimento.toLowerCase(),
+    const vinculo = empreendimentoConvenios.find(
+      (v) =>
+        v.nomeEmpreendimento.toLowerCase() === grupoSelecionado.empreendimento.toLowerCase(),
     );
-    setConvenioId(conv?.id ?? null);
-  }, [grupoSelecionado, convenios]);
+    setConvenioId(vinculo?.convenioId ?? null);
+  }, [grupoSelecionado, empreendimentoConvenios]);
 
   const payloadEmissao = useMemo((): CobrancaGrupoEmitirPayload | null => {
     if (!grupoSelecionado || !convenioId || !vencimento) return null;
