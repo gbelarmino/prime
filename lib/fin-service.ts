@@ -62,6 +62,14 @@ import {
   getFinTituloLegadoManualLotesUrl,
   getFinTituloLegadoManualUrl,
   getFinTituloLegadoManualByIdUrl,
+  getFinCobrancaGruposUrl,
+  getFinCobrancaGruposSugestoesUrl,
+  getFinCobrancaGrupoByIdUrl,
+  getFinCobrancaGrupoSimularUrl,
+  getFinCobrancaGrupoEmitirUrl,
+  getFinCobrancaGrupoLiderUrl,
+  getFinCobrancaGrupoMembrosUrl,
+  getFinCobrancaGrupoDesativarUrl,
   getImoveisEmpreendimentosUrl,
   getImoveisListUrl,
   getImoveisQuadrasUrl,
@@ -352,6 +360,79 @@ export interface TituloAvulsoEmitir {
   convenioId: string;
   valorNominal: number;
   vencimento: string;
+}
+
+export interface CobrancaGrupoMembro {
+  contratoId: number;
+  numeroContrato?: string | null;
+  quadra?: string | null;
+  lote?: number | null;
+  ordem: number;
+  maxParcelaAtiva: number;
+  proximaParcela: number;
+}
+
+export interface CobrancaGrupo {
+  id: string;
+  numeroContratoBase: string;
+  contratanteId: number;
+  contratanteNome?: string | null;
+  empreendimento: string;
+  contratoLiderId: number;
+  ativo: boolean;
+  membros: CobrancaGrupoMembro[];
+}
+
+export interface CobrancaGrupoSugestaoContrato {
+  contratoId: number;
+  numeroContrato?: string | null;
+  quadra?: string | null;
+  lote?: number | null;
+  maxParcelaAtiva: number;
+  proximaParcela: number;
+}
+
+export interface CobrancaGrupoSugestao {
+  numeroContratoBase: string;
+  contratanteId: number;
+  contratanteNome?: string | null;
+  empreendimento: string;
+  contratos: CobrancaGrupoSugestaoContrato[];
+  jaPossuiGrupoAtivo: boolean;
+}
+
+export interface CobrancaGrupoEmitirMembro {
+  contratoId: number;
+  numeroParcela: number;
+}
+
+export interface CobrancaGrupoEmitirPayload {
+  convenioId: string;
+  vencimento: string;
+  membros: CobrancaGrupoEmitirMembro[];
+}
+
+export interface CobrancaGrupoEmitirSimulacaoItem {
+  contratoId: number;
+  numeroContrato?: string | null;
+  quadra?: string | null;
+  lote?: number | null;
+  numeroParcela: number;
+  valorNominal: number;
+  aviso?: string | null;
+}
+
+export interface CobrancaGrupoEmitirSimulacao {
+  contratoLiderId: number;
+  numeroParcelaLider: number;
+  valorTotal: number;
+  itens: CobrancaGrupoEmitirSimulacaoItem[];
+}
+
+export interface CobrancaGrupoEmitirResult {
+  titulo: TituloCobranca;
+  valorTotal: number;
+  rateios: CobrancaGrupoEmitirSimulacaoItem[];
 }
 
 export interface TituloCobrancaLoteCreate {
@@ -1302,6 +1383,72 @@ export const finService = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    });
+    return parseJson(res);
+  },
+
+  async listCobrancaGrupos(options?: FinFetchOptions): Promise<CobrancaGrupo[]> {
+    const res = await apiFetch(getFinCobrancaGruposUrl(), { skipLoading: options?.skipLoading });
+    return parseJson(res);
+  },
+
+  async listCobrancaGruposSugestoes(options?: FinFetchOptions): Promise<CobrancaGrupoSugestao[]> {
+    const res = await apiFetch(getFinCobrancaGruposSugestoesUrl(), { skipLoading: options?.skipLoading });
+    return parseJson(res);
+  },
+
+  async criarCobrancaGrupo(body: {
+    numeroContratoBase?: string;
+    contratoLiderId: number;
+    contratoIds: number[];
+  }): Promise<CobrancaGrupo> {
+    const res = await apiFetch(getFinCobrancaGruposUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async atualizarLiderCobrancaGrupo(
+    grupoId: string,
+    contratoLiderId: number,
+  ): Promise<CobrancaGrupo> {
+    const res = await apiFetch(getFinCobrancaGrupoLiderUrl(grupoId), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contratoLiderId }),
+    });
+    return parseJson(res);
+  },
+
+  async desativarCobrancaGrupo(grupoId: string): Promise<void> {
+    await apiFetch(getFinCobrancaGrupoDesativarUrl(grupoId), { method: "POST" });
+  },
+
+  async simularEmissaoCobrancaGrupo(
+    grupoId: string,
+    body: CobrancaGrupoEmitirPayload,
+  ): Promise<CobrancaGrupoEmitirSimulacao> {
+    const res = await apiFetch(getFinCobrancaGrupoSimularUrl(grupoId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async emitirCobrancaGrupo(
+    grupoId: string,
+    body: CobrancaGrupoEmitirPayload,
+    idempotencyKey?: string,
+  ): Promise<CobrancaGrupoEmitirResult> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+    const res = await apiFetch(getFinCobrancaGrupoEmitirUrl(grupoId), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
     });
     return parseJson(res);
   },

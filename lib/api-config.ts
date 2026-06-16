@@ -34,6 +34,7 @@ const API_PATHS = {
   finIndicesIgpm: "/api/fin/indices/igpm",
   finReajusteSimular: "/api/fin/reajuste/simular",
   finCobrancaRegua: "/api/fin/cobranca-regua",
+  finCobrancaGrupos: "/api/fin/cobranca-grupos",
   atendimento: "/api/atendimento",
   auditoria: "/api/auditoria",
   tenantsMe: "/api/tenants/me",
@@ -932,6 +933,42 @@ export function getFinTituloAvulsoUrl(): string {
   const base = getFinTitulosUrl();
   if (!base) return "";
   return `${base}/avulso`;
+}
+
+export function getFinCobrancaGruposUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.finCobrancaGrupos);
+}
+
+export function getFinCobrancaGruposSugestoesUrl(): string {
+  const base = getFinCobrancaGruposUrl();
+  if (!base) return "";
+  return `${base}/sugestoes`;
+}
+
+export function getFinCobrancaGrupoByIdUrl(id: string): string {
+  const base = getFinCobrancaGruposUrl();
+  if (!base) return "";
+  return `${base}/${id}`;
+}
+
+export function getFinCobrancaGrupoSimularUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/simular-emissao`;
+}
+
+export function getFinCobrancaGrupoEmitirUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/emitir`;
+}
+
+export function getFinCobrancaGrupoLiderUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/lider`;
+}
+
+export function getFinCobrancaGrupoMembrosUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/membros`;
+}
+
+export function getFinCobrancaGrupoDesativarUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/desativar`;
 }
 
 export function getFinTituloRegistrarUrl(id: string): string {
