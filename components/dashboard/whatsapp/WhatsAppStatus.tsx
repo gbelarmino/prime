@@ -78,6 +78,13 @@ function relayPaired(data: WhatsAppStatusPayload | null): boolean {
   return data?.raw?.status === "CONNECTED" || data?.instance?.state === "open";
 }
 
+/** CONNECTING no relay sem QR e sem CONNECTED — restore preso ou sessão zombie. */
+function relayConnectingStuck(data: WhatsAppStatusPayload | null): boolean {
+  if (!data || relayPaired(data)) return false;
+  if (data.raw?.lazyRestore) return true;
+  return data.raw?.status === "CONNECTING" && !data.raw?.hasQr;
+}
+
 function shouldClearQrFromStatus(data: WhatsAppStatusPayload | null): boolean {
   if (!data) return false;
   if (relayPaired(data)) return true;
@@ -188,8 +195,10 @@ export function WhatsAppStatus() {
 
   const relayError = status?.raw?.lastError;
 
+  const stuckConnecting = conn === "connecting" && relayConnectingStuck(status);
+  const showPairingActions = conn === "close" || stuckConnecting;
   const pairedAwaitingReady = relayPaired(status) && conn !== "open";
-  const pairingActive = Boolean(qrCode) || pairedAwaitingReady;
+  const pairingActive = Boolean(qrCode) || pairedAwaitingReady || stuckConnecting;
   const statusPollMs = pairingActive ? 6_000 : conn === "connecting" ? 10_000 : 18_000;
   const qrPollMs = 20_000;
 
@@ -228,13 +237,16 @@ export function WhatsAppStatus() {
   const handleConnect = async () => {
     if (!selectedAccountId) return;
     setConnecting(true);
+    const forceReconnect = relayConnectingStuck(status);
     try {
-      const data = (await whatsappService.connect(selectedAccountId)) as WhatsAppStatusPayload;
+      const data = (await whatsappService.connect(selectedAccountId, {
+        force: forceReconnect,
+      })) as WhatsAppStatusPayload & { qrDataUrl?: string };
       const qr = qrFromConnectPayload(data);
 
       if (qr) {
         setQrCode(qr);
-        toast.success("QR gerado. Escaneie no WhatsApp.");
+        toast.success(forceReconnect ? "Novo QR gerado (reconexão forçada)." : "QR gerado. Escaneie no WhatsApp.");
         void fetchStatus(true, { skipQrRefresh: true });
       } else if (data.instance?.state === "open") {
         toast.success("Já estava conectado.");
@@ -586,9 +598,11 @@ export function WhatsAppStatus() {
                   <p className="max-w-xl text-sm leading-relaxed text-white/45">
                     {conn === "open"
                       ? "Esta linha está pronta para enviar notificações e mensagens automáticas (conforme gatilhos e fila)."
-                      : conn === "connecting"
-                        ? "O servidor está a recuperar a sessão em disco. Em poucos segundos o estado deve ficar conectado — ou gere um novo QR se a sessão expirou."
-                        : "Emparelhe esta linha com um WhatsApp (Aparelhos conectados) para activar o envio por este número."}
+                      : stuckConnecting
+                        ? "A recuperação da sessão em disco demorou ou ficou presa. Use Gerar QR para forçar um novo pareamento ou Redefinir sessão para apagar o pareamento guardado."
+                        : conn === "connecting"
+                          ? "O servidor está a recuperar a sessão em disco. Em poucos segundos o estado deve ficar conectado — ou gere um novo QR se a sessão expirou."
+                          : "Emparelhe esta linha com um WhatsApp (Aparelhos conectados) para activar o envio por este número."}
                   </p>
                   {relayError ? (
                     <p className="text-xs text-rose-300/80">
@@ -625,7 +639,7 @@ export function WhatsAppStatus() {
               </ol>
 
               <div className="flex flex-wrap gap-3 pt-2">
-                {conn !== "open" && conn !== "connecting" ? (
+                {showPairingActions ? (
                   <button
                     type="button"
                     disabled={connecting || !selectedRow?.ativo}
@@ -633,7 +647,7 @@ export function WhatsAppStatus() {
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
                   >
                     <Smartphone className="h-4 w-4" />
-                    {connecting ? "A gerar QR…" : "Gerar QR"}
+                    {connecting ? "A gerar QR…" : stuckConnecting ? "Forçar novo QR" : "Gerar QR"}
                   </button>
                 ) : conn === "open" ? (
                   <button
@@ -658,7 +672,7 @@ export function WhatsAppStatus() {
                   Atualizar
                 </button>
 
-                {conn !== "open" && conn !== "connecting" ? (
+                {showPairingActions ? (
                   <button
                     type="button"
                     disabled={connecting || !selectedRow?.ativo}
@@ -723,7 +737,7 @@ export function WhatsAppStatus() {
                     </p>
                   </div>
                 </div>
-              ) : conn === "connecting" && !qrCode ? (
+              ) : conn === "connecting" && !qrCode && !stuckConnecting ? (
                 <div className="flex w-full max-w-[300px] flex-col items-center gap-5 rounded-3xl border border-amber-500/25 bg-amber-500/[0.07] px-6 py-12 text-center animate-in fade-in duration-400">
                   <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/15">
                     <RefreshCw className="h-10 w-10 text-amber-200" />
@@ -735,6 +749,21 @@ export function WhatsAppStatus() {
                     </p>
                     <p className="mt-1 text-xs text-white/45">
                       Aguarde ou toque em Atualizar. Se persistir, use Gerar QR.
+                    </p>
+                  </div>
+                </div>
+              ) : stuckConnecting ? (
+                <div className="flex w-full max-w-[300px] flex-col items-center gap-5 rounded-3xl border border-amber-500/25 bg-amber-500/[0.07] px-6 py-12 text-center animate-in fade-in duration-400">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/15">
+                    <AlertCircle className="h-10 w-10 text-amber-200" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.35em] text-amber-200/90">Sessão presa</p>
+                    <p className="mt-2 font-[family-name:var(--font-playfair)] text-xl font-semibold text-white">
+                      Recuperação incompleta
+                    </p>
+                    <p className="mt-1 text-xs text-white/45">
+                      Toque em Forçar novo QR ou Redefinir sessão abaixo.
                     </p>
                   </div>
                 </div>

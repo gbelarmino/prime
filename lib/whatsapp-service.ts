@@ -184,8 +184,8 @@ export const whatsappService = {
     return res.json();
   },
 
-  async connect(accountId?: string | null) {
-    const res = await apiFetch(getWhatsAppConnectUrl(accountId));
+  async connect(accountId?: string | null, options?: { force?: boolean }) {
+    const res = await apiFetch(getWhatsAppConnectUrl(accountId, { force: options?.force }));
     if (!res.ok) throw new Error("Erro ao iniciar conexão do WhatsApp");
     return res.json();
   },

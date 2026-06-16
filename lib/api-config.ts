@@ -612,8 +612,12 @@ export function getWhatsAppStatusUrl(accountId?: string | null): string {
   return withOptionalAccountIdQuery(`${getWhatsAppUrl()}/status`, accountId);
 }
 
-export function getWhatsAppConnectUrl(accountId?: string | null): string {
-  return withOptionalAccountIdQuery(`${getWhatsAppUrl()}/connect`, accountId);
+export function getWhatsAppConnectUrl(accountId?: string | null, options?: { force?: boolean }): string {
+  let url = withOptionalAccountIdQuery(`${getWhatsAppUrl()}/connect`, accountId);
+  if (options?.force) {
+    url += `${url.includes("?") ? "&" : "?"}force=true`;
+  }
+  return url;
 }
 
 export function getWhatsAppQrUrl(accountId?: string | null): string {
