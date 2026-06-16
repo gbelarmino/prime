@@ -404,6 +404,8 @@ export interface CobrancaGrupoSugestao {
 export interface CobrancaGrupoEmitirMembro {
   contratoId: number;
   numeroParcela: number;
+  /** Valor do lote quando o cálculo automático falha (ex.: série IGPM incompleta). */
+  valorNominal?: number;
 }
 
 export interface CobrancaGrupoEmitirPayload {
@@ -418,7 +420,7 @@ export interface CobrancaGrupoEmitirSimulacaoItem {
   quadra?: string | null;
   lote?: number | null;
   numeroParcela: number;
-  valorNominal: number;
+  valorNominal: number | null;
   aviso?: string | null;
 }
 
@@ -426,6 +428,7 @@ export interface CobrancaGrupoEmitirSimulacao {
   contratoLiderId: number;
   numeroParcelaLider: number;
   valorTotal: number;
+  prontoParaEmitir: boolean;
   itens: CobrancaGrupoEmitirSimulacaoItem[];
 }
 

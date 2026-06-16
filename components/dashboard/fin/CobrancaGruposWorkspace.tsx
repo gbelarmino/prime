@@ -48,6 +48,7 @@ function loteLabel(quadra?: string | null, lote?: number | null): string {
 }
 
 type ParcelaPorMembro = Record<number, number>;
+type ValorPorMembro = Record<number, number | null>;
 
 export function CobrancaGruposWorkspace() {
   const router = useRouter();
@@ -64,6 +65,7 @@ export function CobrancaGruposWorkspace() {
 
   const [grupoSelecionadoId, setGrupoSelecionadoId] = useState<string | null>(null);
   const [parcelas, setParcelas] = useState<ParcelaPorMembro>({});
+  const [valoresMembro, setValoresMembro] = useState<ValorPorMembro>({});
   const [convenioId, setConvenioId] = useState<string | null>(null);
   const [vencimento, setVencimento] = useState<Date | null>(null);
   const [simulacao, setSimulacao] = useState<CobrancaGrupoEmitirSimulacao | null>(null);
@@ -107,6 +109,7 @@ export function CobrancaGruposWorkspace() {
   useEffect(() => {
     if (!grupoSelecionado) {
       setParcelas({});
+      setValoresMembro({});
       setSimulacao(null);
       return;
     }
@@ -115,6 +118,7 @@ export function CobrancaGruposWorkspace() {
       next[m.contratoId] = m.proximaParcela;
     }
     setParcelas(next);
+    setValoresMembro({});
     setSimulacao(null);
     const vinculo = empreendimentoConvenios.find(
       (v) =>
@@ -125,19 +129,55 @@ export function CobrancaGruposWorkspace() {
 
   const payloadEmissao = useMemo((): CobrancaGrupoEmitirPayload | null => {
     if (!grupoSelecionado || !convenioId || !vencimento) return null;
-    const membros = grupoSelecionado.membros.map((m) => ({
-      contratoId: m.contratoId,
-      numeroParcela: parcelas[m.contratoId] ?? m.proximaParcela,
-    }));
+    const membros = grupoSelecionado.membros.map((m) => {
+      const base = {
+        contratoId: m.contratoId,
+        numeroParcela: parcelas[m.contratoId] ?? m.proximaParcela,
+      };
+      const valor = valoresMembro[m.contratoId];
+      if (valor != null && valor >= 0.01) {
+        return { ...base, valorNominal: valor };
+      }
+      return base;
+    });
     return {
       convenioId,
       vencimento: formatDateIso(vencimento),
       membros,
     };
-  }, [grupoSelecionado, convenioId, vencimento, parcelas]);
+  }, [grupoSelecionado, convenioId, vencimento, parcelas, valoresMembro]);
+
+  const avisoPorMembro = useMemo(() => {
+    const map: Record<number, string | null> = {};
+    if (simulacao) {
+      for (const item of simulacao.itens) {
+        if (item.aviso) map[item.contratoId] = item.aviso;
+      }
+    }
+    return map;
+  }, [simulacao]);
+
+  const valorTotalConsolidado = useMemo(() => {
+    if (!grupoSelecionado) return null;
+    let total = 0;
+    for (const m of grupoSelecionado.membros) {
+      const v = valoresMembro[m.contratoId];
+      if (v == null || !Number.isFinite(v)) return null;
+      total += v;
+    }
+    return total;
+  }, [grupoSelecionado, valoresMembro]);
 
   const podeSimular =
     payloadEmissao != null && vencimento != null && isVencimentoFuturo(vencimento);
+
+  const podeEmitir =
+    podeSimular &&
+    grupoSelecionado != null &&
+    grupoSelecionado.membros.every((m) => {
+      const v = valoresMembro[m.contratoId];
+      return v != null && v >= 0.01;
+    });
 
   async function criarGrupo(sugestao: CobrancaGrupoSugestao) {
     const chave = sugestao.numeroContratoBase;
@@ -170,6 +210,16 @@ export function CobrancaGruposWorkspace() {
         payloadEmissao,
       );
       setSimulacao(res);
+      const nextValores: ValorPorMembro = {};
+      for (const item of res.itens) {
+        nextValores[item.contratoId] = item.valorNominal;
+      }
+      setValoresMembro(nextValores);
+      if (!res.prontoParaEmitir) {
+        toast.warning(
+          "Algumas parcelas não puderam ser calculadas automaticamente. Informe o valor manualmente ou sincronize os índices em Financeiro → IGP-M.",
+        );
+      }
     } catch (e) {
       setSimulacao(null);
       toast.error(e instanceof Error ? e.message : "Falha na simulação.");
@@ -179,7 +229,7 @@ export function CobrancaGruposWorkspace() {
   }
 
   async function emitir() {
-    if (!grupoSelecionado || !payloadEmissao || !simulacao) return;
+    if (!grupoSelecionado || !payloadEmissao || !podeEmitir) return;
     setEmitindo(true);
     try {
       const res = await finService.emitirCobrancaGrupo(grupoSelecionado.id, payloadEmissao);
@@ -319,7 +369,8 @@ export function CobrancaGruposWorkspace() {
                       <tr className="text-left text-[10px] uppercase tracking-wider text-white/35">
                         <th className="pb-2 pr-3">Contrato</th>
                         <th className="pb-2 pr-3">Lote</th>
-                        <th className="pb-2">Parcela</th>
+                        <th className="pb-2 pr-3">Parcela</th>
+                        <th className="pb-2">Valor (R$)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -334,19 +385,45 @@ export function CobrancaGruposWorkspace() {
                           <td className="py-2 pr-3 text-white/50">
                             {loteLabel(m.quadra, m.lote)}
                           </td>
-                          <td className="py-2">
+                          <td className="py-2 pr-3">
                             <InputNumber
                               value={parcelas[m.contratoId] ?? m.proximaParcela}
-                              onValueChange={(e) =>
+                              onValueChange={(e) => {
+                                setSimulacao(null);
                                 setParcelas((prev) => ({
                                   ...prev,
                                   [m.contratoId]: e.value ?? m.proximaParcela,
-                                }))
-                              }
+                                }));
+                              }}
                               min={1}
                               className="w-24"
                               inputClassName="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
                             />
+                          </td>
+                          <td className="py-2">
+                            <InputNumber
+                              value={valoresMembro[m.contratoId] ?? null}
+                              onValueChange={(e) => {
+                                setValoresMembro((prev) => ({
+                                  ...prev,
+                                  [m.contratoId]: e.value ?? null,
+                                }));
+                              }}
+                              mode="currency"
+                              currency="BRL"
+                              locale="pt-BR"
+                              minFractionDigits={2}
+                              maxFractionDigits={2}
+                              min={0.01}
+                              placeholder="Calcular ou informar"
+                              className="w-full min-w-[9rem]"
+                              inputClassName="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
+                            />
+                            {avisoPorMembro[m.contratoId] ? (
+                              <p className="mt-1 text-[10px] leading-snug text-amber-300/80 max-w-xs">
+                                {avisoPorMembro[m.contratoId]}
+                              </p>
+                            ) : null}
                           </td>
                         </tr>
                       ))}
@@ -392,29 +469,48 @@ export function CobrancaGruposWorkspace() {
                   <button
                     type="button"
                     className={BTN_PRIMARY}
-                    disabled={!simulacao || emitindo}
+                    disabled={!podeEmitir || emitindo}
                     onClick={() => void emitir()}
                   >
                     {emitindo ? "Emitindo…" : "Emitir boleto consolidado"}
                   </button>
                 </div>
 
-                {simulacao ? (
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-                    <p className="text-sm text-emerald-200/90 font-medium mb-2">
-                      Total consolidado: {formatMoney(simulacao.valorTotal)}
+                {simulacao || valorTotalConsolidado != null ? (
+                  <div
+                    className={`rounded-xl border p-4 ${
+                      podeEmitir
+                        ? "border-emerald-500/20 bg-emerald-500/5"
+                        : "border-amber-500/25 bg-amber-500/5"
+                    }`}
+                  >
+                    <p
+                      className={`text-sm font-medium mb-2 ${
+                        podeEmitir ? "text-emerald-200/90" : "text-amber-200/90"
+                      }`}
+                    >
+                      Total consolidado:{" "}
+                      {formatMoney(valorTotalConsolidado ?? simulacao?.valorTotal)}
                     </p>
-                    <ul className="text-xs text-white/55 space-y-1">
-                      {simulacao.itens.map((item) => (
-                        <li key={item.contratoId}>
-                          {item.numeroContrato} · parc. {item.numeroParcela}:{" "}
-                          {formatMoney(item.valorNominal)}
-                          {item.aviso ? (
-                            <span className="text-amber-300/80"> — {item.aviso}</span>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
+                    {simulacao && !simulacao.prontoParaEmitir ? (
+                      <p className="text-xs text-amber-200/75 mb-2">
+                        Informe o valor de cada lote com aviso ou sincronize a série IGPM em
+                        Financeiro → IGP-M.
+                      </p>
+                    ) : null}
+                    {simulacao ? (
+                      <ul className="text-xs text-white/55 space-y-1">
+                        {simulacao.itens.map((item) => (
+                          <li key={item.contratoId}>
+                            {item.numeroContrato} · parc. {item.numeroParcela}:{" "}
+                            {formatMoney(item.valorNominal)}
+                            {item.aviso ? (
+                              <span className="text-amber-300/80"> — {item.aviso}</span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 ) : null}
 
