@@ -47,7 +47,6 @@ function loteLabel(quadra?: string | null, lote?: number | null): string {
   return `Q${quadra ?? "?"} L${lote ?? "?"}`;
 }
 
-type ParcelaPorMembro = Record<number, number>;
 type ValorPorMembro = Record<number, number | null>;
 
 export function CobrancaGruposWorkspace() {
@@ -64,7 +63,7 @@ export function CobrancaGruposWorkspace() {
   const [liderPorSugestao, setLiderPorSugestao] = useState<Record<string, number>>({});
 
   const [grupoSelecionadoId, setGrupoSelecionadoId] = useState<string | null>(null);
-  const [parcelas, setParcelas] = useState<ParcelaPorMembro>({});
+  const [parcelaLider, setParcelaLider] = useState<number | null>(null);
   const [valoresMembro, setValoresMembro] = useState<ValorPorMembro>({});
   const [convenioId, setConvenioId] = useState<string | null>(null);
   const [vencimento, setVencimento] = useState<Date | null>(null);
@@ -108,16 +107,15 @@ export function CobrancaGruposWorkspace() {
 
   useEffect(() => {
     if (!grupoSelecionado) {
-      setParcelas({});
+      setParcelaLider(null);
       setValoresMembro({});
       setSimulacao(null);
       return;
     }
-    const next: ParcelaPorMembro = {};
-    for (const m of grupoSelecionado.membros) {
-      next[m.contratoId] = m.proximaParcela;
-    }
-    setParcelas(next);
+    const lider = grupoSelecionado.membros.find(
+      (m) => m.contratoId === grupoSelecionado.contratoLiderId,
+    );
+    setParcelaLider(lider?.proximaParcela ?? 1);
     setValoresMembro({});
     setSimulacao(null);
     const vinculo = empreendimentoConvenios.find(
@@ -128,12 +126,11 @@ export function CobrancaGruposWorkspace() {
   }, [grupoSelecionado, empreendimentoConvenios]);
 
   const payloadEmissao = useMemo((): CobrancaGrupoEmitirPayload | null => {
-    if (!grupoSelecionado || !convenioId || !vencimento) return null;
+    if (!grupoSelecionado || !convenioId || !vencimento || parcelaLider == null || parcelaLider < 1) {
+      return null;
+    }
     const membros = grupoSelecionado.membros.map((m) => {
-      const base = {
-        contratoId: m.contratoId,
-        numeroParcela: parcelas[m.contratoId] ?? m.proximaParcela,
-      };
+      const base = { contratoId: m.contratoId };
       const valor = valoresMembro[m.contratoId];
       if (valor != null && valor >= 0.01) {
         return { ...base, valorNominal: valor };
@@ -143,9 +140,10 @@ export function CobrancaGruposWorkspace() {
     return {
       convenioId,
       vencimento: formatDateIso(vencimento),
+      numeroParcela: parcelaLider,
       membros,
     };
-  }, [grupoSelecionado, convenioId, vencimento, parcelas, valoresMembro]);
+  }, [grupoSelecionado, convenioId, vencimento, parcelaLider, valoresMembro]);
 
   const avisoPorMembro = useMemo(() => {
     const map: Record<number, string | null> = {};
@@ -360,7 +358,25 @@ export function CobrancaGruposWorkspace() {
                     Líder:{" "}
                     {grupoSelecionado.membros.find((m) => m.contratoId === grupoSelecionado.contratoLiderId)
                       ?.numeroContrato ?? grupoSelecionado.contratoLiderId}
+                    {" · "}
+                    Todos os lotes seguem a parcela do líder.
                   </p>
+                </div>
+
+                <div className="flex flex-wrap items-end gap-4">
+                  <div>
+                    <label className={FORM_LABEL_CLASS}>Parcela (líder)</label>
+                    <InputNumber
+                      value={parcelaLider}
+                      onValueChange={(e) => {
+                        setSimulacao(null);
+                        setParcelaLider(e.value ?? null);
+                      }}
+                      min={1}
+                      className="w-28"
+                      inputClassName="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm text-white"
+                    />
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -369,7 +385,6 @@ export function CobrancaGruposWorkspace() {
                       <tr className="text-left text-[10px] uppercase tracking-wider text-white/35">
                         <th className="pb-2 pr-3">Contrato</th>
                         <th className="pb-2 pr-3">Lote</th>
-                        <th className="pb-2 pr-3">Parcela</th>
                         <th className="pb-2">Valor (R$)</th>
                       </tr>
                     </thead>
@@ -384,21 +399,6 @@ export function CobrancaGruposWorkspace() {
                           </td>
                           <td className="py-2 pr-3 text-white/50">
                             {loteLabel(m.quadra, m.lote)}
-                          </td>
-                          <td className="py-2 pr-3">
-                            <InputNumber
-                              value={parcelas[m.contratoId] ?? m.proximaParcela}
-                              onValueChange={(e) => {
-                                setSimulacao(null);
-                                setParcelas((prev) => ({
-                                  ...prev,
-                                  [m.contratoId]: e.value ?? m.proximaParcela,
-                                }));
-                              }}
-                              min={1}
-                              className="w-24"
-                              inputClassName="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
-                            />
                           </td>
                           <td className="py-2">
                             <InputNumber

@@ -403,7 +403,6 @@ export interface CobrancaGrupoSugestao {
 
 export interface CobrancaGrupoEmitirMembro {
   contratoId: number;
-  numeroParcela: number;
   /** Valor do lote quando o cálculo automático falha (ex.: série IGPM incompleta). */
   valorNominal?: number;
 }
@@ -411,6 +410,8 @@ export interface CobrancaGrupoEmitirMembro {
 export interface CobrancaGrupoEmitirPayload {
   convenioId: string;
   vencimento: string;
+  /** Parcela do líder; todos os lotes do grupo usam a mesma numeração. */
+  numeroParcela: number;
   membros: CobrancaGrupoEmitirMembro[];
 }
 
