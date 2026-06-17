@@ -13,7 +13,18 @@ import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
-import { Ban, CalendarClock, Download, Eye, FileCheck, Mail, MessageCircle, RefreshCw } from "lucide-react";
+import {
+  Ban,
+  CalendarClock,
+  Download,
+  Eye,
+  FileCheck,
+  FilePenLine,
+  Mail,
+  MessageCircle,
+  MonitorCog,
+  RefreshCw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import {
@@ -201,6 +212,29 @@ function tituloElegivelPdf(status: TituloCobranca["status"]): boolean {
 function tituloSelecionavel(status: TituloCobranca["status"]): boolean {
   return (
     tituloRegistravel(status) || tituloElegivelWhatsApp(status) || tituloElegivelPdf(status)
+  );
+}
+
+function TituloOrigemEmissaoIcon({ legado }: { legado?: boolean }) {
+  if (legado) {
+    return (
+      <span
+        title="Emissão manual / legado"
+        className="inline-flex items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 p-1.5 text-amber-300"
+        aria-label="Emissão manual / legado"
+      >
+        <FilePenLine size={14} strokeWidth={2} aria-hidden />
+      </span>
+    );
+  }
+  return (
+    <span
+      title="Emitido pelo sistema"
+      className="inline-flex items-center justify-center rounded-lg border border-sky-500/25 bg-sky-500/10 p-1.5 text-sky-300"
+      aria-label="Emitido pelo sistema"
+    >
+      <MonitorCog size={14} strokeWidth={2} aria-hidden />
+    </span>
   );
 }
 
@@ -1674,6 +1708,15 @@ export function TitulosList({
               header="Parc."
               sortable
               style={{ width: "3.5rem", maxWidth: "3.5rem" }}
+            />
+            <Column
+              header="Origem"
+              body={(row: TituloCobranca) => (
+                <div className="flex justify-center">
+                  <TituloOrigemEmissaoIcon legado={row.legado} />
+                </div>
+              )}
+              style={{ width: "4rem", maxWidth: "4rem" }}
             />
             <Column
               field="nossoNumero"
