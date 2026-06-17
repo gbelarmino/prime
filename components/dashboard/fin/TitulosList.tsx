@@ -1375,8 +1375,11 @@ export function TitulosList({
               </label>
               <InputText
                 value={filterNossoNumero}
-                onChange={(e) => setFilterNossoNumero(e.target.value)}
-                placeholder="Número do boleto"
+                onChange={(e) => setFilterNossoNumero(e.target.value.replace(/\D/g, ""))}
+                placeholder="Somente números"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
                 className={FILTER_INPUT_CLASS}
               />
             </div>
