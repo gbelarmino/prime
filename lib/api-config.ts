@@ -856,17 +856,25 @@ function appendFinTitulosListFilterParams(
   if (opts?.nossoNumero?.trim()) params.set("nossoNumero", opts.nossoNumero.trim());
 }
 
+export type FinTitulosListSort = {
+  field: string;
+  direction: "asc" | "desc";
+};
+
 export function getFinTitulosListUrl(
   page = 0,
   size = 20,
   opts?: FinTitulosListFilters,
+  sort?: FinTitulosListSort,
 ): string {
   const base = getFinTitulosUrl();
   if (!base) return "";
+  const sortField = sort?.field?.trim() || "cadastroEm";
+  const sortDirection = sort?.direction === "asc" ? "asc" : "desc";
   const params = new URLSearchParams({
     page: String(page),
     size: String(size),
-    sort: "cadastroEm,desc",
+    sort: `${sortField},${sortDirection}`,
   });
   appendFinTitulosListFilterParams(params, opts);
   return `${base}?${params.toString()}`;

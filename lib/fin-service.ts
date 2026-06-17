@@ -703,26 +703,32 @@ export const finService = {
       cpf?: string;
       nossoNumero?: string;
     },
+    sort?: { field: string; direction: "asc" | "desc" },
     options?: FinFetchOptions,
   ): Promise<SpringPage<TituloCobranca>> {
-    const url = getFinTitulosListUrl(page, size, {
-      status: filters?.status,
-      contratoId: filters?.contratoId,
-      imovelId: filters?.imovelId,
-      vencimentoDe: filters?.vencimentoDe,
-      vencimentoAte: filters?.vencimentoAte,
-      cadastroDe: filters?.cadastroDe,
-      cadastroAte: filters?.cadastroAte,
-      pagamentoDe: filters?.pagamentoDe,
-      pagamentoAte: filters?.pagamentoAte,
-      empreendimento: filters?.empreendimento,
-      quadra: filters?.quadra,
-      lote: filters?.lote,
-      contrato: filters?.contrato,
-      nome: filters?.nome,
-      cpf: filters?.cpf,
-      nossoNumero: filters?.nossoNumero,
-    });
+    const url = getFinTitulosListUrl(
+      page,
+      size,
+      {
+        status: filters?.status,
+        contratoId: filters?.contratoId,
+        imovelId: filters?.imovelId,
+        vencimentoDe: filters?.vencimentoDe,
+        vencimentoAte: filters?.vencimentoAte,
+        cadastroDe: filters?.cadastroDe,
+        cadastroAte: filters?.cadastroAte,
+        pagamentoDe: filters?.pagamentoDe,
+        pagamentoAte: filters?.pagamentoAte,
+        empreendimento: filters?.empreendimento,
+        quadra: filters?.quadra,
+        lote: filters?.lote,
+        contrato: filters?.contrato,
+        nome: filters?.nome,
+        cpf: filters?.cpf,
+        nossoNumero: filters?.nossoNumero,
+      },
+      sort,
+    );
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
   },
