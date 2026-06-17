@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DataTable, type DataTablePageEvent } from "primereact/datatable";
+import { DataTable, type DataTablePageEvent, type DataTableSortEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
@@ -89,6 +89,34 @@ const STATUS_TONES: Record<string, string> = {
 
 const PAGE_SIZE = 12;
 const LOTE_MAX = 50;
+
+type TitulosSortField =
+  | "cadastroEm"
+  | "numeroParcela"
+  | "nossoNumero"
+  | "vencimento"
+  | "dataPagamento"
+  | "valorNominal"
+  | "status"
+  | "contratoId";
+
+const DEFAULT_SORT_FIELD: TitulosSortField = "cadastroEm";
+const DEFAULT_SORT_ORDER = -1;
+
+const TITULOS_SORT_FIELDS = new Set<string>([
+  "cadastroEm",
+  "numeroParcela",
+  "nossoNumero",
+  "vencimento",
+  "dataPagamento",
+  "valorNominal",
+  "status",
+  "contratoId",
+]);
+
+function isTitulosSortField(value: string): value is TitulosSortField {
+  return TITULOS_SORT_FIELDS.has(value);
+}
 const PAGINATOR_TEMPLATE =
   "FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport";
 const CURRENT_PAGE_REPORT_TEMPLATE = "{first}–{last} de {totalRecords}";
@@ -205,6 +233,8 @@ export function TitulosList({
   const [filterPagamentoDe, setFilterPagamentoDe] = useState("");
   const [filterPagamentoAte, setFilterPagamentoAte] = useState("");
   const [page, setPage] = useState(0);
+  const [sortField, setSortField] = useState<TitulosSortField>(DEFAULT_SORT_FIELD);
+  const [sortOrder, setSortOrder] = useState<1 | -1 | 0 | null | undefined>(DEFAULT_SORT_ORDER);
   const [refreshing, setRefreshing] = useState(false);
   const [marcandoVencidos, setMarcandoVencidos] = useState(false);
   const [marcarVencidosDialogOpen, setMarcarVencidosDialogOpen] = useState(false);
@@ -322,6 +352,10 @@ export function TitulosList({
           pageToLoad,
           PAGE_SIZE,
           buildListFilters(overrides?.status),
+          {
+            field: sortField,
+            direction: sortOrder === 1 ? "asc" : "desc",
+          },
           { skipLoading },
         );
         setPageData(data);
@@ -335,7 +369,7 @@ export function TitulosList({
         hasLoadedRef.current = true;
       }
     },
-    [page, buildListFilters],
+    [page, sortField, sortOrder, buildListFilters],
   );
 
   useEffect(() => {
@@ -665,6 +699,15 @@ export function TitulosList({
 
   const onPage = (e: DataTablePageEvent) => {
     setPage(e.page ?? 0);
+  };
+
+  const onSort = (e: DataTableSortEvent) => {
+    const field = e.sortField;
+    if (typeof field !== "string" || !isTitulosSortField(field)) return;
+    setSortField(field);
+    setSortOrder(e.sortOrder ?? DEFAULT_SORT_ORDER);
+    setPage(0);
+    setSelectedTitulos([]);
   };
 
   const baixarPdf = async (
@@ -1586,6 +1629,11 @@ export function TitulosList({
             totalRecords={totalRecords}
             first={page * PAGE_SIZE}
             onPage={onPage}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSort={onSort}
+            sortMode="single"
+            removableSort={false}
             loading={refreshing}
             header={titulosTableHeader}
             paginatorTemplate={PAGINATOR_TEMPLATE}
@@ -1612,7 +1660,9 @@ export function TitulosList({
             <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
             {!embedded ? (
               <Column
+                field="contratoId"
                 header="Contrato"
+                sortable
                 body={(row: TituloCobranca) =>
                   dashboardCellMono(formatContratoRef(row.numeroContrato, row.contratoId))
                 }
@@ -1622,15 +1672,20 @@ export function TitulosList({
             <Column
               field="numeroParcela"
               header="Parc."
+              sortable
               style={{ width: "3.5rem", maxWidth: "3.5rem" }}
             />
             <Column
+              field="nossoNumero"
               header="Nosso nº"
+              sortable
               body={(row: TituloCobranca) => dashboardCellMono(row.nossoNumero)}
               style={{ width: "7.5rem", maxWidth: "7.5rem" }}
             />
             <Column
+              field="cadastroEm"
               header="Emissão"
+              sortable
               body={(row: TituloCobranca) => dashboardCellText(formatDate(row.cadastroEm))}
               style={{ width: "6rem", maxWidth: "6rem" }}
             />
@@ -1651,24 +1706,32 @@ export function TitulosList({
               />
             ) : null}
             <Column
+              field="vencimento"
               header="Vencimento"
+              sortable
               body={(row: TituloCobranca) => dashboardCellText(formatDate(row.vencimento))}
               style={{ width: "6rem", maxWidth: "6rem" }}
             />
             <Column
+              field="dataPagamento"
               header="Pagamento"
+              sortable
               body={(row: TituloCobranca) =>
                 dashboardCellText(formatDataPagamentoExibicao(row.dataPagamento))
               }
               style={{ width: "6rem", maxWidth: "6rem" }}
             />
             <Column
+              field="valorNominal"
               header="Valor"
+              sortable
               body={(row: TituloCobranca) => dashboardCellText(formatMoney(row.valorNominal))}
               style={{ width: "7rem", maxWidth: "7rem" }}
             />
             <Column
+              field="status"
               header="Status"
+              sortable
               body={(row: TituloCobranca) => dashboardStatusBadge(row.status, STATUS_TONES)}
               style={{ width: "7.5rem", maxWidth: "7.5rem" }}
             />
