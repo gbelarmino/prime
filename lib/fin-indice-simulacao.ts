@@ -287,6 +287,11 @@ export function simularParcelasIndice(opts: {
     }
   }
 
+  const vencimentoPorParcela = (parcela: number): Date =>
+    vencimentos.get(parcela) ??
+    detalhes[parcela - 1]?.vencimento ??
+    dataPrimeiraParcela;
+
   const marcosCorte = buildMarcadoresCorteIndice({
     parcelaAtual,
     vencimentos,
@@ -304,6 +309,7 @@ export function simularParcelasIndice(opts: {
       dataPrimeiraParcela,
       diaVencimentoMensal,
       lookup,
+      vencimentoPorParcela,
     );
     const reajusteNesta =
       parcela >= 13 && parcela === parcelaReajusteDoCiclo(parcela);

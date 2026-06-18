@@ -303,10 +303,9 @@ function ListaSimulacaoIndice({
     <>
       <p className="mb-3 px-4 text-[11px] text-white/40">
         {condicoesResumo} · 1º vencimento {formatDate(primeiraVencimento)} · até o mês atual ·
-        reajuste 6% + {labelIndice} (teto 12%) nas parcelas 13, 25, 37… · índice acumulado em 12
-        meses encerrando 2 meses antes do mês de aniversário · linhas em azul = mês de corte do
-        índice · linhas em roxo = reajuste aplicado · 25ª usa {labelIndice} do período fracionado
-        quando aplicável
+        reajuste 6% + {labelIndice} (teto 12%) nas parcelas 13, 25, 37… · índice = variação acumulada
+        em 12 meses da série (coluna do BCB/IBGE no mês de corte), exceto 25ª com fracionado
+        maior que 12 meses · linhas em azul = mês de corte do índice · linhas em roxo = reajuste aplicado
       </p>
       <table className="w-full text-left text-xs">
         <thead className="sticky top-0 bg-[#071c33] text-[10px] font-bold uppercase tracking-widest text-white/40">

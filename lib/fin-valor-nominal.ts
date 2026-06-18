@@ -52,7 +52,12 @@ export function mesesIpcaParaReajuste(
   qtdFracionadas: number,
 ): number {
   if (parcelaReajuste === 25) {
-    return qtdFracionadas > 0 ? qtdFracionadas : 12;
+    // Só usa janela >12 meses quando o fracionado é longo (ex.: 24 parcelas de sinal).
+    // Caso contrário, aplica a mesma janela de 12 meses (coluna acumulada do BCB/IBGE).
+    if (qtdFracionadas > 12) {
+      return qtdFracionadas;
+    }
+    return 12;
   }
   return 12;
 }
@@ -209,6 +214,7 @@ export function calcularValorNominalParcela(
   dataPrimeiraParcela: Date,
   diaVencimento: number,
   lookup: IndiceMensalLookup,
+  vencimentoPorParcelaOverride?: (numeroParcela: number) => Date,
 ): number {
   if (ch.valorParcela == null || Number.isNaN(ch.valorParcela)) {
     throw new Error("Contrato sem valor de parcela configurado.");
@@ -224,8 +230,9 @@ export function calcularValorNominalParcela(
     );
   }
 
-  const vencimentoPorParcela = (n: number) =>
-    vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento);
+  const vencimentoPorParcela =
+    vencimentoPorParcelaOverride ??
+    ((n: number) => vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento));
 
   if (numeroParcela < 13) {
     return valorBaseSemReajuste(
@@ -253,6 +260,7 @@ export function detalheReajusteParcela(
   dataPrimeiraParcela: Date,
   diaVencimento: number,
   lookup: IndiceMensalLookup,
+  vencimentoPorParcelaOverride?: (numeroParcela: number) => Date,
 ): {
   valorNominal: number;
   parcelaReajusteCiclo: number | null;
@@ -261,8 +269,9 @@ export function detalheReajusteParcela(
   percentualTotalReajuste: number | null;
   anoMesReferencia: number | null;
 } {
-  const vencimentoPorParcela = (n: number) =>
-    vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento);
+  const vencimentoPorParcela =
+    vencimentoPorParcelaOverride ??
+    ((n: number) => vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento));
 
   if (numeroParcela < 13) {
     return {
@@ -272,6 +281,7 @@ export function detalheReajusteParcela(
         dataPrimeiraParcela,
         diaVencimento,
         lookup,
+        vencimentoPorParcelaOverride,
       ),
       parcelaReajusteCiclo: null,
       mesesIpcaReferencia: null,
