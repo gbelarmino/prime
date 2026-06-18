@@ -191,11 +191,38 @@ function LinhaSimulacao({
         "bg-white/[0.02]",
         item.parcelaReajuste &&
           "bg-violet-500/[0.08] ring-1 ring-inset ring-violet-500/20",
-        temDivergencia && !item.parcelaReajuste && "bg-amber-500/[0.06]",
+        item.marcoCorteIndice &&
+          !item.parcelaReajuste &&
+          "bg-sky-500/[0.07] ring-1 ring-inset ring-sky-500/25",
+        temDivergencia && !item.parcelaReajuste && !item.marcoCorteIndice && "bg-amber-500/[0.06]",
       )}
     >
       <td className="px-4 py-2.5">
         <div className="font-mono">{item.parcela}</div>
+        {item.marcoCorteIndice ? (
+          <div className="mt-1 text-[10px] leading-tight text-sky-200/90">
+            <span className="font-semibold text-sky-100">
+              {labelIndice}{" "}
+              {item.indiceAcumuladoMarcoCorte != null
+                ? formatPercentualIndice(item.indiceAcumuladoMarcoCorte)
+                : "—"}{" "}
+              acumulado
+            </span>
+            <span className="block text-sky-200/75">
+              até {item.mesCorteIndiceLabel ?? "—"}
+              {item.mesesIndiceMarcoCorte != null && item.mesesIndiceMarcoCorte !== 12
+                ? ` (${item.mesesIndiceMarcoCorte} meses)`
+                : item.mesesIndiceMarcoCorte === 12
+                  ? " (12 meses)"
+                  : ""}
+            </span>
+            {item.parcelaReajusteDestino != null ? (
+              <span className="block font-medium text-sky-100/85">
+                → reajuste na parc. {item.parcelaReajusteDestino}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {item.reajusteAplicadoNestaParcela ? (
           <div className="mt-1 text-[10px] leading-tight text-violet-300/90">
             <span className="font-semibold">
@@ -216,7 +243,12 @@ function LinhaSimulacao({
                 : ` + ${labelIndice} —`}
             </span>
             {item.mesReferenciaIndice ? (
-              <span className="block text-violet-300/60">ref. {item.mesReferenciaIndice}</span>
+              <span className="block font-medium text-violet-200/90">
+                Corte: {item.mesReferenciaIndice}
+                {item.indice12MesesReferencia != null
+                  ? ` · ${labelIndice} ${formatPercentualIndice(item.indice12MesesReferencia)}`
+                  : ""}
+              </span>
             ) : null}
           </div>
         ) : null}
@@ -271,8 +303,10 @@ function ListaSimulacaoIndice({
     <>
       <p className="mb-3 px-4 text-[11px] text-white/40">
         {condicoesResumo} · 1º vencimento {formatDate(primeiraVencimento)} · até o mês atual ·
-        reajuste 6% + {labelIndice} (teto 12%) nas parcelas 13, 25, 37… · 25ª usa {labelIndice}{" "}
-        do período fracionado quando aplicável
+        reajuste 6% + {labelIndice} (teto 12%) nas parcelas 13, 25, 37… · índice acumulado em 12
+        meses encerrando 2 meses antes do mês de aniversário · linhas em azul = mês de corte do
+        índice · linhas em roxo = reajuste aplicado · 25ª usa {labelIndice} do período fracionado
+        quando aplicável
       </p>
       <table className="w-full text-left text-xs">
         <thead className="sticky top-0 bg-[#071c33] text-[10px] font-bold uppercase tracking-widest text-white/40">

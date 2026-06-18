@@ -110,8 +110,13 @@ export function acumularVariacaoFraction(
   return acumulado - 1;
 }
 
+/** Dois meses antes do mês de vencimento do ciclo de reajuste (fim da janela do índice). */
+export function mesCorteIndiceReajuste(vencimento: Date): number {
+  return anoMesFromDate(subtractMonths(vencimento, 2));
+}
+
 function anoMesReferenciaVencimento(vencimento: Date): number {
-  return anoMesFromDate(subtractMonths(vencimento, 1));
+  return mesCorteIndiceReajuste(vencimento);
 }
 
 export function aplicarReajuste(
