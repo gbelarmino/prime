@@ -185,13 +185,14 @@ function valorNaParcelaReajuste(
       13 <= qtdFracionadas && fracionado != null ? fracionado : valorParcela;
     resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
   } else if (parcelaReajuste === 25) {
-    resultado = aplicarReajuste(
-      valorParcela,
-      vencimento,
-      mesesIpca,
+    const base = valorNaParcelaReajuste(
+      ch,
+      13,
+      vencimentoPorParcela,
       lookup,
-      ch.tipoCorrecaoAnual,
-    ).valor;
+      cache,
+    );
+    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
   } else {
     const parcelaAnterior = parcelaReajuste - 12;
     const base = valorNaParcelaReajuste(
@@ -313,7 +314,13 @@ export function detalheReajusteParcela(
         ? ch.valorFracionadoVendedora
         : ch.valorParcela;
   } else if (parcelaReajusteCiclo === 25) {
-    base = ch.valorParcela;
+    base = valorNaParcelaReajuste(
+      ch,
+      13,
+      vencimentoPorParcela,
+      lookup,
+      cache,
+    );
   } else {
     base = valorNaParcelaReajuste(
       ch,
