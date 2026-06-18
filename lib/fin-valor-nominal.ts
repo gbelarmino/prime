@@ -1,6 +1,6 @@
 /**
  * Espelha {@code TituloValorNominalCalculator} (aires-api): trilho fracionado,
- * reajuste 6% + IPCA (teto 12%) nas parcelas 13, 25, 37…
+ * reajuste 6% + índice do contrato (IPCA/IGPM, teto 12%) nas parcelas 13, 25, 37…
  */
 
 import {
@@ -15,6 +15,7 @@ export type CondicoesValorNominal = {
   quantidadeParcelasFracionadas: number | null;
   valorFracionadoVendedora: number | null;
   valorParcela: number;
+  tipoCorrecaoAnual?: string | null;
 };
 
 export type IndiceMensalLookup = {
@@ -51,7 +52,12 @@ export function mesesIpcaParaReajuste(
   qtdFracionadas: number,
 ): number {
   if (parcelaReajuste === 25) {
-    return qtdFracionadas > 0 ? qtdFracionadas : 12;
+    // Só usa janela >12 meses quando o fracionado é longo (ex.: 24 parcelas de sinal).
+    // Caso contrário, aplica a mesma janela de 12 meses (coluna acumulada do BCB/IBGE).
+    if (qtdFracionadas > 12) {
+      return qtdFracionadas;
+    }
+    return 12;
   }
   return 12;
 }
@@ -109,8 +115,13 @@ export function acumularVariacaoFraction(
   return acumulado - 1;
 }
 
+/** Dois meses antes do mês de vencimento do ciclo de reajuste (fim da janela do índice). */
+export function mesCorteIndiceReajuste(vencimento: Date): number {
+  return anoMesFromDate(subtractMonths(vencimento, 2));
+}
+
 function anoMesReferenciaVencimento(vencimento: Date): number {
-  return anoMesFromDate(subtractMonths(vencimento, 1));
+  return mesCorteIndiceReajuste(vencimento);
 }
 
 export function aplicarReajuste(
@@ -118,9 +129,11 @@ export function aplicarReajuste(
   vencimento: Date,
   mesesIpca: number,
   lookup: IndiceMensalLookup,
+  tipoCorrecaoAnual?: string | null,
 ): { valor: number; ipcaAcumulado: number; percentualTotal: number } {
   const referenciaFim = anoMesReferenciaVencimento(vencimento);
-  const ipca = acumularVariacaoFraction(lookup, referenciaFim, mesesIpca);
+  const usaIndice = tipoCorrecaoAnual !== "NENHUM";
+  const ipca = usaIndice ? acumularVariacaoFraction(lookup, referenciaFim, mesesIpca) : 0;
   let total = REAJUSTE_PERCENTUAL_FIXO / 100 + ipca;
   if (total > REAJUSTE_PERCENTUAL_TETO / 100) {
     total = REAJUSTE_PERCENTUAL_TETO / 100;
@@ -170,14 +183,16 @@ function valorNaParcelaReajuste(
   if (parcelaReajuste === 13) {
     const base =
       13 <= qtdFracionadas && fracionado != null ? fracionado : valorParcela;
-    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup).valor;
+    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
   } else if (parcelaReajuste === 25) {
-    resultado = aplicarReajuste(
-      valorParcela,
-      vencimento,
-      mesesIpca,
+    const base = valorNaParcelaReajuste(
+      ch,
+      13,
+      vencimentoPorParcela,
       lookup,
-    ).valor;
+      cache,
+    );
+    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
   } else {
     const parcelaAnterior = parcelaReajuste - 12;
     const base = valorNaParcelaReajuste(
@@ -187,7 +202,7 @@ function valorNaParcelaReajuste(
       lookup,
       cache,
     );
-    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup).valor;
+    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
   }
 
   cache.set(parcelaReajuste, resultado);
@@ -200,6 +215,7 @@ export function calcularValorNominalParcela(
   dataPrimeiraParcela: Date,
   diaVencimento: number,
   lookup: IndiceMensalLookup,
+  vencimentoPorParcelaOverride?: (numeroParcela: number) => Date,
 ): number {
   if (ch.valorParcela == null || Number.isNaN(ch.valorParcela)) {
     throw new Error("Contrato sem valor de parcela configurado.");
@@ -215,8 +231,9 @@ export function calcularValorNominalParcela(
     );
   }
 
-  const vencimentoPorParcela = (n: number) =>
-    vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento);
+  const vencimentoPorParcela =
+    vencimentoPorParcelaOverride ??
+    ((n: number) => vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento));
 
   if (numeroParcela < 13) {
     return valorBaseSemReajuste(
@@ -244,6 +261,7 @@ export function detalheReajusteParcela(
   dataPrimeiraParcela: Date,
   diaVencimento: number,
   lookup: IndiceMensalLookup,
+  vencimentoPorParcelaOverride?: (numeroParcela: number) => Date,
 ): {
   valorNominal: number;
   parcelaReajusteCiclo: number | null;
@@ -252,8 +270,9 @@ export function detalheReajusteParcela(
   percentualTotalReajuste: number | null;
   anoMesReferencia: number | null;
 } {
-  const vencimentoPorParcela = (n: number) =>
-    vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento);
+  const vencimentoPorParcela =
+    vencimentoPorParcelaOverride ??
+    ((n: number) => vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento));
 
   if (numeroParcela < 13) {
     return {
@@ -263,6 +282,7 @@ export function detalheReajusteParcela(
         dataPrimeiraParcela,
         diaVencimento,
         lookup,
+        vencimentoPorParcelaOverride,
       ),
       parcelaReajusteCiclo: null,
       mesesIpcaReferencia: null,
@@ -294,7 +314,13 @@ export function detalheReajusteParcela(
         ? ch.valorFracionadoVendedora
         : ch.valorParcela;
   } else if (parcelaReajusteCiclo === 25) {
-    base = ch.valorParcela;
+    base = valorNaParcelaReajuste(
+      ch,
+      13,
+      vencimentoPorParcela,
+      lookup,
+      cache,
+    );
   } else {
     base = valorNaParcelaReajuste(
       ch,
@@ -305,7 +331,7 @@ export function detalheReajusteParcela(
     );
   }
 
-  const reajuste = aplicarReajuste(base, vencimento, mesesIpca, lookup);
+  const reajuste = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual);
 
   return {
     valorNominal,

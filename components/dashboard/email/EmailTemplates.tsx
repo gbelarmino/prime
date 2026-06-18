@@ -11,6 +11,7 @@ import { substituteEmailPlaceholders } from "@/lib/email-template-placeholders";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import { DashboardEmailHtmlEditor } from "@/components/dashboard/email/DashboardEmailHtmlEditor";
@@ -43,6 +44,8 @@ export function EmailTemplates() {
   const [current, setCurrent] = useState<EmailTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const [placeholders, setPlaceholders] = useState<EventoPlaceholderCatalogo[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<EmailTemplate | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const defaultCodigo = () => (eventosCatalogo[0]?.codigo ?? "CONTRATO_CRIADO");
 
@@ -111,15 +114,18 @@ export function EmailTemplates() {
     setShowDialog(true);
   };
 
-  const handleDelete = async (template: EmailTemplate) => {
-    if (!template.id) return;
-    if (!confirm(`Deseja excluir o modelo "${template.nome}"?`)) return;
+  const confirmDeleteTemplate = async () => {
+    if (!deleteConfirm?.id) return;
+    setDeleting(true);
     try {
-      await emailService.deleteTemplate(template.id);
+      await emailService.deleteTemplate(deleteConfirm.id);
       toast.success("Modelo excluído");
+      setDeleteConfirm(null);
       setTemplates(await emailService.listTemplates());
     } catch {
       toast.error("Erro ao excluir");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -165,7 +171,7 @@ export function EmailTemplates() {
       label: "Excluir modelo",
       icon: "pi pi-trash",
       command: () => {
-        if (selectedRow) void handleDelete(selectedRow);
+        if (selectedRow) setDeleteConfirm(selectedRow);
       },
     },
   ];
@@ -343,6 +349,23 @@ export function EmailTemplates() {
       </DashboardDialog>
 
       <Menu model={actionItems} popup ref={menuRef} />
+
+      <DashboardConfirmDialog
+        visible={!!deleteConfirm}
+        onHide={() => setDeleteConfirm(null)}
+        onConfirm={() => void confirmDeleteTemplate()}
+        header="Excluir modelo"
+        tone="danger"
+        confirmLabel="Excluir"
+        loading={deleting}
+        message={
+          <p>
+            Deseja excluir o modelo{" "}
+            <span className="font-semibold text-white">«{deleteConfirm?.nome}»</span>? Esta ação não pode ser
+            desfeita.
+          </p>
+        }
+      />
     </>
   );
 }

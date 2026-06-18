@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   formatContratoRef,
   type TituloCobranca,
-  type TituloWhatsAppCobrancaLoteResult,
+  type TituloPdfLoteResult,
 } from "@/lib/fin-service";
 
 const DIALOG_PT = {
@@ -19,49 +19,54 @@ const DIALOG_PT = {
   mask: { className: "backdrop-blur-sm bg-black/40" },
 };
 
-const WHATSAPP_LOTE_MAX = 50;
+const PDF_LOTE_MAX = 50;
 
-type TituloWhatsAppLoteDialogProps = {
+type GrupoContrato = {
+  contratoId: number;
+  numeroContrato?: string | null;
+  titulos: TituloCobranca[];
+};
+
+type TituloPdfLoteDialogProps = {
   visible: boolean;
   onHide: () => void;
   titulos: TituloCobranca[];
-  resultado?: TituloWhatsAppCobrancaLoteResult | null;
+  resultado?: TituloPdfLoteResult | null;
   onConfirm: () => void;
   loading?: boolean;
 };
 
-export function TituloWhatsAppLoteDialog({
+function agruparPorContrato(titulos: TituloCobranca[]): GrupoContrato[] {
+  const map = new Map<number, GrupoContrato>();
+  for (const t of titulos) {
+    const g = map.get(t.contratoId) ?? {
+      contratoId: t.contratoId,
+      numeroContrato: t.numeroContrato,
+      titulos: [],
+    };
+    g.titulos.push(t);
+    map.set(t.contratoId, g);
+  }
+  return [...map.values()].map((g) => ({
+    ...g,
+    titulos: g.titulos.slice().sort((a, b) => a.numeroParcela - b.numeroParcela),
+  }));
+}
+
+export function TituloPdfLoteDialog({
   visible,
   onHide,
   titulos,
   resultado,
   onConfirm,
   loading = false,
-}: TituloWhatsAppLoteDialogProps) {
+}: TituloPdfLoteDialogProps) {
+  const grupos = useMemo(() => agruparPorContrato(titulos), [titulos]);
   const confirmando = !resultado;
-
-  const resumo = useMemo(() => {
-    const porContrato = new Map<number, TituloCobranca[]>();
-    for (const t of titulos) {
-      const list = porContrato.get(t.contratoId) ?? [];
-      list.push(t);
-      porContrato.set(t.contratoId, list);
-    }
-    return [...porContrato.entries()].map(([contratoId, items]) => ({
-      contratoId,
-      numeroContrato: items[0]?.numeroContrato,
-      parcelas: items
-        .slice()
-        .sort((a, b) => a.numeroParcela - b.numeroParcela)
-        .map((t) => t.numeroParcela),
-    }));
-  }, [titulos]);
-
-  const mensagensPrevistas = resumo.length;
 
   return (
     <DashboardDialog
-      header={confirmando ? "Enviar cobrança por WhatsApp" : "Resultado do envio"}
+      header={confirmando ? "Baixar PDF em lote" : "Resultado do download"}
       visible={visible}
       onHide={onHide}
       className={cn(
@@ -85,20 +90,20 @@ export function TituloWhatsAppLoteDialog({
               </button>
               <button
                 type="button"
-                disabled={loading || titulos.length === 0 || titulos.length > WHATSAPP_LOTE_MAX}
+                disabled={loading || titulos.length === 0 || titulos.length > PDF_LOTE_MAX}
                 onClick={onConfirm}
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-amber-900/30 transition hover:bg-amber-500 disabled:pointer-events-none disabled:opacity-50"
               >
                 {loading
-                  ? "A enfileirar…"
-                  : `Enfileirar ${mensagensPrevistas} envio${mensagensPrevistas === 1 ? "" : "s"}`}
+                  ? "A baixar e mesclar…"
+                  : `Baixar ${titulos.length} boleto${titulos.length === 1 ? "" : "s"}`}
               </button>
             </>
           ) : (
             <button
               type="button"
               onClick={onHide}
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500"
+              className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-amber-900/30 transition hover:bg-amber-500"
             >
               Fechar
             </button>
@@ -109,26 +114,27 @@ export function TituloWhatsAppLoteDialog({
       {confirmando ? (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-white/50">
-            Apenas títulos na situação <span className="text-white/75">Emitido</span>. Títulos do
-            mesmo contrato (quadra/lote) geram{" "}
-            <span className="text-white/75">um único WhatsApp</span> com PDF mesclado e lista de
-            parcelas no corpo.
+            O sistema obtém cada boleto (Unicred ou PDF interno), mescla num único arquivo PDF e
+            inicia o download. Todos os títulos precisam estar disponíveis; se algum falhar, nenhum
+            arquivo é gerado.
           </p>
-          {titulos.length > WHATSAPP_LOTE_MAX ? (
+          {titulos.length > PDF_LOTE_MAX ? (
             <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-200/90">
-              Selecione no máximo {WHATSAPP_LOTE_MAX} títulos por operação.
+              Selecione no máximo {PDF_LOTE_MAX} títulos por operação.
             </p>
           ) : null}
           <div className="max-h-64 overflow-y-auto rounded-xl border border-white/10">
-            {resumo.map((grupo) => (
+            {grupos.map((grupo) => (
               <div
                 key={grupo.contratoId}
                 className="border-b border-white/[0.06] px-4 py-3 last:border-b-0"
               >
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40">
-                  {formatContratoRef(grupo.numeroContrato, grupo.contratoId)} · 1 envio
+                  {formatContratoRef(grupo.numeroContrato, grupo.contratoId)}
                 </p>
-                <p className="mt-1 text-sm text-white/75">Parcelas: {grupo.parcelas.join(", ")}</p>
+                <p className="mt-1 text-sm text-white/75">
+                  Parcelas: {grupo.titulos.map((t) => t.numeroParcela).join(", ")}
+                </p>
               </div>
             ))}
           </div>
@@ -136,50 +142,35 @@ export function TituloWhatsAppLoteDialog({
       ) : resultado ? (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-white/60">
-            <span className="font-semibold text-emerald-300">
-              {resultado.mensagensEnfileiradas}
-            </span>{" "}
-            de {resultado.grupos.length} envio(s) enfileirado(s)
-            {resultado.mensagensFalhas > 0 ? (
-              <>
-                {" "}
-                · <span className="font-semibold text-rose-300">{resultado.mensagensFalhas}</span>{" "}
-                falha(s)
-              </>
-            ) : null}
-            {resultado.titulosIgnorados > 0 ? (
-              <>
-                {" "}
-                · <span className="text-white/45">{resultado.titulosIgnorados}</span> título(s)
-                ignorado(s)
-              </>
-            ) : null}
+            Não foi possível obter todos os PDFs.{" "}
+            <span className="font-semibold text-rose-300">{resultado.falhas}</span> falha(s) de{" "}
+            {resultado.total}.
           </p>
           <div className="max-h-72 overflow-y-auto rounded-xl border border-white/10">
             <table className="w-full text-left text-xs">
               <thead className="sticky top-0 bg-[#0a2540] text-[10px] font-bold uppercase tracking-widest text-white/40">
                 <tr>
-                  <th className="px-4 py-3">Contrato</th>
-                  <th className="px-4 py-3">Parcelas</th>
+                  <th className="px-4 py-3">Parcela</th>
                   <th className="px-4 py-3">Resultado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06] text-white/70">
-                {resultado.grupos.map((grupo) => {
-                  const ref = titulos.find((t) => t.contratoId === grupo.contratoId);
+                {resultado.itens.map((item) => {
+                  const titulo = titulos.find((t) => t.id === item.tituloId);
                   return (
-                    <tr key={grupo.contratoId} className="bg-white/[0.02]">
+                    <tr key={item.tituloId} className="bg-white/[0.02]">
                       <td className="px-4 py-2.5 font-mono">
-                        {formatContratoRef(ref?.numeroContrato, grupo.contratoId)}
+                        {titulo
+                          ? `${formatContratoRef(titulo.numeroContrato, titulo.contratoId)} · ${titulo.numeroParcela}`
+                          : item.tituloId.slice(0, 8)}
                       </td>
-                      <td className="px-4 py-2.5">{grupo.quantidadeTitulos}</td>
                       <td
                         className={cn(
                           "px-4 py-2.5",
-                          grupo.enfileirado ? "text-emerald-300/90" : "text-rose-300/90",
+                          item.sucesso ? "text-emerald-300/90" : "text-rose-300/90",
                         )}
                       >
-                        {grupo.enfileirado ? "Enfileirado" : grupo.mensagem ?? "Erro"}
+                        {item.sucesso ? "OK" : item.mensagem ?? "Erro"}
                       </td>
                     </tr>
                   );

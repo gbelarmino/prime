@@ -27,6 +27,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Button } from "primereact/button";
 import { Menu } from "primereact/menu";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
+import { DashboardPromptDialog } from "@/components/dashboard/DashboardPromptDialog";
 import { toast } from "sonner";
 import { usePaginatedSpringList } from "@/hooks/use-paginated-spring-list";
 import {
@@ -92,6 +93,8 @@ export function ContratosList() {
   const [confirmCancelarId, setConfirmCancelarId] = useState<number | null>(null);
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [confirmClicksignId, setConfirmClicksignId] = useState<number | null>(null);
+  const [confirmReprovarId, setConfirmReprovarId] = useState<number | null>(null);
+  const [reprovarMotivo, setReprovarMotivo] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -184,7 +187,9 @@ export function ContratosList() {
   }, []);
 
   const isAdmin = role === "ADMIN";
-  const isReadOnlyContratos = role === "ADMINISTRATIVO";
+  const isAdministrativo = role === "ADMINISTRATIVO";
+  const isReadOnlyContratos = isAdministrativo;
+  const canEditContratos = isAdmin || isAdministrativo;
   const idStr = idFilter?.toLowerCase();
 
   // Redirecionar para tela de novo contrato se o ID for "novo" ou "novo.txt"
@@ -254,22 +259,31 @@ export function ContratosList() {
     }
   };
 
-  const handleReprovar = async (id: number) => {
-    const motivo = window.prompt("Informe o motivo da reprovação:");
-    if (motivo === null) return;
+  const processReprovar = async () => {
+    if (!confirmReprovarId || isProcessing) return;
+    const motivo = reprovarMotivo.trim();
+    if (!motivo) {
+      toast.error("Informe o motivo da reprovação.");
+      return;
+    }
+    setIsProcessing(true);
     try {
-      const res = await apiFetch(getContratoReprovarUrl(id), {
+      const res = await apiFetch(getContratoReprovarUrl(confirmReprovarId), {
         method: "POST",
-        body: JSON.stringify(motivo)
+        body: JSON.stringify(motivo),
       });
       if (!res.ok) {
         toast.error("Não foi possível reprovar o contrato.");
         return;
       }
       toast.success("Contrato reprovado.");
+      setConfirmReprovarId(null);
+      setReprovarMotivo("");
       reload();
     } catch {
       toast.error("Erro ao reprovar contrato.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -413,27 +427,8 @@ export function ContratosList() {
       )
     });
 
-    // Legado: baixar PDF anexado (upload). Demais: gerar PDF a partir do template.
-    if (isLegado) {
-      if (r.linkPdfAssinado) {
-        items.push({
-          label: "Baixar PDF",
-          icon: "pi pi-file-pdf",
-          template: (item: { label: string }) => (
-            <button
-              type="button"
-              onClick={() => void downloadContratoPdfAssinado(r.id)}
-              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 transition-colors group"
-            >
-              <Download size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold uppercase tracking-widest text-emerald-400/80 text-left whitespace-nowrap">
-                {item.label}
-              </span>
-            </button>
-          ),
-        });
-      }
-    } else {
+    // Fluxo digital: gerar PDF do template. Legado não gera PDF pelo sistema.
+    if (!isLegado) {
       items.push({
         label: "Gerar PDF",
         icon: "pi pi-file-pdf",
@@ -450,26 +445,28 @@ export function ContratosList() {
           </button>
         ),
       });
+    }
 
-      // PDF assinado via Clicksign
-      if (isAssinado && r.linkPdfAssinado) {
-        items.push({
-          label: "PDF Assinado",
-          icon: "pi pi-file-pdf",
-          template: (item: { label: string }) => (
-            <button
-              type="button"
-              onClick={() => void downloadContratoPdfAssinado(r.id)}
-              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 transition-colors group"
-            >
-              <FileText size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold uppercase tracking-widest text-emerald-400/80 text-left whitespace-nowrap">
-                {item.label}
-              </span>
-            </button>
-          ),
-        });
-      }
+    // PDF assinado: Clicksign exige link no registro; legado importado (SQL) costuma não ter
+    // link_pdf_assinado preenchido, mas status ASSINADO — a ação chama GET /pdf-assinado na API.
+    const showPdfAssinado = isAssinado && (isLegado || Boolean(r.linkPdfAssinado));
+    if (showPdfAssinado) {
+      items.push({
+        label: "PDF Assinado",
+        icon: "pi pi-file-pdf",
+        template: (item: { label: string }) => (
+          <button
+            type="button"
+            onClick={() => void downloadContratoPdfAssinado(r.id)}
+            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 transition-colors group"
+          >
+            <FileText size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400/80 text-left whitespace-nowrap">
+              {item.label}
+            </span>
+          </button>
+        ),
+      });
     }
 
     if (isAssinado && canAccessContratoRenegociacao()) {
@@ -544,21 +541,24 @@ export function ContratosList() {
       }
     }
 
-    // Ações de ADMIN
-    if (isAdmin) {
+    // Edição: admin e administrativo (sem fluxo de aprovação para o back-office)
+    if (canEditContratos) {
       if (!isCancelado) {
         items.push({
           label: 'Editar',
           icon: 'pi pi-pencil',
           template: (item: any) => (
             <button onClick={() => router.push(`/dashboard/contratos/edit?id=${r.id}`)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group">
-              <Pencil size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+              <Pencil size={16} className={isAdministrativo ? "text-amber-400 group-hover:scale-110 transition-transform" : "text-blue-400 group-hover:scale-110 transition-transform"} />
               <span className="text-xs font-bold uppercase tracking-widest text-white/70 text-left whitespace-nowrap">{item.label}</span>
             </button>
           )
         });
       }
+    }
 
+    // Ações de fluxo (apenas ADMIN)
+    if (isAdmin) {
       if (!isLegado && (isProposta || isEnviada || isRevisado || isAprovado)) {
         if (isProposta) {
           items.push({
@@ -590,7 +590,13 @@ export function ContratosList() {
           label: 'Reprovar',
           icon: 'pi pi-times',
           template: (item: any) => (
-            <button onClick={() => handleReprovar(r.id)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group">
+            <button
+              onClick={() => {
+                setReprovarMotivo("");
+                setConfirmReprovarId(r.id);
+              }}
+              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group"
+            >
               <X size={16} className="text-rose-400 group-hover:scale-110 transition-transform" />
               <span className="text-xs font-bold uppercase tracking-widest text-white/70 text-left whitespace-nowrap">{item.label}</span>
             </button>
@@ -1026,6 +1032,24 @@ export function ContratosList() {
           </div>
         </div>
       </DashboardDialog>
+
+      <DashboardPromptDialog
+        visible={!!confirmReprovarId}
+        onHide={() => {
+          if (isProcessing) return;
+          setConfirmReprovarId(null);
+          setReprovarMotivo("");
+        }}
+        onSubmit={() => void processReprovar()}
+        header="Reprovar contrato"
+        message="Informe o motivo da reprovação. Esta ação ficará registada no histórico do contrato."
+        value={reprovarMotivo}
+        onValueChange={setReprovarMotivo}
+        placeholder="Descreva o motivo da reprovação…"
+        submitLabel="Reprovar"
+        loading={isProcessing}
+        multiline
+      />
 
     </div>
   );

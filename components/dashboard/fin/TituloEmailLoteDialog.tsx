@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   formatContratoRef,
   type TituloCobranca,
-  type TituloWhatsAppCobrancaLoteResult,
+  type TituloEmailCobrancaLoteResult,
 } from "@/lib/fin-service";
 
 const DIALOG_PT = {
@@ -19,25 +19,25 @@ const DIALOG_PT = {
   mask: { className: "backdrop-blur-sm bg-black/40" },
 };
 
-const WHATSAPP_LOTE_MAX = 50;
+const EMAIL_LOTE_MAX = 50;
 
-type TituloWhatsAppLoteDialogProps = {
+type TituloEmailLoteDialogProps = {
   visible: boolean;
   onHide: () => void;
   titulos: TituloCobranca[];
-  resultado?: TituloWhatsAppCobrancaLoteResult | null;
+  resultado?: TituloEmailCobrancaLoteResult | null;
   onConfirm: () => void;
   loading?: boolean;
 };
 
-export function TituloWhatsAppLoteDialog({
+export function TituloEmailLoteDialog({
   visible,
   onHide,
   titulos,
   resultado,
   onConfirm,
   loading = false,
-}: TituloWhatsAppLoteDialogProps) {
+}: TituloEmailLoteDialogProps) {
   const confirmando = !resultado;
 
   const resumo = useMemo(() => {
@@ -57,11 +57,11 @@ export function TituloWhatsAppLoteDialog({
     }));
   }, [titulos]);
 
-  const mensagensPrevistas = resumo.length;
+  const emailsPrevistos = resumo.length;
 
   return (
     <DashboardDialog
-      header={confirmando ? "Enviar cobrança por WhatsApp" : "Resultado do envio"}
+      header={confirmando ? "Enviar cobrança por e-mail" : "Resultado do envio"}
       visible={visible}
       onHide={onHide}
       className={cn(
@@ -85,20 +85,20 @@ export function TituloWhatsAppLoteDialog({
               </button>
               <button
                 type="button"
-                disabled={loading || titulos.length === 0 || titulos.length > WHATSAPP_LOTE_MAX}
+                disabled={loading || titulos.length === 0 || titulos.length > EMAIL_LOTE_MAX}
                 onClick={onConfirm}
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-sky-900/30 transition hover:bg-sky-500 disabled:pointer-events-none disabled:opacity-50"
               >
                 {loading
                   ? "A enfileirar…"
-                  : `Enfileirar ${mensagensPrevistas} envio${mensagensPrevistas === 1 ? "" : "s"}`}
+                  : `Enfileirar ${emailsPrevistos} e-mail${emailsPrevistos === 1 ? "" : "s"}`}
               </button>
             </>
           ) : (
             <button
               type="button"
               onClick={onHide}
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500"
+              className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-sky-900/30 transition hover:bg-sky-500"
             >
               Fechar
             </button>
@@ -110,13 +110,12 @@ export function TituloWhatsAppLoteDialog({
         <div className="flex flex-col gap-4">
           <p className="text-sm text-white/50">
             Apenas títulos na situação <span className="text-white/75">Emitido</span>. Títulos do
-            mesmo contrato (quadra/lote) geram{" "}
-            <span className="text-white/75">um único WhatsApp</span> com PDF mesclado e lista de
-            parcelas no corpo.
+            mesmo contrato (quadra/lote) geram <span className="text-white/75">um único e-mail</span>{" "}
+            com PDF mesclado e lista de parcelas no corpo.
           </p>
-          {titulos.length > WHATSAPP_LOTE_MAX ? (
+          {titulos.length > EMAIL_LOTE_MAX ? (
             <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-200/90">
-              Selecione no máximo {WHATSAPP_LOTE_MAX} títulos por operação.
+              Selecione no máximo {EMAIL_LOTE_MAX} títulos por operação.
             </p>
           ) : null}
           <div className="max-h-64 overflow-y-auto rounded-xl border border-white/10">
@@ -126,7 +125,7 @@ export function TituloWhatsAppLoteDialog({
                 className="border-b border-white/[0.06] px-4 py-3 last:border-b-0"
               >
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40">
-                  {formatContratoRef(grupo.numeroContrato, grupo.contratoId)} · 1 envio
+                  {formatContratoRef(grupo.numeroContrato, grupo.contratoId)} · 1 e-mail
                 </p>
                 <p className="mt-1 text-sm text-white/75">Parcelas: {grupo.parcelas.join(", ")}</p>
               </div>
@@ -136,14 +135,12 @@ export function TituloWhatsAppLoteDialog({
       ) : resultado ? (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-white/60">
-            <span className="font-semibold text-emerald-300">
-              {resultado.mensagensEnfileiradas}
-            </span>{" "}
-            de {resultado.grupos.length} envio(s) enfileirado(s)
-            {resultado.mensagensFalhas > 0 ? (
+            <span className="font-semibold text-sky-300">{resultado.emailsEnfileirados}</span> de{" "}
+            {resultado.grupos.length} e-mail(s) enfileirado(s)
+            {resultado.emailsFalhas > 0 ? (
               <>
                 {" "}
-                · <span className="font-semibold text-rose-300">{resultado.mensagensFalhas}</span>{" "}
+                · <span className="font-semibold text-rose-300">{resultado.emailsFalhas}</span>{" "}
                 falha(s)
               </>
             ) : null}
@@ -176,7 +173,7 @@ export function TituloWhatsAppLoteDialog({
                       <td
                         className={cn(
                           "px-4 py-2.5",
-                          grupo.enfileirado ? "text-emerald-300/90" : "text-rose-300/90",
+                          grupo.enfileirado ? "text-sky-300/90" : "text-rose-300/90",
                         )}
                       >
                         {grupo.enfileirado ? "Enfileirado" : grupo.mensagem ?? "Erro"}

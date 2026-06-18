@@ -63,7 +63,7 @@ export function EmailGatilhos() {
         }
         return [...prev, saved];
       });
-      toast.success("Gatilho actualizado");
+      toast.success("Gatilho atualizado");
     } catch {
       toast.error("Erro ao guardar");
     } finally {
@@ -85,7 +85,7 @@ export function EmailGatilhos() {
           className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white/70"
         >
           <RefreshCw className="h-4 w-4" />
-          Actualizar
+          Atualizar
         </button>
       }
     >

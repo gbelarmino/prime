@@ -16,7 +16,7 @@ import {
 import {
   convenioEmpreendimentoDropdownOptions,
 } from "@/lib/convenio-label";
-import { parseIsoDate } from "@/lib/fin-vencimento";
+import { inicioDoDiaHoje, isVencimentoFuturo, normalizarDataCalendario, parseIsoDate } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -83,6 +83,7 @@ export function TituloAvulsoEmitirWorkspace() {
     valorNominal != null &&
     valorNominal > 0 &&
     vencimento != null &&
+    isVencimentoFuturo(vencimento) &&
     !contexto.avisoConvenio &&
     (!contexto.convenioId || contexto.convenioId === selectedConvenioId);
 
@@ -142,14 +143,21 @@ export function TituloAvulsoEmitirWorkspace() {
       .then((ctx) => {
         setContexto(ctx);
         setNumeroParcela(ctx.numeroParcela);
-        setValorNominal(ctx.valorNominal);
+        setValorNominal(ctx.valorNominal ?? null);
         const vencIso =
           ctx.primeiroTituloLote && ctx.dataPrimeiraParcelaContrato
             ? ctx.dataPrimeiraParcelaContrato
             : ctx.vencimentoSugerido;
-        setVencimento(parseIsoDate(vencIso));
+        let vencDate = parseIsoDate(vencIso);
+        if (!vencDate || !isVencimentoFuturo(vencDate)) {
+          vencDate = inicioDoDiaHoje();
+        }
+        setVencimento(vencDate);
         if (ctx.convenioId) {
           setSelectedConvenioId(ctx.convenioId);
+        }
+        if (ctx.avisoValorNominal) {
+          toast.warning(ctx.avisoValorNominal);
         }
       })
       .catch((e) => {
@@ -170,6 +178,11 @@ export function TituloAvulsoEmitirWorkspace() {
     }
     if (contexto.convenioId && contexto.convenioId !== selectedConvenioId) {
       toast.error("O convênio selecionado deve ser o atrelado ao empreendimento do lote.");
+      return;
+    }
+
+    if (!isVencimentoFuturo(vencimento)) {
+      toast.error("Vencimento não pode ser anterior a hoje.");
       return;
     }
 
@@ -394,20 +407,20 @@ export function TituloAvulsoEmitirWorkspace() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className={FORM_LABEL_CLASS}>
-                {contexto?.primeiroTituloLote && numeroParcela === 1
-                  ? "Data da 1ª parcela"
-                  : "Vencimento"}
-              </label>
+              <label className={FORM_LABEL_CLASS}>Vencimento</label>
               <Calendar
                 value={vencimento}
-                onChange={(e) => setVencimento(e.value ?? null)}
+                onChange={(e) => setVencimento(normalizarDataCalendario(e.value))}
                 dateFormat="dd/mm/yy"
                 showIcon
+                minDate={inicioDoDiaHoje()}
                 disabled={!contexto}
                 className="w-full"
                 inputClassName={FORM_INPUT_CLASS}
               />
+              <p className="text-xs text-white/35">
+                Hoje ou data futura; não precisa coincidir com o dia de vencimento do contrato.
+              </p>
             </div>
           </div>
 

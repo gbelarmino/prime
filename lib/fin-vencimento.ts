@@ -1,3 +1,11 @@
+/** Piso da referência na emissão: nunca antes de hoje (títulos legados com vencimento antigo). */
+export function referenciaEfetivaParaEmissao(referencia: Date): Date {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const ref = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
+  return ref.getTime() > hoje.getTime() ? ref : hoje;
+}
+
 /** Próxima data de vencimento no dia do mês do contrato, estritamente após `referencia`. */
 export function calcularProximoVencimentoBruto(diaVencimento: number, referencia: Date): Date {
   const ref = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
@@ -45,7 +53,7 @@ export function calcularVencimentosParcelasDetalhe(
 ): VencimentoParcelaDetalhe[] {
   if (quantidade < 1) return [];
   const vencimentos: VencimentoParcelaDetalhe[] = [];
-  let cursor = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
+  let cursor = referenciaEfetivaParaEmissao(referencia);
   for (let i = 0; i < quantidade; i++) {
     const bruto = calcularProximoVencimentoBruto(diaVencimento, cursor);
     const venc = ajustarParaProximoDiaUtil(bruto);
@@ -137,11 +145,41 @@ export function vencimentoCorrespondeAoDiaContrato(vencimento: Date, diaContrato
   return sameCalendarDay(v, noMesAnterior);
 }
 
-export function isVencimentoValidoParaContrato(vencimento: Date, diaContrato: number): boolean {
+export function inicioDoDiaHoje(): Date {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-  const v = new Date(vencimento.getFullYear(), vencimento.getMonth(), vencimento.getDate());
-  if (v.getTime() <= hoje.getTime()) return false;
+  return hoje;
+}
+
+/** Meia-noite local do dia civil (ignora hora/fuso no valor recebido). */
+export function normalizarDataCalendario(data: Date | null | undefined): Date | null {
+  if (!data || Number.isNaN(data.getTime())) return null;
+  return new Date(data.getFullYear(), data.getMonth(), data.getDate());
+}
+
+/** Compara apenas o dia civil (YYYY-MM-DD), sem hora. */
+export function compararDiaCalendario(a: Date, b: Date): number {
+  const da = formatIsoDate(a);
+  const db = formatIsoDate(b);
+  if (da < db) return -1;
+  if (da > db) return 1;
+  return 0;
+}
+
+/** Hoje ou posterior (sem validar dia do contrato). */
+export function isVencimentoFuturo(vencimento: Date): boolean {
+  const v = normalizarDataCalendario(vencimento);
+  if (!v) return false;
+  return compararDiaCalendario(v, new Date()) >= 0;
+}
+
+/** Vencimento da 1ª parcela deste lote: hoje ou posterior (data livre). */
+export function isVencimentoValidoParaNovoTitulo(vencimento: Date): boolean {
+  return isVencimentoFuturo(vencimento);
+}
+
+export function isVencimentoValidoParaContrato(vencimento: Date, diaContrato: number): boolean {
+  if (!isVencimentoFuturo(vencimento)) return false;
   return vencimentoCorrespondeAoDiaContrato(vencimento, diaContrato);
 }
 
@@ -155,4 +193,18 @@ export function formatIsoDate(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/** Data de pagamento (Instant ISO da API) como dia civil — evita deslocamento de fuso na exibição. */
+export function formatDataPagamentoExibicao(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const part = iso.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(part)) {
+    try {
+      return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    } catch {
+      return iso;
+    }
+  }
+  return parseIsoDate(part).toLocaleDateString("pt-BR");
 }

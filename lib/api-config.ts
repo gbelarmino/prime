@@ -27,12 +27,15 @@ const API_PATHS = {
   finPorImovel: "/api/fin/por-imovel",
   finConvenios: "/api/fin/convenios",
   finDashboard: "/api/fin/dashboard",
+  finFluxoReceita: "/api/fin/fluxo-receita",
   finPlanoContas: "/api/fin/plano-contas",
   finConciliacao: "/api/fin/conciliacao",
   finUnicredWebhookConciliacao: "/api/fin/unicred-webhooks/conciliacao",
   finIndicesIpca: "/api/fin/indices/ipca",
   finIndicesIgpm: "/api/fin/indices/igpm",
   finReajusteSimular: "/api/fin/reajuste/simular",
+  finCobrancaRegua: "/api/fin/cobranca-regua",
+  finCobrancaGrupos: "/api/fin/cobranca-grupos",
   atendimento: "/api/atendimento",
   auditoria: "/api/auditoria",
   tenantsMe: "/api/tenants/me",
@@ -91,6 +94,17 @@ export function getContratantesListUrl(page = 0, size = 50, q?: string): string 
   const term = q?.trim();
   if (term) params.set("q", term);
   return `${base}?${params.toString()}`;
+}
+
+/** vCard para importação na agenda do telemóvel (respeita o mesmo filtro `q` da listagem). */
+export function getContratantesExportAgendaUrl(q?: string): string {
+  const base = getContratanteUrl();
+  if (!base) return "";
+  const params = new URLSearchParams();
+  const term = q?.trim();
+  if (term) params.set("q", term);
+  const qs = params.toString();
+  return qs ? `${base}/export-agenda?${qs}` : `${base}/export-agenda`;
 }
 
 export function getContratanteByIdUrl(id: number): string {
@@ -172,11 +186,16 @@ export function getImovelUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.imoveis);
 }
 
-export function getImoveisQuadrasUrl(situacao?: number | null): string {
+export function getImoveisQuadrasUrl(
+  situacao?: number | null,
+  empreendimento?: string | null,
+): string {
   const base = getImovelUrl();
   if (!base) return "";
   const url = new URL(`${base}/quadras`, "http://localhost"); // base URL doesn't matter for query params
   if (situacao != null) url.searchParams.set("situacao", String(situacao));
+  const emp = empreendimento?.trim();
+  if (emp) url.searchParams.set("empreendimento", emp);
   return `${base}/quadras${url.search}`;
 }
 
@@ -275,8 +294,9 @@ export function getContratosHonorariosListUrl(
   const params = new URLSearchParams({
     page: String(page),
     size: String(size),
-    sort: "dataAssinatura,desc",
   });
+  params.append("sort", "criadoEm,desc");
+  params.append("sort", "id,desc");
   const term = q?.trim();
   if (term) params.set("q", term);
   if (status) params.set("status", status);
@@ -701,8 +721,12 @@ export function getWhatsAppStatusUrl(accountId?: string | null): string {
   return withOptionalAccountIdQuery(`${getWhatsAppUrl()}/status`, accountId);
 }
 
-export function getWhatsAppConnectUrl(accountId?: string | null): string {
-  return withOptionalAccountIdQuery(`${getWhatsAppUrl()}/connect`, accountId);
+export function getWhatsAppConnectUrl(accountId?: string | null, options?: { force?: boolean }): string {
+  let url = withOptionalAccountIdQuery(`${getWhatsAppUrl()}/connect`, accountId);
+  if (options?.force) {
+    url += `${url.includes("?") ? "&" : "?"}force=true`;
+  }
+  return url;
 }
 
 export function getWhatsAppQrUrl(accountId?: string | null): string {
@@ -865,23 +889,27 @@ export function getFinTitulosRegistrarLoteUrl(): string {
   return `${getFinTitulosUrl()}/registrar/lote`;
 }
 
+export function getFinTitulosMarcarVencidosUrl(): string {
+  return `${getFinTitulosUrl()}/jobs/marcar-vencidos`;
+}
+
+export function getFinTitulosPdfLoteUrl(): string {
+  return `${getFinTitulosUrl()}/pdf/lote`;
+}
+
 export function getFinTitulosWhatsAppCobrancaParcelaLoteUrl(): string {
   return `${getFinTitulosUrl()}/whatsapp/cobranca-parcela/lote`;
+}
+
+export function getFinTitulosEmailCobrancaParcelaLoteUrl(): string {
+  return `${getFinTitulosUrl()}/email/cobranca-parcela/lote`;
 }
 
 export function getFinTitulosIdsElegiveisWhatsAppUrl(opts?: FinTitulosListFilters): string {
   const base = getFinTitulosUrl();
   if (!base) return "";
   const params = new URLSearchParams();
-  if (opts?.status) params.set("status", opts.status);
-  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
-  if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
-  if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
-  if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
-  if (opts?.lote != null) params.set("lote", String(opts.lote));
-  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
-  if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
-  if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  appendFinTitulosListFilterParams(params, opts);
   const qs = params.toString();
   return qs ? `${base}/ids-elegiveis-whatsapp?${qs}` : `${base}/ids-elegiveis-whatsapp`;
 }
@@ -890,15 +918,7 @@ export function getFinTitulosIdsElegiveisRegistroUrl(opts?: FinTitulosListFilter
   const base = getFinTitulosUrl();
   if (!base) return "";
   const params = new URLSearchParams();
-  if (opts?.status) params.set("status", opts.status);
-  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
-  if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
-  if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
-  if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
-  if (opts?.lote != null) params.set("lote", String(opts.lote));
-  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
-  if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
-  if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  appendFinTitulosListFilterParams(params, opts);
   const qs = params.toString();
   return qs ? `${base}/ids-elegiveis-registro?${qs}` : `${base}/ids-elegiveis-registro`;
 }
@@ -907,35 +927,64 @@ export type FinTitulosListFilters = {
   status?: string;
   contratoId?: number;
   imovelId?: number;
+  vencimentoDe?: string;
+  vencimentoAte?: string;
+  cadastroDe?: string;
+  cadastroAte?: string;
+  pagamentoDe?: string;
+  pagamentoAte?: string;
   empreendimento?: string;
   quadra?: string;
   lote?: number;
   contrato?: string;
   nome?: string;
   cpf?: string;
+  nossoNumero?: string;
 };
 
-export function getFinTitulosListUrl(
-  page = 0,
-  size = 20,
+function appendFinTitulosListFilterParams(
+  params: URLSearchParams,
   opts?: FinTitulosListFilters,
-): string {
-  const base = getFinTitulosUrl();
-  if (!base) return "";
-  const params = new URLSearchParams({
-    page: String(page),
-    size: String(size),
-    sort: "cadastroEm,desc",
-  });
+): void {
   if (opts?.status) params.set("status", opts.status);
   if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
   if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
+  if (opts?.vencimentoDe) params.set("vencimentoDe", opts.vencimentoDe);
+  if (opts?.vencimentoAte) params.set("vencimentoAte", opts.vencimentoAte);
+  if (opts?.cadastroDe) params.set("cadastroDe", opts.cadastroDe);
+  if (opts?.cadastroAte) params.set("cadastroAte", opts.cadastroAte);
+  if (opts?.pagamentoDe) params.set("pagamentoDe", opts.pagamentoDe);
+  if (opts?.pagamentoAte) params.set("pagamentoAte", opts.pagamentoAte);
   if (opts?.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
   if (opts?.quadra?.trim()) params.set("quadra", opts.quadra.trim());
   if (opts?.lote != null) params.set("lote", String(opts.lote));
   if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
   if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
   if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
+  if (opts?.nossoNumero?.trim()) params.set("nossoNumero", opts.nossoNumero.trim());
+}
+
+export type FinTitulosListSort = {
+  field: string;
+  direction: "asc" | "desc";
+};
+
+export function getFinTitulosListUrl(
+  page = 0,
+  size = 20,
+  opts?: FinTitulosListFilters,
+  sort?: FinTitulosListSort,
+): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  const sortField = sort?.field?.trim() || "cadastroEm";
+  const sortDirection = sort?.direction === "asc" ? "asc" : "desc";
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+    sort: `${sortField},${sortDirection}`,
+  });
+  appendFinTitulosListFilterParams(params, opts);
   return `${base}?${params.toString()}`;
 }
 
@@ -954,6 +1003,26 @@ export function getFinTituloContextoLoteUrl(
   return `${base}/contexto-lote?${params.toString()}`;
 }
 
+export function getFinTituloLegadoManualQuadrasUrl(empreendimento: string): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  const params = new URLSearchParams({ empreendimento: empreendimento.trim() });
+  return `${base}/legado-manual/quadras?${params.toString()}`;
+}
+
+export function getFinTituloLegadoManualLotesUrl(
+  empreendimento: string,
+  quadra: string,
+): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  const params = new URLSearchParams({
+    empreendimento: empreendimento.trim(),
+    quadra: quadra.trim(),
+  });
+  return `${base}/legado-manual/lotes?${params.toString()}`;
+}
+
 export function getFinTituloByIdUrl(id: string): string {
   const base = getFinTitulosUrl();
   if (!base) return "";
@@ -970,10 +1039,52 @@ export function getFinTituloLegadoManualUrl(): string {
   return `${base}/legado-manual`;
 }
 
+export function getFinTituloLegadoManualByIdUrl(id: string): string {
+  const base = getFinTituloByIdUrl(id);
+  if (!base) return "";
+  return `${base}/legado-manual`;
+}
+
 export function getFinTituloAvulsoUrl(): string {
   const base = getFinTitulosUrl();
   if (!base) return "";
   return `${base}/avulso`;
+}
+
+export function getFinCobrancaGruposUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.finCobrancaGrupos);
+}
+
+export function getFinCobrancaGruposSugestoesUrl(): string {
+  const base = getFinCobrancaGruposUrl();
+  if (!base) return "";
+  return `${base}/sugestoes`;
+}
+
+export function getFinCobrancaGrupoByIdUrl(id: string): string {
+  const base = getFinCobrancaGruposUrl();
+  if (!base) return "";
+  return `${base}/${id}`;
+}
+
+export function getFinCobrancaGrupoSimularUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/simular-emissao`;
+}
+
+export function getFinCobrancaGrupoEmitirUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/emitir`;
+}
+
+export function getFinCobrancaGrupoLiderUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/lider`;
+}
+
+export function getFinCobrancaGrupoMembrosUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/membros`;
+}
+
+export function getFinCobrancaGrupoDesativarUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/desativar`;
 }
 
 export function getFinTituloRegistrarUrl(id: string): string {
@@ -1024,6 +1135,10 @@ export function getFinDashboardResumoUrl(): string {
   return withBase(getApiBaseUrl(), `${API_PATHS.finDashboard}/resumo`);
 }
 
+export function getFinFluxoReceitaUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.finFluxoReceita);
+}
+
 export function getFinIndicesIpcaUrl(opts?: { desde?: string; ate?: string }): string {
   const base = withBase(getApiBaseUrl(), API_PATHS.finIndicesIpca);
   if (!base) return "";
@@ -1072,6 +1187,45 @@ export function getFinReajusteSimularUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finReajusteSimular);
 }
 
+export function getFinCobrancaReguaUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.finCobrancaRegua);
+}
+
+export function getFinCobrancaReguaAtivaUrl(id: string): string {
+  return `${getFinCobrancaReguaUrl()}/${id}/ativa`;
+}
+
+export function getFinCobrancaReguaEtapasUrl(reguaId: string): string {
+  return `${getFinCobrancaReguaUrl()}/${reguaId}/etapas`;
+}
+
+export function getFinCobrancaReguaEtapaUrl(reguaId: string, etapaId: string): string {
+  return `${getFinCobrancaReguaEtapasUrl(reguaId)}/${etapaId}`;
+}
+
+export function getFinCobrancaReguaExecucoesUrl(): string {
+  return `${getFinCobrancaReguaUrl()}/execucoes`;
+}
+
+export function getFinCobrancaReguaExecutarJobUrl(): string {
+  return `${getFinCobrancaReguaUrl()}/jobs/executar`;
+}
+
+export function getFinCobrancaReguaTesteUrl(): string {
+  return `${getFinCobrancaReguaUrl()}/teste`;
+}
+
+export function getFinCobrancaReguaTesteTituloResolvidoUrl(
+  contratanteId: number,
+  etapaId: string,
+): string {
+  const params = new URLSearchParams({
+    contratanteId: String(contratanteId),
+    etapaId,
+  });
+  return `${getFinCobrancaReguaUrl()}/teste/titulo-resolvido?${params.toString()}`;
+}
+
 export function getFinLancamentosUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finLancamentos);
 }
@@ -1080,7 +1234,8 @@ export function getFinLancamentosListUrl(
   page = 0,
   size = 20,
   opts?: {
-    contratoId?: number;
+    contrato?: string;
+    conta?: string;
     tituloId?: string;
     competenciaDe?: string;
     competenciaAte?: string;
@@ -1095,7 +1250,8 @@ export function getFinLancamentosListUrl(
     size: String(size),
     sort: "competencia,desc",
   });
-  if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
+  if (opts?.contrato?.trim()) params.set("contrato", opts.contrato.trim());
+  if (opts?.conta?.trim()) params.set("conta", opts.conta.trim());
   if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
   if (opts?.tituloId) params.set("tituloId", opts.tituloId);
   if (opts?.competenciaDe) params.set("competenciaDe", opts.competenciaDe);

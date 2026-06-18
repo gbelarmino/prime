@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,14 +9,12 @@ import { toast } from "sonner";
 // PrimeReact Components
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
-import { InputNumber } from "primereact/inputnumber";
 import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
 import { Message } from "primereact/message";
 import { Divider } from "primereact/divider";
 
 import {
-  getContratantesListUrl,
   getContratoHonorariosByIdUrl,
   getContratoHonorariosUrl,
   getContratoProximoNumeroUrl,
@@ -26,10 +24,10 @@ import {
   getCorretoresListUrl,
   getImobiliariaMeUrl,
   getImobiliariasListUrl,
+  getImoveisEmpreendimentosUrl,
   getImoveisListUrl,
   getImovelByIdUrl,
   getImovelPrecoUrl,
-  getImovelPrecoByLotUrl,
   getImoveisQuadrasUrl,
   getParametroByNomeUrl,
   isApiConfigured,
@@ -37,10 +35,10 @@ import {
 import { apiFetch } from "@/lib/api-fetch";
 import { UFS_BRASIL } from "@/lib/ufs-brasil";
 import {
+  canEditContratoComoAdmin,
   canRegistrarContratoLegado,
   getAuthToken,
   getUserEmail,
-  isAdmin as isAuthAdmin,
   isCorretor as isAuthCorretor,
   isImobiliaria as isAuthImobiliaria,
 } from "@/lib/auth-storage";
@@ -55,10 +53,21 @@ import {
   type PrecoLoteResponse,
 } from "@/lib/validations/contrato-honorarios";
 import { numberToBrlInputValue } from "@/lib/currency-brl";
+import { BrlMoneyInput } from "@/components/dashboard/BrlMoneyInput";
+import { formatCpfDisplay } from "@/lib/format-cpf";
+import {
+  fetchContratanteOption,
+  mergeContratanteOptions,
+  searchContratantes,
+  type ContratanteOption,
+} from "@/lib/contratante-service";
 
 type SpringPage<T> = { content: T[] };
 
-type ClienteOpt = { id: string; nome: string };
+const CLIENTES_SEARCH_MIN_CHARS = 2;
+const CLIENTES_SEARCH_DEBOUNCE_MS = 350;
+
+type ClienteOpt = ContratanteOption;
 type ImobOpt = { id: string; razaoSocial: string; email?: string };
 type CorretorOpt = { id: string; nome: string; imobiliariaId: string; email?: string };
 type ImovelOption = {
@@ -82,12 +91,18 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
   );
   const [optsLoading, setOptsLoading] = useState(true);
   const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [clientesLoading, setClientesLoading] = useState(false);
+  const clientesSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clientesSearchSeqRef = useRef(0);
   const [imobiliarias, setImobiliarias] = useState<ImobOpt[]>([]);
   const [corretores, setCorretores] = useState<CorretorOpt[]>([]);
-  const [imoveis, setImoveis] = useState<ImovelOption[]>([]);
+  const [empreendimentos, setEmpreendimentos] = useState<string[]>([]);
+  const [selectedEmpreendimento, setSelectedEmpreendimento] = useState<string>("");
   const [quadras, setQuadras] = useState<string[]>([]);
+  const [quadrasLoading, setQuadrasLoading] = useState(false);
   const [selectedQuadra, setSelectedQuadra] = useState<string>("");
   const [filteredLotes, setFilteredLotes] = useState<ImovelOption[]>([]);
+  const [lotesLoading, setLotesLoading] = useState(false);
   const [isAutomatico, setIsAutomatico] = useState(false);
   const [pdfLegado, setPdfLegado] = useState<File | null>(null);
   const [origemAssinatura, setOrigemAssinatura] = useState<string | null>(null);
@@ -127,14 +142,90 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
     }
   }, [errors]);
 
+  const contratanteId = watch("contratanteId");
   const imobiliariaId = watch("imobiliariaId");
   const imovelId = watch("imovelId");
   const dataAssinatura = watch("dataAssinatura");
 
+  const ensureClienteSelectedInOptions = useCallback(async (id: string) => {
+    if (!id) return;
+    const opt = await fetchContratanteOption(Number(id));
+    if (!opt) return;
+    setClientes((prev) => {
+      if (prev.some((c) => c.id === id)) return prev;
+      return mergeContratanteOptions(prev, opt);
+    });
+  }, []);
+
+  const runClientesSearch = useCallback(
+    async (rawFilter: string) => {
+      const term = rawFilter.trim();
+      if (term.length > 0 && term.length < CLIENTES_SEARCH_MIN_CHARS) {
+        setClientes((prev) => {
+          const selected =
+            contratanteId && contratanteId !== ""
+              ? prev.find((c) => c.id === contratanteId) ?? null
+              : null;
+          return selected ? [selected] : [];
+        });
+        return;
+      }
+
+      const seq = ++clientesSearchSeqRef.current;
+      setClientesLoading(true);
+      try {
+        const found = await searchContratantes(term);
+        if (seq !== clientesSearchSeqRef.current) return;
+        setClientes((prev) => {
+          const selected =
+            contratanteId && contratanteId !== ""
+              ? prev.find((c) => c.id === contratanteId) ?? null
+              : null;
+          return mergeContratanteOptions(found, selected);
+        });
+      } catch {
+        if (seq === clientesSearchSeqRef.current) {
+          toast.error("Não foi possível buscar clientes.");
+        }
+      } finally {
+        if (seq === clientesSearchSeqRef.current) {
+          setClientesLoading(false);
+        }
+      }
+    },
+    [contratanteId],
+  );
+
+  const scheduleClientesSearch = useCallback(
+    (filter: string) => {
+      if (clientesSearchTimerRef.current) {
+        clearTimeout(clientesSearchTimerRef.current);
+      }
+      clientesSearchTimerRef.current = setTimeout(() => {
+        void runClientesSearch(filter);
+      }, CLIENTES_SEARCH_DEBOUNCE_MS);
+    },
+    [runClientesSearch],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (clientesSearchTimerRef.current) {
+        clearTimeout(clientesSearchTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!contratanteId) return;
+    void ensureClienteSelectedInOptions(contratanteId);
+  }, [contratanteId, ensureClienteSelectedInOptions]);
+
   const isImobiliaria = isAuthImobiliaria();
   const isCorretor = isAuthCorretor();
-  const canEditValoresFinanceiros = isAuthAdmin();
-  const canEditAgendamentoParcelas = isAuthAdmin() || isCorretor || isImobiliaria;
+  const canEditComoAdmin = canEditContratoComoAdmin();
+  const canEditValoresFinanceiros = canEditComoAdmin;
+  const canEditAgendamentoParcelas = canEditComoAdmin || isCorretor || isImobiliaria;
 
   useEffect(() => {
     if (isLegado && !canRegistrarContratoLegado()) {
@@ -165,17 +256,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
             ? Promise.resolve(null)
             : apiFetch(getImobiliariasListUrl(0, 500), { headers, credentials: "omit" });
 
-        const [r1, rImob, r3, r4] = await Promise.all([
-          apiFetch(getContratantesListUrl(0, 500), { headers, credentials: "omit" }),
+        const [rImob, r3, r4] = await Promise.all([
           imobListPromise,
           apiFetch(getCorretoresListUrl(0, 500), { headers, credentials: "omit" }),
-          apiFetch(getImoveisQuadrasUrl(situacaoFiltro), { headers, credentials: "omit" }),
+          apiFetch(getImoveisEmpreendimentosUrl(), { headers, credentials: "omit" }),
         ]);
 
-        if (r1.ok) {
-          const p = (await r1.json()) as SpringPage<{ id: number; nome: string }>;
-          setClientes((p.content ?? []).map(c => ({ ...c, id: String(c.id) })));
-        }
         if (rImob?.ok) {
           if (isImobiliaria) {
             const i = (await rImob.json()) as { id: number; razaoSocial: string; email?: string };
@@ -192,8 +278,8 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           setCorretores((p.content ?? []).map(c => ({ ...c, id: String(c.id), imobiliariaId: String(c.imobiliariaId) })));
         }
         if (r4.ok) {
-          const qds = (await r4.json()) as string[];
-          setQuadras(qds);
+          const emps = (await r4.json()) as string[];
+          setEmpreendimentos(emps);
         }
 
         // Busca parâmetro de numeração automática
@@ -271,10 +357,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
     }
 
     const fetchPreco = async () => {
-      const selectedImovel = imoveis.find((o) => String(o.id) === String(imovelId));
-      const url = (selectedImovel?.quadra && selectedImovel?.lote)
-        ? getImovelPrecoByLotUrl(selectedImovel.quadra, selectedImovel.lote)
-        : getImovelPrecoUrl(Number(imovelId));
+      const url = getImovelPrecoUrl(Number(imovelId));
       const token = getAuthToken();
       try {
         const res = await apiFetch(url, {
@@ -296,7 +379,6 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           if (data.valorParcela != null) setValue("valorParcela", numberToBrlInputValue(data.valorParcela));
           if (data.numParcelas != null) setValue("numParcelasMensais", String(data.numParcelas));
           if (data.tipoCorrecaoAnual != null) setValue("tipoCorrecaoAnual", data.tipoCorrecaoAnual);
-          if (data.percentualCorrecao != null) setValue("percentualCorrecao", String(data.percentualCorrecao));
           if (data.periodicidadeCorrecao != null) setValue("periodicidadeCorrecao", data.periodicidadeCorrecao);
           if (data.taxaJurosRemuneratorios != null) setValue("taxaJurosRemuneratorios", String(data.taxaJurosRemuneratorios));
           if (data.periodicidadeJuros != null) setValue("periodicidadeJuros", data.periodicidadeJuros);
@@ -314,14 +396,17 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
     };
 
     fetchPreco();
-  }, [imovelId, mode, setValue, imoveis, canEditValoresFinanceiros]);
+  }, [imovelId, mode, setValue, canEditValoresFinanceiros]);
 
-  // Sync selectedQuadra when imovelId changes (important for edit mode)
+  // Sync empreendimento/quadra when imovelId changes (important for edit mode)
   useEffect(() => {
     if (!imovelId) return;
 
-    // Se já temos a quadra selecionada e o imovelId pertence a ela, não fazemos nada
-    if (selectedQuadra && filteredLotes.some(i => String(i.id) === String(imovelId))) {
+    if (
+      selectedEmpreendimento &&
+      selectedQuadra &&
+      filteredLotes.some((i) => String(i.id) === String(imovelId))
+    ) {
       return;
     }
 
@@ -337,49 +422,102 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
         const res = await apiFetch(url, { headers, credentials: "omit" });
         if (res.ok) {
           const data = (await res.json()) as ImovelOption;
+          if (data.empreendimento) {
+            setSelectedEmpreendimento(data.empreendimento);
+          }
           if (data.quadra) {
             setSelectedQuadra(data.quadra);
           }
         }
       } catch (err) {
-        console.error("Erro ao buscar detalhe do imóvel para sincronizar quadra:", err);
+        console.error("Erro ao buscar detalhe do imóvel para sincronizar localização:", err);
       }
     };
 
     fetchImovelDetail();
   }, [imovelId]);
 
-  // Update filteredLotes when selectedQuadra changes
+  // Quadras do empreendimento selecionado
   useEffect(() => {
-    if (!selectedQuadra) {
-      setFilteredLotes([]);
+    if (!selectedEmpreendimento) {
+      setQuadras([]);
       return;
     }
 
-    const fetchLotes = async () => {
+    const fetchQuadras = async () => {
       const situacaoFiltro = mode === "create" ? 1 : undefined;
-      const url = getImoveisListUrl(0, 500, undefined, selectedQuadra, situacaoFiltro);
+      const url = getImoveisQuadrasUrl(situacaoFiltro, selectedEmpreendimento);
       const token = getAuthToken();
       const headers = {
         Accept: "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
+      setQuadrasLoading(true);
+      try {
+        const res = await apiFetch(url, { headers, credentials: "omit" });
+        if (res.ok) {
+          const qds = (await res.json()) as string[];
+          setQuadras(qds);
+          setSelectedQuadra((prev) => {
+            if (prev && !qds.includes(prev)) {
+              setValue("imovelId", "");
+              return "";
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar quadras do empreendimento:", err);
+      } finally {
+        setQuadrasLoading(false);
+      }
+    };
+
+    fetchQuadras();
+  }, [selectedEmpreendimento, mode, setValue]);
+
+  // Lotes da quadra dentro do empreendimento
+  useEffect(() => {
+    if (!selectedEmpreendimento || !selectedQuadra) {
+      setFilteredLotes([]);
+      return;
+    }
+
+    const fetchLotes = async () => {
+      const situacaoFiltro = mode === "create" ? 1 : undefined;
+      const url = getImoveisListUrl(
+        0,
+        500,
+        undefined,
+        selectedQuadra,
+        situacaoFiltro,
+        selectedEmpreendimento,
+      );
+      const token = getAuthToken();
+      const headers = {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      setLotesLoading(true);
       try {
         const res = await apiFetch(url, { headers, credentials: "omit" });
         if (res.ok) {
           const p = (await res.json()) as SpringPage<ImovelOption>;
-          const list = (p.content ?? []).map(i => ({ ...i, id: String(i.id) }));
+          const list = (p.content ?? []).map((i) => ({ ...i, id: String(i.id) }));
           list.sort((a, b) => (a.lote ?? 0) - (b.lote ?? 0));
           setFilteredLotes(list);
         }
       } catch (err) {
         console.error("Erro ao carregar lotes da quadra:", err);
+      } finally {
+        setLotesLoading(false);
       }
     };
 
     fetchLotes();
-  }, [selectedQuadra, mode]);
+  }, [selectedEmpreendimento, selectedQuadra, mode]);
 
   // Load Entity if Edit Mode
   useEffect(() => {
@@ -407,6 +545,14 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
         const data = (await res.json()) as ContratoHonorariosApiResponse;
         skipNextFetchRef.current = true;
         reset(contratoResponseToFormValues(data));
+        if (data.contratante) {
+          setClientes([
+            {
+              id: String(data.contratante.id),
+              nome: data.contratante.label,
+            },
+          ]);
+        }
         setOrigemAssinatura(data.origemAssinatura ?? null);
         setLinkPdfAssinado(data.linkPdfAssinado ?? null);
         const st = data.status != null ? Number(data.status) : null;
@@ -714,9 +860,30 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                     optionLabel="nome"
                     optionValue="id"
                     filter
-                    placeholder={optsLoading ? "Carregando..." : "Selecione o cliente"}
+                    filterBy="nome,cpf,email"
+                    onFilter={(e) => scheduleClientesSearch(e.filter)}
+                    onShow={() => {
+                      if (clientes.length === 0 && field.value) {
+                        void ensureClienteSelectedInOptions(String(field.value));
+                      }
+                    }}
+                    loading={clientesLoading}
+                    placeholder="Digite nome, CPF ou e-mail para buscar"
+                    emptyFilterMessage={`Digite ao menos ${CLIENTES_SEARCH_MIN_CHARS} caracteres`}
+                    emptyMessage="Nenhum cliente encontrado"
                     className={cn("w-full", { "p-invalid": errors.contratanteId })}
-                    disabled={optsLoading}
+                    itemTemplate={(option: ClienteOpt) => (
+                      <div className="flex flex-col gap-0.5 py-0.5">
+                        <span className="text-sm text-white">{option.nome}</span>
+                        {(option.cpf || option.email) && (
+                          <span className="text-[10px] text-white/45">
+                            {[option.cpf ? formatCpfDisplay(option.cpf) : null, option.email]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   />
                 )}
               />
@@ -766,18 +933,35 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-white/90 font-medium">Quadra <span className="text-rose-400">*</span></label>
+              <label className="text-white/90 font-medium">Empreendimento <span className="text-rose-400">*</span></label>
               <Dropdown
-                value={selectedQuadra}
-                options={quadras.map(q => ({ label: `Quadra ${q}`, value: q }))}
+                value={selectedEmpreendimento || null}
+                options={empreendimentos.map((emp) => ({ label: emp, value: emp }))}
                 onChange={(e) => {
-                  setSelectedQuadra(e.value);
-                  setValue("imovelId", ""); // Reseta o lote ao mudar a quadra
+                  setSelectedEmpreendimento(e.value ?? "");
+                  setSelectedQuadra("");
+                  setValue("imovelId", "");
                 }}
-                placeholder="Selecione a quadra"
+                placeholder="Selecione o empreendimento"
                 className="w-full"
                 filter
                 disabled={optsLoading}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-white/90 font-medium">Quadra <span className="text-rose-400">*</span></label>
+              <Dropdown
+                value={selectedQuadra || null}
+                options={quadras.map((q) => ({ label: `Quadra ${q}`, value: q }))}
+                onChange={(e) => {
+                  setSelectedQuadra(e.value ?? "");
+                  setValue("imovelId", "");
+                }}
+                placeholder={selectedEmpreendimento ? "Selecione a quadra" : "Selecione primeiro o empreendimento"}
+                className="w-full"
+                filter
+                disabled={optsLoading || !selectedEmpreendimento || quadrasLoading}
               />
             </div>
 
@@ -793,9 +977,15 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                     optionLabel="lote"
                     optionValue="id"
                     filter
-                    placeholder={selectedQuadra ? "Selecione o lote" : "Selecione primeiro a quadra"}
+                    placeholder={
+                      !selectedEmpreendimento
+                        ? "Selecione primeiro o empreendimento"
+                        : selectedQuadra
+                          ? "Selecione o lote"
+                          : "Selecione primeiro a quadra"
+                    }
                     className={cn("w-full", { "p-invalid": errors.imovelId })}
-                    disabled={optsLoading || !selectedQuadra}
+                    disabled={optsLoading || !selectedEmpreendimento || !selectedQuadra || lotesLoading}
                     itemTemplate={(opt: ImovelOption) => `Lote ${opt.lote}`}
                     valueTemplate={(opt: ImovelOption, props) => {
                       if (!opt) return props.placeholder;
@@ -927,7 +1117,6 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           <Divider className="mt-0 opacity-20" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Usando InputNumber para facilitar a vida do usuário com BRL */}
             {[
               { name: "valorNegociacao", label: "Valor Negociação" },
               { name: "valorLote", label: "Valor do Lote" },
@@ -943,11 +1132,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                   name={field.name as any}
                   control={control}
                   render={({ field: f }) => (
-                    <InputText
-                      {...f}
+                    <BrlMoneyInput
+                      value={f.value}
+                      onChange={f.onChange}
+                      onBlur={f.onBlur}
                       disabled={!canEditValoresFinanceiros}
-                      placeholder="R$ 0,00"
-                      className={cn("w-full tabular-nums", { "p-invalid": errors[field.name as keyof typeof errors] })}
+                      invalid={Boolean(errors[field.name as keyof typeof errors])}
                     />
                   )}
                 />
@@ -1039,7 +1229,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 name="valorFracionadoVendedora"
                 control={control}
                 render={({ field }) => (
-                  <InputText {...field} placeholder="R$ 0,00" className={cn("w-full tabular-nums", { "p-invalid": errors.valorFracionadoVendedora })} />
+                  <BrlMoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalid={Boolean(errors.valorFracionadoVendedora)}
+                  />
                 )}
               />
               {errors.valorFracionadoVendedora && <small className="p-error">{errors.valorFracionadoVendedora.message}</small>}
@@ -1051,7 +1246,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 name="valorFracionadoIntermediaria"
                 control={control}
                 render={({ field }) => (
-                  <InputText {...field} placeholder="R$ 0,00" className={cn("w-full tabular-nums", { "p-invalid": errors.valorFracionadoIntermediaria })} />
+                  <BrlMoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalid={Boolean(errors.valorFracionadoIntermediaria)}
+                  />
                 )}
               />
               {errors.valorFracionadoIntermediaria && <small className="p-error">{errors.valorFracionadoIntermediaria.message}</small>}
@@ -1063,7 +1263,12 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 name="valorBaseLeilao"
                 control={control}
                 render={({ field }) => (
-                  <InputText {...field} placeholder="R$ 0,00" className={cn("w-full tabular-nums", { "p-invalid": errors.valorBaseLeilao })} />
+                  <BrlMoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalid={Boolean(errors.valorBaseLeilao)}
+                  />
                 )}
               />
               {errors.valorBaseLeilao && <small className="p-error">{errors.valorBaseLeilao.message}</small>}
@@ -1080,7 +1285,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
           {!canEditValoresFinanceiros && (
             <Message
               severity="info"
-              text="Correção, juros e limites de reajuste seguem a tabela de preços e só podem ser editados por administradores."
+              text="Correção, juros e limites de reajuste seguem a tabela de preços e só podem ser editados pela equipe administrativa."
               className="w-full"
             />
           )}
@@ -1102,18 +1307,6 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 )}
               />
               {errors.tipoCorrecaoAnual && <small className="p-error">{errors.tipoCorrecaoAnual.message}</small>}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-white/90 font-medium">% Correção <span className="text-rose-400">*</span></label>
-              <Controller
-                name="percentualCorrecao"
-                control={control}
-                render={({ field }) => (
-                  <InputText {...field} disabled={!canEditValoresFinanceiros} className={cn("w-full", { "p-invalid": errors.percentualCorrecao })} />
-                )}
-              />
-              {errors.percentualCorrecao && <small className="p-error">{errors.percentualCorrecao.message}</small>}
             </div>
 
             <div className="flex flex-col gap-2 md:col-span-2">

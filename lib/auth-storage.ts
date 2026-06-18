@@ -24,14 +24,13 @@ const ADMINISTRATIVO_ALLOWED_PREFIXES = [
   "/dashboard/contratos",
   ATENDIMENTO_PATH_PREFIX,
   FINANCEIRO_PATH_PREFIX,
+  "/dashboard/whatsapp/fila",
+  "/dashboard/email/fila",
 ] as const;
 
 const CRM_PATH_PREFIX = "/dashboard/crm";
 
-const ADMINISTRATIVO_BLOCKED_CONTRATOS = [
-  "/dashboard/contratos/novo",
-  "/dashboard/contratos/edit",
-] as const;
+const ADMINISTRATIVO_BLOCKED_CONTRATOS = ["/dashboard/contratos/novo"] as const;
 
 /** Token de demonstração — nunca aceite em produção. */
 const DEMO_TOKEN = "demo-token";
@@ -152,9 +151,19 @@ export function isAdministrativo(): boolean {
   return getUserRole() === "ADMINISTRATIVO";
 }
 
-/** Contratos: apenas listagem, resumo e PDF (sem criar/editar/aprovar). */
+/** Contratos: sem criar proposta nem ações de fluxo (aprovar/reprovar); pode editar registos existentes. */
 export function isContratosReadOnly(): boolean {
   return isAdministrativo();
+}
+
+/** Edição de contratos existentes com as mesmas permissões do Admin (valores, partes, status, condições). */
+export function canEditContratos(): boolean {
+  return isAdmin() || isAdministrativo();
+}
+
+/** Alias semântico para o formulário de edição. */
+export function canEditContratoComoAdmin(): boolean {
+  return canEditContratos();
 }
 
 /** Registo de contrato já assinado (legado/atípico) — admin e administrativo. */

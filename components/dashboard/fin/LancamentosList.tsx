@@ -67,7 +67,8 @@ export function LancamentosList({
   const [refreshing, setRefreshing] = useState(false);
   const hasLoadedRef = useRef(false);
   const [pageData, setPageData] = useState<SpringPage<LancamentoContabil> | null>(null);
-  const [contratoId, setContratoId] = useState("");
+  const [contrato, setContrato] = useState("");
+  const [conta, setConta] = useState("");
   const [busca, setBusca] = useState("");
   const [competenciaDe, setCompetenciaDe] = useState("");
   const [competenciaAte, setCompetenciaAte] = useState("");
@@ -78,18 +79,13 @@ export function LancamentosList({
       setRefreshing(true);
     }
     try {
-      const contratoNum = contratoId.trim() ? Number(contratoId.trim()) : undefined;
-      if (contratoId.trim() && Number.isNaN(contratoNum)) {
-        toast.error("Informe um número de contrato válido.");
-        setPageData(null);
-        return;
-      }
       const data = await finService.listLancamentos(
         page,
         PAGE_SIZE,
         {
           imovelId,
-          contratoId: imovelId ? undefined : contratoNum,
+          contrato: imovelId ? undefined : contrato.trim() || undefined,
+          conta: imovelId ? undefined : conta.trim() || undefined,
           competenciaDe: competenciaDe || undefined,
           competenciaAte: competenciaAte || undefined,
           q: busca.trim() || undefined,
@@ -106,7 +102,7 @@ export function LancamentosList({
       }
       hasLoadedRef.current = true;
     }
-  }, [page, contratoId, busca, competenciaDe, competenciaAte, imovelId]);
+  }, [page, contrato, conta, busca, competenciaDe, competenciaAte, imovelId]);
 
   useEffect(() => {
     void load(hasLoadedRef.current);
@@ -114,7 +110,7 @@ export function LancamentosList({
 
   useEffect(() => {
     setPage(0);
-  }, [contratoId, busca, competenciaDe, competenciaAte]);
+  }, [contrato, conta, busca, competenciaDe, competenciaAte]);
 
   const rows = pageData?.content ?? [];
   const totalRecords = pageData?.totalElements ?? 0;
@@ -180,10 +176,27 @@ export function LancamentosList({
               </label>
               <InputText
                 id="lanc-contrato"
-                value={contratoId}
-                onChange={(e) => setContratoId(e.target.value)}
-                placeholder="Número"
+                value={contrato}
+                onChange={(e) => setContrato(e.target.value)}
+                placeholder="Número ou ID"
                 className="w-full min-w-[120px] border-white/10 bg-white/[0.05] p-2.5 text-xs text-white placeholder:text-white/25"
+                pt={{ root: { className: "w-full" } }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="lanc-conta"
+                className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+              >
+                Conta contábil
+              </label>
+              <InputText
+                id="lanc-conta"
+                value={conta}
+                onChange={(e) => setConta(e.target.value)}
+                placeholder="Código ou nome"
+                className="w-full min-w-[140px] border-white/10 bg-white/[0.05] p-2.5 text-xs text-white placeholder:text-white/25"
                 pt={{ root: { className: "w-full" } }}
               />
             </div>

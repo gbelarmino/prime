@@ -1,5 +1,9 @@
 import { apiFetch } from "./api-fetch";
-import { baixarBoletoPdf } from "./baixar-boleto-pdf";
+import {
+  baixarBlob,
+  baixarBoletoPdf,
+  tryGetFilenameFromDisposition,
+} from "./baixar-boleto-pdf";
 import {
   getFinConvenioAtivoUrl,
   getFinConvenioEmpreendimentoUrl,
@@ -7,6 +11,7 @@ import {
   getFinConveniosGestaoUrl,
   getFinConveniosUrl,
   getFinDashboardResumoUrl,
+  getFinFluxoReceitaUrl,
   getFinIndicesIpcaSincronizarUrl,
   getFinIndicesIpcaUltimoUrl,
   getFinIndicesIpcaUrl,
@@ -43,14 +48,28 @@ import {
   getFinTituloWhatsAppCobrancaParcelaUrl,
   getFinTitulosIdsElegiveisWhatsAppUrl,
   getFinTitulosWhatsAppCobrancaParcelaLoteUrl,
+  getFinTitulosEmailCobrancaParcelaLoteUrl,
   getFinTitulosListUrl,
   getFinTitulosLoteUrl,
   getFinTitulosIdsElegiveisRegistroUrl,
+  getFinTitulosPdfLoteUrl,
+  getFinTitulosMarcarVencidosUrl,
   getFinTitulosRegistrarLoteUrl,
   getFinTitulosUrl,
   getFinTituloAvulsoUrl,
   getFinTituloContextoLoteUrl,
+  getFinTituloLegadoManualQuadrasUrl,
+  getFinTituloLegadoManualLotesUrl,
   getFinTituloLegadoManualUrl,
+  getFinTituloLegadoManualByIdUrl,
+  getFinCobrancaGruposUrl,
+  getFinCobrancaGruposSugestoesUrl,
+  getFinCobrancaGrupoByIdUrl,
+  getFinCobrancaGrupoSimularUrl,
+  getFinCobrancaGrupoEmitirUrl,
+  getFinCobrancaGrupoLiderUrl,
+  getFinCobrancaGrupoMembrosUrl,
+  getFinCobrancaGrupoDesativarUrl,
   getImoveisEmpreendimentosUrl,
   getImoveisListUrl,
   getImoveisQuadrasUrl,
@@ -83,16 +102,22 @@ export interface TituloCobranca {
   linhaDigitavel?: string | null;
   codigoBarras?: string | null;
   pixCopiaCola?: string | null;
+  idExternoBanco?: string | null;
   urlBoleto?: string | null;
   codigoInstrucaoBaixa?: string | null;
   status: TituloCobrancaStatus;
   valorNominal: number;
   valorPago?: number | null;
+  valorJuros?: number | null;
+  valorMulta?: number | null;
+  valorTarifa?: number | null;
   vencimento: string;
   dataPagamento?: string | null;
   versao: number;
   cadastroEm: string;
   alteradoEm: string;
+  usuarioNome?: string | null;
+  legado?: boolean;
 }
 
 export interface TituloHistoricoItem {
@@ -131,19 +156,54 @@ export interface TituloWhatsAppCobrancaResult {
   mensagem?: string | null;
 }
 
-export interface TituloWhatsAppCobrancaLoteItem {
-  tituloId: string;
+export interface TituloWhatsAppCobrancaLoteGrupo {
+  contratoId: number;
+  quantidadeTitulos: number;
   enfileirado: boolean;
   filaId?: number | null;
   mensagem?: string | null;
 }
 
 export interface TituloWhatsAppCobrancaLoteResult {
-  total: number;
-  enfileirados: number;
-  falhas: number;
-  itens: TituloWhatsAppCobrancaLoteItem[];
+  totalTitulos: number;
+  titulosIgnorados: number;
+  mensagensEnfileiradas: number;
+  mensagensFalhas: number;
+  grupos: TituloWhatsAppCobrancaLoteGrupo[];
 }
+
+export interface TituloEmailCobrancaLoteGrupo {
+  contratoId: number;
+  quantidadeTitulos: number;
+  enfileirado: boolean;
+  filaId?: number | null;
+  mensagem?: string | null;
+}
+
+export interface TituloEmailCobrancaLoteResult {
+  totalTitulos: number;
+  titulosIgnorados: number;
+  emailsEnfileirados: number;
+  emailsFalhas: number;
+  grupos: TituloEmailCobrancaLoteGrupo[];
+}
+
+export interface TituloPdfLoteItem {
+  tituloId: string;
+  sucesso: boolean;
+  mensagem?: string | null;
+}
+
+export interface TituloPdfLoteResult {
+  total: number;
+  sucesso: number;
+  falhas: number;
+  itens: TituloPdfLoteItem[];
+}
+
+export type TituloPdfLoteDownload =
+  | { ok: true; filename: string }
+  | { ok: false; resultado: TituloPdfLoteResult };
 
 export interface ConvenioBanco {
   id: string;
@@ -215,6 +275,27 @@ export interface FinDashboardResumo {
   valorNominalAberto: number;
 }
 
+export interface FinFluxoReceitaMes {
+  mes: string;
+  recebidoLiquido: number;
+  emitido: number;
+  inadimplencia: number;
+  taxas: number;
+}
+
+export interface FinFluxoReceitaEmpreendimento {
+  empreendimento: string;
+  mesInicial: string;
+  mesFinal: string;
+  meses: FinFluxoReceitaMes[];
+}
+
+export interface FinFluxoReceita {
+  mesInicial: string | null;
+  mesFinal: string | null;
+  empreendimentos: FinFluxoReceitaEmpreendimento[];
+}
+
 export interface TituloContextoLote {
   imovelId: number;
   contratoId: number;
@@ -223,7 +304,7 @@ export interface TituloContextoLote {
   quadra: string;
   lote: number;
   numeroParcela: number;
-  valorNominal: number;
+  valorNominal?: number | null;
   diaVencimentoMensal: number;
   vencimentoSugerido: string;
   primeiroTituloLote: boolean;
@@ -231,13 +312,14 @@ export interface TituloContextoLote {
   referenciaVencimento: string;
   parcelaReajusteLimite: number;
   maxParcelasPermitidas: number;
-  percentualCorrecao?: number | null;
+  tipoCorrecaoAnual?: string | null;
   quantidadeParcelasFracionadas?: number | null;
   valorFracionadoVendedora?: number | null;
   valorParcela?: number | null;
   convenioId?: string | null;
   convenioNome?: string | null;
   avisoConvenio?: string | null;
+  avisoValorNominal?: string | null;
 }
 
 export interface EmpreendimentoConvenioItem {
@@ -280,10 +362,88 @@ export interface TituloAvulsoEmitir {
   vencimento: string;
 }
 
+export interface CobrancaGrupoMembro {
+  contratoId: number;
+  numeroContrato?: string | null;
+  quadra?: string | null;
+  lote?: number | null;
+  ordem: number;
+  maxParcelaAtiva: number;
+  proximaParcela: number;
+}
+
+export interface CobrancaGrupo {
+  id: string;
+  numeroContratoBase: string;
+  contratanteId: number;
+  contratanteNome?: string | null;
+  empreendimento: string;
+  contratoLiderId: number;
+  ativo: boolean;
+  membros: CobrancaGrupoMembro[];
+}
+
+export interface CobrancaGrupoSugestaoContrato {
+  contratoId: number;
+  numeroContrato?: string | null;
+  quadra?: string | null;
+  lote?: number | null;
+  maxParcelaAtiva: number;
+  proximaParcela: number;
+}
+
+export interface CobrancaGrupoSugestao {
+  numeroContratoBase: string;
+  contratanteId: number;
+  contratanteNome?: string | null;
+  empreendimento: string;
+  contratos: CobrancaGrupoSugestaoContrato[];
+  jaPossuiGrupoAtivo: boolean;
+}
+
+export interface CobrancaGrupoEmitirMembro {
+  contratoId: number;
+  /** Valor do lote quando o cálculo automático falha (ex.: série IGPM incompleta). */
+  valorNominal?: number;
+}
+
+export interface CobrancaGrupoEmitirPayload {
+  convenioId: string;
+  vencimento: string;
+  /** Parcela do líder; todos os lotes do grupo usam a mesma numeração. */
+  numeroParcela: number;
+  membros: CobrancaGrupoEmitirMembro[];
+}
+
+export interface CobrancaGrupoEmitirSimulacaoItem {
+  contratoId: number;
+  numeroContrato?: string | null;
+  quadra?: string | null;
+  lote?: number | null;
+  numeroParcela: number;
+  valorNominal: number | null;
+  aviso?: string | null;
+}
+
+export interface CobrancaGrupoEmitirSimulacao {
+  contratoLiderId: number;
+  numeroParcelaLider: number;
+  valorTotal: number;
+  prontoParaEmitir: boolean;
+  itens: CobrancaGrupoEmitirSimulacaoItem[];
+}
+
+export interface CobrancaGrupoEmitirResult {
+  titulo: TituloCobranca;
+  valorTotal: number;
+  rateios: CobrancaGrupoEmitirSimulacaoItem[];
+}
+
 export interface TituloCobrancaLoteCreate {
   contratoId: number;
   convenioId?: string;
   quantidadeParcelas: number;
+  /** Vencimento da 1ª parcela desta emissão; demais parcelas seguem o dia mensal do contrato. */
   dataPrimeiraParcela?: string;
 }
 
@@ -321,6 +481,8 @@ export interface TituloLegadoManualCreate {
   valorTarifa?: number;
   observacao?: string;
 }
+
+export type TituloLegadoManualUpdate = Omit<TituloLegadoManualCreate, "contratoId" | "convenioId">;
 
 export interface TituloLiquidarPayload {
   valorPago: number;
@@ -377,7 +539,8 @@ export interface LancamentoContabil {
 }
 
 export interface LancamentosListFilters {
-  contratoId?: number;
+  contrato?: string;
+  conta?: string;
   imovelId?: number;
   tituloId?: string;
   competenciaDe?: string;
@@ -526,26 +689,46 @@ export const finService = {
       status?: string;
       contratoId?: number;
       imovelId?: number;
+      vencimentoDe?: string;
+      vencimentoAte?: string;
+      cadastroDe?: string;
+      cadastroAte?: string;
+      pagamentoDe?: string;
+      pagamentoAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
       contrato?: string;
       nome?: string;
       cpf?: string;
+      nossoNumero?: string;
     },
+    sort?: { field: string; direction: "asc" | "desc" },
     options?: FinFetchOptions,
   ): Promise<SpringPage<TituloCobranca>> {
-    const url = getFinTitulosListUrl(page, size, {
-      status: filters?.status,
-      contratoId: filters?.contratoId,
-      imovelId: filters?.imovelId,
-      empreendimento: filters?.empreendimento,
-      quadra: filters?.quadra,
-      lote: filters?.lote,
-      contrato: filters?.contrato,
-      nome: filters?.nome,
-      cpf: filters?.cpf,
-    });
+    const url = getFinTitulosListUrl(
+      page,
+      size,
+      {
+        status: filters?.status,
+        contratoId: filters?.contratoId,
+        imovelId: filters?.imovelId,
+        vencimentoDe: filters?.vencimentoDe,
+        vencimentoAte: filters?.vencimentoAte,
+        cadastroDe: filters?.cadastroDe,
+        cadastroAte: filters?.cadastroAte,
+        pagamentoDe: filters?.pagamentoDe,
+        pagamentoAte: filters?.pagamentoAte,
+        empreendimento: filters?.empreendimento,
+        quadra: filters?.quadra,
+        lote: filters?.lote,
+        contrato: filters?.contrato,
+        nome: filters?.nome,
+        cpf: filters?.cpf,
+        nossoNumero: filters?.nossoNumero,
+      },
+      sort,
+    );
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
   },
@@ -625,9 +808,44 @@ export const finService = {
     return parseJson(res);
   },
 
+  /** Quadras com contrato assinado — seletor do boleto legado manual. */
+  async listQuadrasLegadoManual(
+    empreendimento: string,
+    options?: FinFetchOptions,
+  ): Promise<string[]> {
+    const res = await apiFetch(getFinTituloLegadoManualQuadrasUrl(empreendimento), {
+      skipLoading: options?.skipLoading,
+    });
+    return parseJson(res);
+  },
+
+  /** Lotes com contrato assinado — seletor do boleto legado manual. */
+  async listLotesLegadoManual(
+    opts: { empreendimento: string; quadra: string },
+    options?: FinFetchOptions,
+  ): Promise<number[]> {
+    const res = await apiFetch(
+      getFinTituloLegadoManualLotesUrl(opts.empreendimento, opts.quadra),
+      { skipLoading: options?.skipLoading },
+    );
+    return parseJson(res);
+  },
+
   async criarTituloLegadoManual(body: TituloLegadoManualCreate): Promise<TituloCobranca> {
     const res = await apiFetch(getFinTituloLegadoManualUrl(), {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async atualizarTituloLegadoManual(
+    id: string,
+    body: TituloLegadoManualUpdate,
+  ): Promise<TituloCobranca> {
+    const res = await apiFetch(getFinTituloLegadoManualByIdUrl(id), {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -685,12 +903,19 @@ export const finService = {
       status?: string;
       contratoId?: number;
       imovelId?: number;
+      vencimentoDe?: string;
+      vencimentoAte?: string;
+      cadastroDe?: string;
+      cadastroAte?: string;
+      pagamentoDe?: string;
+      pagamentoAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
       contrato?: string;
       nome?: string;
       cpf?: string;
+      nossoNumero?: string;
     },
     options?: FinFetchOptions,
   ): Promise<TituloIdsElegiveisRegistro> {
@@ -698,12 +923,19 @@ export const finService = {
       status: filters?.status,
       contratoId: filters?.contratoId,
       imovelId: filters?.imovelId,
+      vencimentoDe: filters?.vencimentoDe,
+      vencimentoAte: filters?.vencimentoAte,
+      cadastroDe: filters?.cadastroDe,
+      cadastroAte: filters?.cadastroAte,
+      pagamentoDe: filters?.pagamentoDe,
+      pagamentoAte: filters?.pagamentoAte,
       empreendimento: filters?.empreendimento,
       quadra: filters?.quadra,
       lote: filters?.lote,
       contrato: filters?.contrato,
       nome: filters?.nome,
       cpf: filters?.cpf,
+      nossoNumero: filters?.nossoNumero,
     });
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
@@ -718,6 +950,12 @@ export const finService = {
     return parseJson(res);
   },
 
+  /** EMITIDO com vencimento anterior a hoje passam para VENCIDO (mesmo job diário da API). */
+  async marcarTitulosVencidos(): Promise<{ marcados: number }> {
+    const res = await apiFetch(getFinTitulosMarcarVencidosUrl(), { method: "POST" });
+    return parseJson(res);
+  },
+
   async enfileirarWhatsAppCobrancaParcela(id: string): Promise<TituloWhatsAppCobrancaResult> {
     const res = await apiFetch(getFinTituloWhatsAppCobrancaParcelaUrl(id), { method: "POST" });
     return parseJson(res);
@@ -728,12 +966,19 @@ export const finService = {
       status?: string;
       contratoId?: number;
       imovelId?: number;
+      vencimentoDe?: string;
+      vencimentoAte?: string;
+      cadastroDe?: string;
+      cadastroAte?: string;
+      pagamentoDe?: string;
+      pagamentoAte?: string;
       empreendimento?: string;
       quadra?: string;
       lote?: number;
       contrato?: string;
       nome?: string;
       cpf?: string;
+      nossoNumero?: string;
     },
     options?: FinFetchOptions,
   ): Promise<TituloIdsElegiveisRegistro> {
@@ -741,12 +986,19 @@ export const finService = {
       status: filters?.status,
       contratoId: filters?.contratoId,
       imovelId: filters?.imovelId,
+      vencimentoDe: filters?.vencimentoDe,
+      vencimentoAte: filters?.vencimentoAte,
+      cadastroDe: filters?.cadastroDe,
+      cadastroAte: filters?.cadastroAte,
+      pagamentoDe: filters?.pagamentoDe,
+      pagamentoAte: filters?.pagamentoAte,
       empreendimento: filters?.empreendimento,
       quadra: filters?.quadra,
       lote: filters?.lote,
       contrato: filters?.contrato,
       nome: filters?.nome,
       cpf: filters?.cpf,
+      nossoNumero: filters?.nossoNumero,
     });
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
@@ -756,6 +1008,17 @@ export const finService = {
     tituloIds: string[],
   ): Promise<TituloWhatsAppCobrancaLoteResult> {
     const res = await apiFetch(getFinTitulosWhatsAppCobrancaParcelaLoteUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tituloIds }),
+    });
+    return parseJson(res);
+  },
+
+  async enfileirarEmailCobrancaParcelaEmLote(
+    tituloIds: string[],
+  ): Promise<TituloEmailCobrancaLoteResult> {
+    const res = await apiFetch(getFinTitulosEmailCobrancaParcelaLoteUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tituloIds }),
@@ -800,6 +1063,48 @@ export const finService = {
     status?: TituloCobrancaStatus,
   ): Promise<void> {
     await baixarBoletoPdf(id, { urlBoleto, pdfUrl: getFinTituloPdfUrl(id), status });
+  },
+
+  async downloadPdfLote(tituloIds: string[]): Promise<TituloPdfLoteDownload> {
+    const res = await apiFetch(getFinTitulosPdfLoteUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tituloIds }),
+    });
+    const contentType = res.headers.get("content-type") ?? "";
+    if (res.ok && contentType.includes("pdf")) {
+      const blob = await res.blob();
+      const filename =
+        tryGetFilenameFromDisposition(res.headers.get("content-disposition")) ??
+        `boletos-lote-${tituloIds.length}.pdf`;
+      baixarBlob(blob, filename);
+      return { ok: true, filename };
+    }
+    const text = await res.text().catch(() => "");
+    if (res.status === 422 && text.trim()) {
+      try {
+        const resultado = JSON.parse(text) as TituloPdfLoteResult;
+        if (Array.isArray(resultado.itens)) {
+          return { ok: false, resultado };
+        }
+      } catch {
+        // resposta não estruturada
+      }
+    }
+    let detail = "Erro ao baixar PDF em lote";
+    if (text.trim()) {
+      try {
+        const errBody = JSON.parse(text) as { message?: string };
+        if (errBody.message?.trim()) {
+          detail = errBody.message.trim();
+        } else {
+          detail = text.trim();
+        }
+      } catch {
+        detail = text.trim();
+      }
+    }
+    throw new Error(detail);
   },
 
   /** Somente convênios ativos (seleção em títulos, conciliação, etc.). */
@@ -851,6 +1156,11 @@ export const finService = {
 
   async dashboardResumo(): Promise<FinDashboardResumo> {
     const res = await apiFetch(getFinDashboardResumoUrl());
+    return parseJson(res);
+  },
+
+  async fluxoReceita(options?: FinFetchOptions): Promise<FinFluxoReceita> {
+    const res = await apiFetch(getFinFluxoReceitaUrl(), { skipLoading: options?.skipLoading });
     return parseJson(res);
   },
 
@@ -1083,6 +1393,72 @@ export const finService = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    });
+    return parseJson(res);
+  },
+
+  async listCobrancaGrupos(options?: FinFetchOptions): Promise<CobrancaGrupo[]> {
+    const res = await apiFetch(getFinCobrancaGruposUrl(), { skipLoading: options?.skipLoading });
+    return parseJson(res);
+  },
+
+  async listCobrancaGruposSugestoes(options?: FinFetchOptions): Promise<CobrancaGrupoSugestao[]> {
+    const res = await apiFetch(getFinCobrancaGruposSugestoesUrl(), { skipLoading: options?.skipLoading });
+    return parseJson(res);
+  },
+
+  async criarCobrancaGrupo(body: {
+    numeroContratoBase?: string;
+    contratoLiderId: number;
+    contratoIds: number[];
+  }): Promise<CobrancaGrupo> {
+    const res = await apiFetch(getFinCobrancaGruposUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async atualizarLiderCobrancaGrupo(
+    grupoId: string,
+    contratoLiderId: number,
+  ): Promise<CobrancaGrupo> {
+    const res = await apiFetch(getFinCobrancaGrupoLiderUrl(grupoId), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contratoLiderId }),
+    });
+    return parseJson(res);
+  },
+
+  async desativarCobrancaGrupo(grupoId: string): Promise<void> {
+    await apiFetch(getFinCobrancaGrupoDesativarUrl(grupoId), { method: "POST" });
+  },
+
+  async simularEmissaoCobrancaGrupo(
+    grupoId: string,
+    body: CobrancaGrupoEmitirPayload,
+  ): Promise<CobrancaGrupoEmitirSimulacao> {
+    const res = await apiFetch(getFinCobrancaGrupoSimularUrl(grupoId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async emitirCobrancaGrupo(
+    grupoId: string,
+    body: CobrancaGrupoEmitirPayload,
+    idempotencyKey?: string,
+  ): Promise<CobrancaGrupoEmitirResult> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+    const res = await apiFetch(getFinCobrancaGrupoEmitirUrl(grupoId), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
     });
     return parseJson(res);
   },

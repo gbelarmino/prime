@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Search, User, ExternalLink, Clock, FileText } from "lucide-react";
+import { Search, User, ExternalLink, Clock, FileText, Home } from "lucide-react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
-import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
+import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
@@ -80,6 +80,25 @@ const TABLE_PT = {
   },
 };
 
+const DIALOG_PT = {
+  header: {
+    className:
+      "border-b border-white/[0.06] bg-transparent px-6 py-5 font-[family-name:var(--font-playfair)] text-xl font-semibold text-white",
+  },
+  content: { className: "bg-transparent px-6 py-6" },
+  footer: { className: "border-t border-white/[0.06] bg-transparent px-6 py-5" },
+  mask: { className: "backdrop-blur-sm bg-black/40" },
+};
+
+function DetalheRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/[0.06] py-2.5 last:border-0">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-white/35">{label}</span>
+      <span className="text-sm font-medium text-white">{value}</span>
+    </div>
+  );
+}
+
 const MENU_PT = {
   root: { className: "bg-[#071C33] border-white/10 shadow-2xl rounded-xl py-2 w-max" },
   menu: { className: "p-0" },
@@ -122,6 +141,16 @@ function entidadeHref(row: UsuarioAtividadeApi): string | null {
     return `/dashboard/contratos/edit?id=${contratoFromMeta}`;
   }
   return null;
+}
+
+function imovelLabel(row: UsuarioAtividadeApi): string | null {
+  const empreendimento = row.imovelEmpreendimento?.trim();
+  if (!empreendimento) return null;
+  const parts = [empreendimento];
+  const quadra = row.imovelQuadra?.trim();
+  if (quadra) parts.push(`Q. ${quadra}`);
+  if (row.imovelLote != null) parts.push(`Lt. ${row.imovelLote}`);
+  return parts.join(" · ");
 }
 
 function entidadeLabel(row: UsuarioAtividadeApi): string {
@@ -247,6 +276,27 @@ export function AuditoriaList() {
   const acaoBodyTemplate = (rowData: UsuarioAtividadeApi) => (
     <span className="text-sm text-white/60">{labelAcaoAuditoria(rowData.acao)}</span>
   );
+
+  const imovelBodyTemplate = (rowData: UsuarioAtividadeApi) => {
+    const label = imovelLabel(rowData);
+    if (!label) {
+      return <span className="text-sm text-white/20">—</span>;
+    }
+    if (rowData.imovelId) {
+      return (
+        <Link
+          href={`/dashboard/imoveis/edit?id=${rowData.imovelId}`}
+          className="inline-flex items-center gap-2 text-sm text-cyan-400 no-underline transition-colors hover:text-cyan-300"
+          title={label}
+        >
+          <Home size={14} className="shrink-0 text-cyan-400/60" />
+          <span className="line-clamp-2">{label}</span>
+          <ExternalLink size={12} className="shrink-0 opacity-60" />
+        </Link>
+      );
+    }
+    return <span className="line-clamp-2 text-sm text-white/60">{label}</span>;
+  };
 
   const descricaoBodyTemplate = (rowData: UsuarioAtividadeApi) => {
     const desc = rowData.descricao?.trim();
@@ -394,61 +444,104 @@ export function AuditoriaList() {
         <Column header="Módulo" body={moduloBodyTemplate} />
         <Column header="Ação" body={acaoBodyTemplate} />
         <Column header="Descrição" body={descricaoBodyTemplate} />
+        <Column header="Imóvel" body={imovelBodyTemplate} />
         <Column header="Entidade" body={entidadeBodyTemplate} />
         <Column header="Ações" body={actionBodyTemplate} align="right" />
       </DataTable>
 
       <Menu model={actionItems} popup ref={menuRef} id="popup_menu_auditoria" pt={MENU_PT} />
 
-      <Dialog
+      <DashboardDialog
         visible={detalhe != null}
         onHide={() => setDetalhe(null)}
         header="Detalhe da atividade"
-        className="w-full max-w-2xl"
-        pt={{
-          root: { className: "rounded-3xl border border-white/10 bg-[#0a1628]" },
-          header: { className: "border-white/10 bg-transparent text-white" },
-          content: { className: "bg-transparent text-white/80" },
-        }}
+        className="w-full max-w-2xl border border-white/10 bg-[#071C33] shadow-2xl"
+        pt={DIALOG_PT}
+        footer={
+          <button
+            type="button"
+            onClick={() => setDetalhe(null)}
+            className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+          >
+            Fechar
+          </button>
+        }
       >
         {detalhe ? (
-          <div className="flex flex-col gap-4 text-sm">
-            <p>
-              <span className="text-white/40">Ação:</span>{" "}
-              <span className="font-mono text-amber-300">{detalhe.acao}</span>
-            </p>
-            {detalhe.requestPath ? (
-              <p>
-                <span className="text-white/40">Pedido:</span>{" "}
-                <span className="font-mono">
-                  {detalhe.httpMethod} {detalhe.requestPath}
-                </span>
-              </p>
-            ) : null}
-            {detalhe.ipOrigem ? (
-              <p>
-                <span className="text-white/40">IP:</span> {detalhe.ipOrigem}
-              </p>
-            ) : null}
+          <div className="flex flex-col gap-5 text-white">
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4">
+              <DetalheRow label="Quando" value={formatDataHora(detalhe.dataHora)} />
+              <DetalheRow
+                label="Utilizador"
+                value={detalhe.usuarioEmail?.trim() || "—"}
+              />
+              <DetalheRow
+                label="Módulo"
+                value={MODULO_LABELS[detalhe.modulo] ?? detalhe.modulo}
+              />
+              <DetalheRow
+                label="Ação"
+                value={
+                  <span className="font-mono text-amber-300">{detalhe.acao}</span>
+                }
+              />
+              {detalhe.descricao?.trim() ? (
+                <DetalheRow label="Descrição" value={detalhe.descricao.trim()} />
+              ) : null}
+              {imovelLabel(detalhe) ? (
+                <DetalheRow
+                  label="Imóvel"
+                  value={
+                    detalhe.imovelId ? (
+                      <Link
+                        href={`/dashboard/imoveis/edit?id=${detalhe.imovelId}`}
+                        className="text-cyan-400 no-underline hover:text-cyan-300"
+                      >
+                        {imovelLabel(detalhe)}
+                      </Link>
+                    ) : (
+                      imovelLabel(detalhe)
+                    )
+                  }
+                />
+              ) : null}
+              {detalhe.requestPath ? (
+                <DetalheRow
+                  label="Pedido"
+                  value={
+                    <span className="font-mono text-xs text-white/80">
+                      {detalhe.httpMethod} {detalhe.requestPath}
+                    </span>
+                  }
+                />
+              ) : null}
+              {detalhe.ipOrigem ? (
+                <DetalheRow label="IP" value={detalhe.ipOrigem} />
+              ) : null}
+            </div>
             {detalhe.metadados && Object.keys(detalhe.metadados).length > 0 ? (
               <div>
-                <p className="mb-2 text-white/40">Metadados</p>
-                <pre className="max-h-48 overflow-auto rounded-xl border border-white/10 bg-black/30 p-4 font-mono text-xs text-white/70">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/35">
+                  Metadados
+                </p>
+                <pre className="max-h-48 overflow-auto rounded-xl border border-white/10 bg-white/[0.04] p-4 font-mono text-xs text-white/70">
                   {JSON.stringify(detalhe.metadados, null, 2)}
                 </pre>
               </div>
             ) : null}
             {detalhe.alteracoes && Object.keys(detalhe.alteracoes).length > 0 ? (
               <div>
-                <p className="mb-2 text-white/40">Alterações</p>
-                <pre className="max-h-48 overflow-auto rounded-xl border border-white/10 bg-black/30 p-4 font-mono text-xs text-white/70">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/35">
+                  Alterações
+                </p>
+                <pre className="max-h-48 overflow-auto rounded-xl border border-white/10 bg-white/[0.04] p-4 font-mono text-xs text-white/70">
                   {JSON.stringify(detalhe.alteracoes, null, 2)}
                 </pre>
               </div>
             ) : null}
           </div>
         ) : null}
-      </Dialog>
+      </DashboardDialog>
     </div>
   );
 }

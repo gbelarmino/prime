@@ -10,11 +10,13 @@ import { toast } from "sonner";
 import {
   finService,
   formatContratoRef,
+  type TituloCobranca,
   type TituloContextoLote,
   type TituloLegadoManualCreate,
   type TituloLegadoManualStatus,
+  type TituloLegadoManualUpdate,
 } from "@/lib/fin-service";
-import { parseIsoDate } from "@/lib/fin-vencimento";
+import { parseIsoDate, formatIsoDate } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -34,6 +36,39 @@ const DROPDOWN_PT = {
   input: { className: FORM_INPUT_CLASS },
 };
 
+const CALENDAR_INPUT_CLASS = `${FORM_INPUT_CLASS} rounded-r-none`;
+
+/** Mesmo padrão do campo Data de Nascimento em `DadosPessoais`. */
+const DASHBOARD_CALENDAR_PT = {
+  panel: { className: "bg-[#071C33] border-white/10 shadow-2xl" },
+  header: { className: "bg-transparent border-white/5 p-2" },
+  title: { className: "text-white font-bold flex gap-2 justify-center" },
+  dropdownButton: {
+    root: {
+      className:
+        "bg-blue-600 border-none rounded-r-xl w-12 flex items-center justify-center",
+    },
+    icon: { className: "text-white text-lg" },
+  },
+};
+
+function calendarValueFromDate(date: Date | null): Date | null {
+  if (!date) return null;
+  return new Date(`${formatIsoDate(date)}T00:00:00`);
+}
+
+function onCalendarDateChange(
+  value: Date | Date[] | null | undefined,
+  setter: (date: Date | null) => void,
+) {
+  if (value instanceof Date) {
+    const d = value;
+    setter(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+    return;
+  }
+  setter(null);
+}
+
 const STATUS_LEGADO_OPTIONS: { label: string; value: TituloLegadoManualStatus }[] = [
   { label: "Emitido (aberto)", value: "EMITIDO" },
   { label: "Registrado", value: "REGISTRADO" },
@@ -42,25 +77,36 @@ const STATUS_LEGADO_OPTIONS: { label: string; value: TituloLegadoManualStatus }[
   { label: "Cancelado", value: "CANCELADO" },
 ];
 
-function formatDateIso(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function statusLegadoFromTitulo(status: string): TituloLegadoManualStatus {
+  if (STATUS_LEGADO_OPTIONS.some((o) => o.value === status)) {
+    return status as TituloLegadoManualStatus;
+  }
+  return "EMITIDO";
+}
+
+function parseDataPagamento(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  return parseIsoDate(iso.slice(0, 10));
 }
 
 type TituloLegadoManualDialogProps = {
   visible: boolean;
   onHide: () => void;
-  onCreated?: () => void;
+  onCreated?: (titulo?: TituloCobranca) => void;
+  /** Modo edição: apenas títulos com `legado=true`. */
+  tituloId?: string | null;
 };
 
 export function TituloLegadoManualDialog({
   visible,
   onHide,
   onCreated,
+  tituloId = null,
 }: TituloLegadoManualDialogProps) {
+  const isEditMode = Boolean(tituloId);
   const [saving, setSaving] = useState(false);
+  const [tituloEdicao, setTituloEdicao] = useState<TituloCobranca | null>(null);
+  const [tituloEdicaoLoading, setTituloEdicaoLoading] = useState(false);
   const [empreendimentos, setEmpreendimentos] = useState<string[]>([]);
   const [empreendimentosLoading, setEmpreendimentosLoading] = useState(false);
   const [selectedEmpreendimento, setSelectedEmpreendimento] = useState<string | null>(null);
@@ -90,6 +136,7 @@ export function TituloLegadoManualDialog({
   const [observacao, setObservacao] = useState("");
 
   const resetForm = useCallback(() => {
+    setTituloEdicao(null);
     setSelectedEmpreendimento(null);
     setSelectedQuadra(null);
     setSelectedLote(null);
@@ -121,45 +168,76 @@ export function TituloLegadoManualDialog({
 
   useEffect(() => {
     if (!visible) return;
+    if (isEditMode && tituloId) {
+      setTituloEdicaoLoading(true);
+      finService
+        .getTitulo(tituloId)
+        .then((t) => {
+          if (!t.legado) {
+            toast.error("Somente títulos legados podem ser editados.");
+            onHide();
+            return;
+          }
+          setTituloEdicao(t);
+          setNumeroParcela(t.numeroParcela);
+          setValorNominal(t.valorNominal);
+          setVencimento(parseIsoDate(t.vencimento));
+          setStatusFinal(statusLegadoFromTitulo(t.status));
+          setNossoNumero(t.nossoNumero ?? "");
+          setLinhaDigitavel(t.linhaDigitavel ?? "");
+          setCodigoBarras(t.codigoBarras ?? "");
+          setIdExternoBanco(t.idExternoBanco ?? "");
+          setUrlBoleto(t.urlBoleto ?? "");
+          setValorPago(t.valorPago ?? null);
+          setDataPagamento(parseDataPagamento(t.dataPagamento));
+          setValorJuros(t.valorJuros ?? null);
+          setValorMulta(t.valorMulta ?? null);
+          setValorTarifa(t.valorTarifa ?? null);
+          setObservacao("");
+        })
+        .catch(() => toast.error("Falha ao carregar título legado."))
+        .finally(() => setTituloEdicaoLoading(false));
+      return;
+    }
     setEmpreendimentosLoading(true);
     finService
       .listEmpreendimentos({ skipLoading: true })
       .then(setEmpreendimentos)
       .catch(() => toast.error("Falha ao carregar empreendimentos."))
       .finally(() => setEmpreendimentosLoading(false));
-  }, [visible]);
+  }, [visible, isEditMode, tituloId, onHide]);
 
   useEffect(() => {
-    if (!visible || !selectedEmpreendimento) {
+    if (!visible || isEditMode || !selectedEmpreendimento) {
       setQuadras([]);
       return;
     }
     setQuadrasLoading(true);
     finService
-      .listQuadrasImovel({ empreendimento: selectedEmpreendimento }, { skipLoading: true })
+      .listQuadrasLegadoManual(selectedEmpreendimento, { skipLoading: true })
       .then(setQuadras)
-      .catch(() => toast.error("Falha ao carregar quadras."))
+      .catch(() => toast.error("Falha ao carregar quadras com contrato assinado."))
       .finally(() => setQuadrasLoading(false));
-  }, [visible, selectedEmpreendimento]);
+  }, [visible, isEditMode, selectedEmpreendimento]);
 
   useEffect(() => {
-    if (!visible || !selectedQuadra) {
+    if (!visible || isEditMode || !selectedQuadra) {
       setLotes([]);
       return;
     }
     setLotesLoading(true);
     finService
-      .listLotesImovel(
+      .listLotesLegadoManual(
         { empreendimento: selectedEmpreendimento ?? "", quadra: selectedQuadra },
         { skipLoading: true },
       )
       .then(setLotes)
-      .catch(() => toast.error("Falha ao carregar lotes."))
+      .catch(() => toast.error("Falha ao carregar lotes com contrato assinado."))
       .finally(() => setLotesLoading(false));
-  }, [visible, selectedEmpreendimento, selectedQuadra]);
+  }, [visible, isEditMode, selectedEmpreendimento, selectedQuadra]);
 
   useEffect(() => {
-    if (!visible || !selectedQuadra || selectedLote == null) {
+    if (!visible || isEditMode || !selectedQuadra || selectedLote == null) {
       setContexto(null);
       return;
     }
@@ -169,15 +247,18 @@ export function TituloLegadoManualDialog({
       .then((ctx) => {
         setContexto(ctx);
         setNumeroParcela(ctx.numeroParcela);
-        setValorNominal(ctx.valorNominal);
+        setValorNominal(ctx.valorNominal ?? null);
         setVencimento(parseIsoDate(ctx.vencimentoSugerido));
+        if (ctx.avisoValorNominal) {
+          toast.warning(ctx.avisoValorNominal);
+        }
       })
       .catch((e) => {
         setContexto(null);
         toast.error(e instanceof Error ? e.message : "Lote sem contrato ativo para cobrança.");
       })
       .finally(() => setContextoLoading(false));
-  }, [visible, selectedEmpreendimento, selectedQuadra, selectedLote]);
+  }, [visible, isEditMode, selectedEmpreendimento, selectedQuadra, selectedLote]);
 
   useEffect(() => {
     if (statusFinal === "PAGO" && valorPago == null && valorNominal != null) {
@@ -186,53 +267,72 @@ export function TituloLegadoManualDialog({
   }, [statusFinal, valorPago, valorNominal]);
 
   const podeSalvar =
-    contexto != null &&
+    (isEditMode ? tituloEdicao != null : contexto != null) &&
     numeroParcela != null &&
     numeroParcela > 0 &&
     valorNominal != null &&
     valorNominal > 0 &&
     vencimento != null &&
-    !contexto?.avisoConvenio &&
+    (isEditMode || !contexto?.avisoConvenio) &&
     (statusFinal !== "PAGO" || (valorPago != null && valorPago > 0 && dataPagamento != null));
 
+  const buildPayloadBase = (): TituloLegadoManualUpdate => {
+    const body: TituloLegadoManualUpdate = {
+      numeroParcela: numeroParcela!,
+      valorNominal: valorNominal!,
+      vencimento: formatIsoDate(vencimento!),
+      statusFinal,
+      nossoNumero: nossoNumero.trim() || undefined,
+      linhaDigitavel: linhaDigitavel.trim() || undefined,
+      codigoBarras: codigoBarras.trim() || undefined,
+      idExternoBanco: idExternoBanco.trim() || undefined,
+      urlBoleto: urlBoleto.trim() || undefined,
+      observacao: observacao.trim() || undefined,
+    };
+    if (statusFinal === "PAGO" && valorPago != null && dataPagamento) {
+      body.valorPago = valorPago;
+      body.dataPagamento = formatIsoDate(dataPagamento);
+      if (valorJuros != null) body.valorJuros = valorJuros;
+      if (valorMulta != null) body.valorMulta = valorMulta;
+      if (valorDesconto != null) body.valorDesconto = valorDesconto;
+      if (valorTarifa != null) body.valorTarifa = valorTarifa;
+    }
+    return body;
+  };
+
   const salvar = async () => {
-    if (!contexto || !vencimento || numeroParcela == null || valorNominal == null) {
-      toast.error("Preencha contrato, parcela, valor e vencimento.");
+    if (!vencimento || numeroParcela == null || valorNominal == null) {
+      toast.error("Preencha parcela, valor e vencimento.");
       return;
     }
-    if (contexto.avisoConvenio) {
+    if (!isEditMode && contexto?.avisoConvenio) {
       toast.error(contexto.avisoConvenio);
       return;
     }
     setSaving(true);
     try {
-      const body: TituloLegadoManualCreate = {
-        contratoId: contexto.contratoId,
-        numeroParcela,
-        valorNominal,
-        vencimento: formatDateIso(vencimento),
-        statusFinal,
-        nossoNumero: nossoNumero.trim() || undefined,
-        linhaDigitavel: linhaDigitavel.trim() || undefined,
-        codigoBarras: codigoBarras.trim() || undefined,
-        idExternoBanco: idExternoBanco.trim() || undefined,
-        urlBoleto: urlBoleto.trim() || undefined,
-        observacao: observacao.trim() || undefined,
-      };
-      if (statusFinal === "PAGO" && valorPago != null && dataPagamento) {
-        body.valorPago = valorPago;
-        body.dataPagamento = formatDateIso(dataPagamento);
-        if (valorJuros != null) body.valorJuros = valorJuros;
-        if (valorMulta != null) body.valorMulta = valorMulta;
-        if (valorDesconto != null) body.valorDesconto = valorDesconto;
-        if (valorTarifa != null) body.valorTarifa = valorTarifa;
+      if (isEditMode && tituloId) {
+        const atualizado = await finService.atualizarTituloLegadoManual(tituloId, buildPayloadBase());
+        toast.success(`Título legado atualizado (parcela ${atualizado.numeroParcela}, ${atualizado.status}).`);
+        handleHide();
+        onCreated?.(atualizado);
+        return;
+      } else {
+        if (!contexto) {
+          toast.error("Selecione o lote do contrato.");
+          return;
+        }
+        const body: TituloLegadoManualCreate = {
+          ...buildPayloadBase(),
+          contratoId: contexto.contratoId,
+        };
+        const criado = await finService.criarTituloLegadoManual(body);
+        toast.success(`Título legado criado (parcela ${criado.numeroParcela}, ${criado.status}).`);
       }
-      const criado = await finService.criarTituloLegadoManual(body);
-      toast.success(`Título legado criado (parcela ${criado.numeroParcela}, ${criado.status}).`);
       handleHide();
       onCreated?.();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao lançar título legado.");
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar título legado.");
     } finally {
       setSaving(false);
     }
@@ -240,7 +340,7 @@ export function TituloLegadoManualDialog({
 
   return (
     <DashboardDialog
-      header="Lançamento manual legado"
+      header={isEditMode ? "Editar título legado" : "Lançamento manual legado"}
       visible={visible}
       onHide={handleHide}
       className="w-full max-w-2xl border border-white/10 bg-[#071C33] shadow-2xl"
@@ -258,21 +358,40 @@ export function TituloLegadoManualDialog({
           </button>
           <button
             type="button"
-            disabled={saving || !podeSalvar || contextoLoading}
+            disabled={saving || !podeSalvar || contextoLoading || tituloEdicaoLoading}
             onClick={() => void salvar()}
             className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-amber-900/30 transition hover:bg-amber-500 disabled:pointer-events-none disabled:opacity-50"
           >
-            {saving ? "A lançar…" : "Lançar título"}
+            {saving
+              ? isEditMode
+                ? "A guardar…"
+                : "A lançar…"
+              : isEditMode
+                ? "Guardar alterações"
+                : "Lançar título"}
           </button>
         </div>
       }
     >
       <p className="mb-5 text-sm leading-relaxed text-white/45">
-        Importa títulos históricos já emitidos ou quitados, sem registro no banco. O vencimento pode ser
-        retroativo. Para parcelas já pagas, escolha status Pago e informe valor e data do pagamento.
+        {isEditMode
+          ? "Altere dados históricos importados ou lançados manualmente. Títulos emitidos pelo sistema não podem ser editados aqui."
+          : "Importa títulos históricos já emitidos ou quitados, sem registro no banco. O vencimento pode ser retroativo. Para parcelas já pagas, escolha status Pago e informe valor e data do pagamento."}
       </p>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        {isEditMode && tituloEdicao ? (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100/90 sm:col-span-2">
+            Contrato{" "}
+            <span className="font-mono font-semibold text-white">
+              {formatContratoRef(tituloEdicao.numeroContrato, tituloEdicao.contratoId)}
+            </span>
+            {" · "}
+            Convênio: {tituloEdicao.convenioNome}
+            {tituloEdicaoLoading ? " — a carregar…" : null}
+          </div>
+        ) : (
+          <>
         <div className="flex flex-col gap-2 sm:col-span-2">
           <label className={FORM_LABEL_CLASS}>Empreendimento</label>
           <Dropdown
@@ -329,6 +448,14 @@ export function TituloLegadoManualDialog({
           </div>
         ) : null}
 
+        {contexto?.avisoValorNominal ? (
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200/90 sm:col-span-2">
+            {contexto.avisoValorNominal} Informe o valor nominal manualmente.
+          </div>
+        ) : null}
+          </>
+        )}
+
         <div className="flex flex-col gap-2">
           <label className={FORM_LABEL_CLASS}>Parcela</label>
           <InputNumber
@@ -337,7 +464,7 @@ export function TituloLegadoManualDialog({
             min={1}
             className="w-full"
             inputClassName={FORM_INPUT_CLASS}
-            disabled={!contexto}
+            disabled={!isEditMode && !contexto}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -351,21 +478,27 @@ export function TituloLegadoManualDialog({
             minFractionDigits={2}
             className="w-full"
             inputClassName={FORM_INPUT_CLASS}
-            disabled={!contexto}
+            disabled={!isEditMode && !contexto}
           />
         </div>
         <div className="flex flex-col gap-2">
           <label className={FORM_LABEL_CLASS}>Vencimento</label>
           <Calendar
-            value={vencimento}
-            onChange={(e) => setVencimento(e.value as Date | null)}
+            value={calendarValueFromDate(vencimento)}
+            onChange={(e) => onCalendarDateChange(e.value, setVencimento)}
             dateFormat="dd/mm/yy"
+            placeholder="00/00/0000"
+            mask="99/99/9999"
             showIcon
+            locale="pt-BR"
+            icon="pi pi-calendar"
             className="w-full"
-            inputClassName={FORM_INPUT_CLASS}
-            disabled={!contexto}
+            inputClassName={CALENDAR_INPUT_CLASS}
+            pt={DASHBOARD_CALENDAR_PT}
+            disabled={!isEditMode && !contexto}
           />
         </div>
+        {!isEditMode ? (
         <div className="flex flex-col gap-2 sm:col-span-2">
           <label className={FORM_LABEL_CLASS}>Convênio (empreendimento)</label>
           {contexto?.avisoConvenio ? (
@@ -376,6 +509,7 @@ export function TituloLegadoManualDialog({
             <p className="text-sm font-medium text-white/80">{contexto?.convenioNome ?? "—"}</p>
           )}
         </div>
+        ) : null}
         <div className="flex flex-col gap-2 sm:col-span-2">
           <label className={FORM_LABEL_CLASS}>Status final</label>
           <Dropdown
@@ -453,12 +587,17 @@ export function TituloLegadoManualDialog({
             <div className="flex flex-col gap-2">
               <label className={FORM_LABEL_CLASS}>Data pagamento</label>
               <Calendar
-                value={dataPagamento}
-                onChange={(e) => setDataPagamento(e.value as Date | null)}
+                value={calendarValueFromDate(dataPagamento)}
+                onChange={(e) => onCalendarDateChange(e.value, setDataPagamento)}
                 dateFormat="dd/mm/yy"
+                placeholder="00/00/0000"
+                mask="99/99/9999"
                 showIcon
+                locale="pt-BR"
+                icon="pi pi-calendar"
                 className="w-full"
-                inputClassName={FORM_INPUT_CLASS}
+                inputClassName={CALENDAR_INPUT_CLASS}
+                pt={DASHBOARD_CALENDAR_PT}
               />
             </div>
             <div className="flex flex-col gap-2">

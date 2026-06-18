@@ -7,7 +7,10 @@ import {
   parseIsoDate,
 } from "@/lib/fin-vencimento";
 import {
+  acumularVariacaoFraction,
   detalheReajusteParcela,
+  mesCorteIndiceReajuste,
+  mesesIpcaParaReajuste,
   parcelaReajusteDoCiclo,
   REAJUSTE_PERCENTUAL_FIXO,
   type CondicoesValorNominal,
@@ -16,12 +19,31 @@ import {
 
 export type TipoIndiceSimulacao = "IPCA" | "IGPM";
 
+/** Índice configurado no contrato para reajuste (IPCA/IGPM). Null legado → IGPM; NENHUM → sem índice. */
+export function resolverTipoIndiceContrato(
+  tipoCorrecaoAnual?: string | null,
+): TipoIndiceSimulacao | null {
+  if (tipoCorrecaoAnual === "NENHUM") {
+    return null;
+  }
+  if (tipoCorrecaoAnual === "IPCA") {
+    return "IPCA";
+  }
+  return "IGPM";
+}
+
 export type IndiceSimulacaoParcela = {
   parcela: number;
   vencimento: string;
   valorSimulado: number;
   parcelaReajuste: boolean;
   reajusteAplicadoNestaParcela: boolean;
+  /** Parcela cujo vencimento cai no mês de corte do índice (fim da janela acumulada). */
+  marcoCorteIndice: boolean;
+  parcelaReajusteDestino: number | null;
+  indiceAcumuladoMarcoCorte: number | null;
+  mesCorteIndiceLabel: string | null;
+  mesesIndiceMarcoCorte: number | null;
   percentualFixoReajuste: number | null;
   indice12MesesReferencia: number | null;
   mesesIndiceReferencia: number | null;
@@ -81,6 +103,72 @@ function referenciaAntesPrimeiroVencimento(primeiroVencimento: Date): Date {
     primeiroVencimento.getMonth(),
     primeiroVencimento.getDate() - 1,
   );
+}
+
+function parcelaComVencimentoNoAnoMes(
+  alvoAnoMes: number,
+  vencimentos: Map<number, Date>,
+): number | null {
+  for (const [parcela, venc] of vencimentos) {
+    if (anoMesFromDate(venc) === alvoAnoMes) {
+      return parcela;
+    }
+  }
+  return null;
+}
+
+type MarcoCorteIndice = {
+  parcelaReajusteDestino: number;
+  indiceAcumuladoMarcoCorte: number;
+  mesCorteIndiceLabel: string;
+  mesesIndiceMarcoCorte: number;
+};
+
+function buildMarcadoresCorteIndice(opts: {
+  parcelaAtual: number;
+  vencimentos: Map<number, Date>;
+  condicoes: CondicoesValorNominal;
+  lookup: IndiceMensalLookup;
+  dataPrimeiraParcela: Date;
+  diaVencimentoMensal: number;
+}): Map<number, MarcoCorteIndice> {
+  const { parcelaAtual, vencimentos, condicoes, lookup, dataPrimeiraParcela, diaVencimentoMensal } =
+    opts;
+  const qtdFracionadas = condicoes.quantidadeParcelasFracionadas ?? 0;
+  const marcos = new Map<number, MarcoCorteIndice>();
+
+  const vencimentoParcela = (parcela: number): Date => {
+    const existente = vencimentos.get(parcela);
+    if (existente) return existente;
+    const detalhes = calcularVencimentosComPrimeiraParcelaDetalhe(
+      dataPrimeiraParcela,
+      diaVencimentoMensal,
+      parcela,
+    );
+    return detalhes[parcela - 1]?.vencimento ?? dataPrimeiraParcela;
+  };
+
+  for (let parcelaReajuste = 13; parcelaReajuste <= parcelaAtual + 12; parcelaReajuste += 12) {
+    const vencReajuste = vencimentoParcela(parcelaReajuste);
+    const anoMesCorte = mesCorteIndiceReajuste(vencReajuste);
+    const parcelaMarco = parcelaComVencimentoNoAnoMes(anoMesCorte, vencimentos);
+    if (parcelaMarco == null || parcelaMarco > parcelaAtual) continue;
+
+    const mesesIndice = mesesIpcaParaReajuste(parcelaReajuste, qtdFracionadas);
+    const indiceAcumulado =
+      condicoes.tipoCorrecaoAnual === "NENHUM"
+        ? 0
+        : acumularVariacaoFraction(lookup, anoMesCorte, mesesIndice) * 100;
+
+    marcos.set(parcelaMarco, {
+      parcelaReajusteDestino: parcelaReajuste,
+      indiceAcumuladoMarcoCorte: indiceAcumulado,
+      mesCorteIndiceLabel: formatAnoMesLabel(anoMesCorte),
+      mesesIndiceMarcoCorte: mesesIndice,
+    });
+  }
+
+  return marcos;
 }
 
 function buildIndiceLookup(indices: IndiceEconomicoMensal[]): IndiceMensalLookup {
@@ -199,6 +287,20 @@ export function simularParcelasIndice(opts: {
     }
   }
 
+  const vencimentoPorParcela = (parcela: number): Date =>
+    vencimentos.get(parcela) ??
+    detalhes[parcela - 1]?.vencimento ??
+    dataPrimeiraParcela;
+
+  const marcosCorte = buildMarcadoresCorteIndice({
+    parcelaAtual,
+    vencimentos,
+    condicoes,
+    lookup,
+    dataPrimeiraParcela,
+    diaVencimentoMensal,
+  });
+
   const resultados: IndiceSimulacaoParcela[] = [];
   for (let parcela = 1; parcela <= parcelaAtual; parcela++) {
     const detalhe = detalheReajusteParcela(
@@ -207,6 +309,7 @@ export function simularParcelasIndice(opts: {
       dataPrimeiraParcela,
       diaVencimentoMensal,
       lookup,
+      vencimentoPorParcela,
     );
     const reajusteNesta =
       parcela >= 13 && parcela === parcelaReajusteDoCiclo(parcela);
@@ -214,6 +317,7 @@ export function simularParcelasIndice(opts: {
     const valorEmitido = emitido?.valorNominal ?? null;
     const valor = detalhe.valorNominal;
     const divergencia = valorEmitido != null ? roundMoney(valorEmitido - valor) : null;
+    const marco = marcosCorte.get(parcela) ?? null;
 
     resultados.push({
       parcela,
@@ -221,6 +325,11 @@ export function simularParcelasIndice(opts: {
       valorSimulado: valor,
       parcelaReajuste: isParcelaReajuste(parcela),
       reajusteAplicadoNestaParcela: reajusteNesta,
+      marcoCorteIndice: marco != null,
+      parcelaReajusteDestino: marco?.parcelaReajusteDestino ?? null,
+      indiceAcumuladoMarcoCorte: marco?.indiceAcumuladoMarcoCorte ?? null,
+      mesCorteIndiceLabel: marco?.mesCorteIndiceLabel ?? null,
+      mesesIndiceMarcoCorte: marco?.mesesIndiceMarcoCorte ?? null,
       percentualFixoReajuste: reajusteNesta ? REAJUSTE_PERCENTUAL_FIXO : null,
       indice12MesesReferencia: reajusteNesta ? detalhe.ipcaAcumulado : null,
       mesesIndiceReferencia: reajusteNesta ? detalhe.mesesIpcaReferencia : null,

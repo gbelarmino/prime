@@ -252,8 +252,8 @@ export function ContratoViewModal({ contratoId, onClose }: Props) {
                   <span className="text-sm font-bold text-amber-400 uppercase tracking-tighter">{data.condicoes?.tipoCorrecaoAnual || "NENHUMA"}</span>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Percentual Reajuste</span>
-                  <span className="text-lg font-black text-white tabular-nums">{data.condicoes?.percentualCorrecao || 0}%</span>
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Juros remuneratórios</span>
+                  <span className="text-lg font-black text-white tabular-nums">{data.condicoes?.taxaJurosRemuneratorios ?? 6}%</span>
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Periodicidade</span>

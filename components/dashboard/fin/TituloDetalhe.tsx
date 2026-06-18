@@ -15,11 +15,14 @@ import {
   FileCheck,
   FileText,
   History,
+  Pencil,
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDataPagamentoExibicao } from "@/lib/fin-vencimento";
 import { dashboardCellText, dashboardStatusBadge } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
+import { TituloLegadoManualDialog } from "@/components/dashboard/fin/TituloLegadoManualDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
 import { labelAcaoBoletoPdf, podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import { atendimentoService } from "@/lib/atendimento-service";
@@ -67,6 +70,10 @@ function formatDateTime(iso: string | null | undefined): string {
 function formatMoney(v: number | null | undefined): string {
   if (v == null) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function hasValorPositivo(v: number | null | undefined): boolean {
+  return v != null && v > 0;
 }
 
 type ActionButtonProps = {
@@ -127,6 +134,7 @@ export function TituloDetalhe({
   const [dataPagamento, setDataPagamento] = useState<Date | null>(new Date());
   const [registrarDialogOpen, setRegistrarDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [editLegadoOpen, setEditLegadoOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -306,6 +314,11 @@ export function TituloDetalhe({
               {tituloTitulo}
             </h1>
             {dashboardStatusBadge(titulo.status, STATUS_TONES)}
+            {titulo.legado ? (
+              <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-300">
+                Legado
+              </span>
+            ) : null}
           </div>
           {titulo.convenioNome && (
             <p className="mt-2 text-sm font-medium text-white/40">{titulo.convenioNome}</p>
@@ -313,6 +326,14 @@ export function TituloDetalhe({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {!isAtendimentoView && titulo.legado && (
+            <ActionButton
+              label="Editar legado"
+              icon={<Pencil size={14} />}
+              disabled={actionLoading}
+              onClick={() => setEditLegadoOpen(true)}
+            />
+          )}
           {!isAtendimentoView && podeRegistrar && (
             <ActionButton
               label="Registrar"
@@ -395,7 +416,25 @@ export function TituloDetalhe({
           {titulo.dataPagamento && (
             <div>
               <span className={LABEL_CLASS}>Data pagamento</span>
-              <p className={VALUE_CLASS}>{formatDate(titulo.dataPagamento)}</p>
+              <p className={VALUE_CLASS}>{formatDataPagamentoExibicao(titulo.dataPagamento)}</p>
+            </div>
+          )}
+          {hasValorPositivo(titulo.valorJuros) && (
+            <div>
+              <span className={LABEL_CLASS}>Juros</span>
+              <p className={cn(VALUE_CLASS, "text-amber-300")}>{formatMoney(titulo.valorJuros)}</p>
+            </div>
+          )}
+          {hasValorPositivo(titulo.valorMulta) && (
+            <div>
+              <span className={LABEL_CLASS}>Multa</span>
+              <p className={cn(VALUE_CLASS, "text-amber-300")}>{formatMoney(titulo.valorMulta)}</p>
+            </div>
+          )}
+          {hasValorPositivo(titulo.valorTarifa) && (
+            <div>
+              <span className={LABEL_CLASS}>Taxas bancárias</span>
+              <p className={cn(VALUE_CLASS, "text-white/70")}>{formatMoney(titulo.valorTarifa)}</p>
             </div>
           )}
           <div className="sm:col-span-2 lg:col-span-3">
@@ -544,6 +583,19 @@ export function TituloDetalhe({
             convenioNome={titulo.convenioNome}
             onConfirm={() => void confirmarRegistrar()}
             loading={actionLoading}
+          />
+
+          <TituloLegadoManualDialog
+            visible={editLegadoOpen}
+            tituloId={tituloId}
+            onHide={() => setEditLegadoOpen(false)}
+            onCreated={(atualizado) => {
+              setEditLegadoOpen(false);
+              if (atualizado) {
+                setTitulo(atualizado);
+              }
+              void load();
+            }}
           />
         </>
       )}

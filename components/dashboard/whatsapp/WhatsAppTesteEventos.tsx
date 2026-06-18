@@ -156,7 +156,7 @@ export function WhatsAppTesteEventos() {
           className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          Actualizar
+          Atualizar
         </button>
       }
       surface="plain"

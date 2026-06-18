@@ -30,6 +30,7 @@ import {
   whatsappService,
   type WhatsAppFilaItem,
 } from "@/lib/whatsapp-service";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { WhatsAppSectionShell } from "@/components/dashboard/whatsapp/WhatsAppSectionShell";
 import {
   formatBusinessDateTimeWithSeconds,
@@ -95,6 +96,7 @@ export function WhatsAppFila() {
   const [loading, setLoading] = useState(true);
   const [pageData, setPageData] = useState<SpringPage<WhatsAppFilaItem> | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [cancelConfirmRow, setCancelConfirmRow] = useState<WhatsAppFilaItem | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const statusFilterRef = useRef(statusFilter);
   const pageRef = useRef(page);
@@ -266,15 +268,14 @@ export function WhatsAppFila() {
     }
   };
 
-  const handleCancelar = async (row: WhatsAppFilaItem) => {
-    if (!window.confirm("Cancelar o envio desta mensagem? Não será enviada automaticamente.")) {
-      return;
-    }
+  const confirmCancelarFila = async () => {
+    if (!cancelConfirmRow) return;
     setActionLoading(true);
     try {
-      const updated = await whatsappService.cancelarFila(row.id);
+      const updated = await whatsappService.cancelarFila(cancelConfirmRow.id);
       applyUpdate(updated);
       toast.success("Envio cancelado; a mensagem não será enviada.");
+      setCancelConfirmRow(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao cancelar.");
     } finally {
@@ -310,7 +311,7 @@ export function WhatsAppFila() {
           label: "Cancelar envio",
           icon: <Ban size={16} className="text-rose-400 transition-transform group-hover:scale-110" />,
           labelClassName: "text-rose-300/90",
-          onClick: () => void handleCancelar(row),
+          onClick: () => setCancelConfirmRow(row),
           disabled: actionLoading,
         }),
       );
@@ -356,7 +357,7 @@ export function WhatsAppFila() {
           className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          Actualizar
+          Atualizar
         </button>
       }
       surface="plain"
@@ -456,6 +457,22 @@ export function WhatsAppFila() {
           pt={dashboardActionsMenuPt()}
         />
       </DashboardDataTableShell>
+
+      <DashboardConfirmDialog
+        visible={!!cancelConfirmRow}
+        onHide={() => setCancelConfirmRow(null)}
+        onConfirm={() => void confirmCancelarFila()}
+        header="Cancelar envio"
+        tone="warning"
+        confirmLabel="Cancelar envio"
+        loading={actionLoading}
+        message={
+          <p>
+            A mensagem para <span className="font-semibold text-white">{cancelConfirmRow?.telefone}</span> deixará de
+            ser enviada automaticamente.
+          </p>
+        }
+      />
     </WhatsAppSectionShell>
   );
 }

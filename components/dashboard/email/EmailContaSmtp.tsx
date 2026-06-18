@@ -140,7 +140,7 @@ export function EmailContaSmtp() {
           className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/15 hover:bg-white/[0.07] disabled:opacity-40"
         >
           <RefreshCw className="h-4 w-4" />
-          Actualizar
+          Atualizar
         </button>
       }
     >

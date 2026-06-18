@@ -28,6 +28,7 @@ import {
 import { emailService, type EmailFilaItem } from "@/lib/email-service";
 import { formatBusinessDateTimeWithSeconds } from "@/lib/format-datetime";
 import type { SpringPage } from "@/lib/spring-page";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
@@ -86,6 +87,7 @@ export function EmailFila() {
   const [loading, setLoading] = useState(true);
   const [pageData, setPageData] = useState<SpringPage<EmailFilaItem> | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [cancelConfirmRow, setCancelConfirmRow] = useState<EmailFilaItem | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,14 +127,13 @@ export function EmailFila() {
     }
   };
 
-  const handleCancelar = async (row: EmailFilaItem) => {
-    if (!window.confirm("Cancelar o envio deste e-mail? Não será enviado automaticamente.")) {
-      return;
-    }
+  const confirmCancelarFila = async () => {
+    if (!cancelConfirmRow) return;
     setActionLoading(true);
     try {
-      await emailService.cancelarFila(row.id);
+      await emailService.cancelarFila(cancelConfirmRow.id);
       toast.success("Envio cancelado.");
+      setCancelConfirmRow(null);
       void load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao cancelar.");
@@ -167,7 +168,7 @@ export function EmailFila() {
           label: "Cancelar envio",
           icon: <Ban size={16} className="text-rose-400 transition-transform group-hover:scale-110" />,
           labelClassName: "text-rose-300/90",
-          onClick: () => void handleCancelar(row),
+          onClick: () => setCancelConfirmRow(row),
           disabled: actionLoading,
         }),
       );
@@ -288,7 +289,7 @@ export function EmailFila() {
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/60 transition-colors hover:text-white disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          Actualizar
+          Atualizar
         </button>
       </div>
       <p className="text-sm text-white/40">
@@ -332,6 +333,22 @@ export function EmailFila() {
         popup
         ref={menuRef}
         pt={dashboardActionsMenuPt()}
+      />
+
+      <DashboardConfirmDialog
+        visible={!!cancelConfirmRow}
+        onHide={() => setCancelConfirmRow(null)}
+        onConfirm={() => void confirmCancelarFila()}
+        header="Cancelar envio"
+        tone="warning"
+        confirmLabel="Cancelar envio"
+        loading={actionLoading}
+        message={
+          <p>
+            O e-mail para <span className="font-semibold text-white">{cancelConfirmRow?.destinatario}</span> deixará de
+            ser enviado automaticamente.
+          </p>
+        }
       />
     </div>
   );

@@ -10,6 +10,7 @@ import {
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
@@ -29,6 +30,8 @@ export function WhatsAppTemplates() {
   const [currentTemplate, setCurrentTemplate] = useState<WhatsAppTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const [placeholdersRef, setPlaceholdersRef] = useState<EventoPlaceholderCatalogo[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<WhatsAppTemplate | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const defaultCodigoEvento = () =>
     eventosCatalogo.length > 0 ? eventosCatalogo[0].codigo : "CONTRATO_CRIADO";
@@ -108,15 +111,18 @@ export function WhatsAppTemplates() {
     setShowDialog(true);
   };
 
-  const handleDelete = async (template: WhatsAppTemplate) => {
-    if (!confirm(`Deseja realmente excluir o modelo "${template.nome}"?`)) return;
-
+  const confirmDeleteTemplate = async () => {
+    if (!deleteConfirm?.id) return;
+    setDeleting(true);
     try {
-      await whatsappService.deleteTemplate(template.id!);
+      await whatsappService.deleteTemplate(deleteConfirm.id);
       toast.success("Modelo excluído com sucesso");
+      setDeleteConfirm(null);
       void fetchTemplates();
     } catch {
       toast.error("Erro ao excluir modelo");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -185,7 +191,7 @@ export function WhatsAppTemplates() {
         </button>
       ),
       command: () => {
-        if (selectedRow) void handleDelete(selectedRow);
+        if (selectedRow) setDeleteConfirm(selectedRow);
       },
     },
   ];
@@ -458,6 +464,23 @@ export function WhatsAppTemplates() {
           menuitem: { className: "transition-all duration-200" },
           action: { className: "flex items-center px-0 py-0 no-underline" },
         }}
+      />
+
+      <DashboardConfirmDialog
+        visible={!!deleteConfirm}
+        onHide={() => setDeleteConfirm(null)}
+        onConfirm={() => void confirmDeleteTemplate()}
+        header="Excluir modelo"
+        tone="danger"
+        confirmLabel="Excluir"
+        loading={deleting}
+        message={
+          <p>
+            Deseja excluir o modelo{" "}
+            <span className="font-semibold text-white">«{deleteConfirm?.nome}»</span>? Esta ação não pode ser
+            desfeita.
+          </p>
+        }
       />
     </>
   );

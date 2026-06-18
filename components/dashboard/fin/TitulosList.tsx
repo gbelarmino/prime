@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DataTable, type DataTablePageEvent } from "primereact/datatable";
+import { DataTable, type DataTablePageEvent, type DataTableSortEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { InputNumber } from "primereact/inputnumber";
 import { Calendar } from "primereact/calendar";
@@ -12,7 +13,18 @@ import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
-import { Ban, Download, Eye, FileCheck, MessageCircle, RefreshCw } from "lucide-react";
+import {
+  Ban,
+  CalendarClock,
+  Download,
+  Eye,
+  FileCheck,
+  FilePenLine,
+  Mail,
+  MessageCircle,
+  MonitorCog,
+  RefreshCw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import {
@@ -28,14 +40,18 @@ import {
 } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
+import { TituloPdfLoteDialog } from "@/components/dashboard/fin/TituloPdfLoteDialog";
 import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegistrarLoteDialog";
+import { TituloEmailLoteDialog } from "@/components/dashboard/fin/TituloEmailLoteDialog";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import {
   finService,
   formatContratoRef,
   type TituloCobranca,
   type TituloContextoLote,
+  type TituloPdfLoteResult,
   type TituloRegistrarLoteResult,
+  type TituloEmailCobrancaLoteResult,
   type TituloWhatsAppCobrancaLoteResult,
 } from "@/lib/fin-service";
 import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
@@ -49,10 +65,16 @@ import {
   calcularVencimentosComPrimeiraParcelaDetalhe,
   calcularVencimentosParcelasDetalhe,
   diaSemanaCurto,
+  formatDataPagamentoExibicao,
   formatIsoDate,
+  inicioDoDiaHoje,
+  isVencimentoFuturo,
+  isVencimentoValidoParaNovoTitulo,
+  normalizarDataCalendario,
   parseIsoDate,
 } from "@/lib/fin-vencimento";
 import type { SpringPage } from "@/lib/spring-page";
+import { springPageDisplayRange } from "@/lib/spring-page";
 
 const STATUS_OPTIONS = [
   { label: "Todos", value: "" },
@@ -76,10 +98,61 @@ const STATUS_TONES: Record<string, string> = {
   ERRO_REGISTRO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 12;
 const LOTE_MAX = 50;
+
+type TitulosSortField =
+  | "cadastroEm"
+  | "numeroParcela"
+  | "nossoNumero"
+  | "vencimento"
+  | "dataPagamento"
+  | "valorNominal"
+  | "status"
+  | "contratoId";
+
+const DEFAULT_SORT_FIELD: TitulosSortField = "cadastroEm";
+const DEFAULT_SORT_ORDER = -1;
+
+const TITULOS_SORT_FIELDS = new Set<string>([
+  "cadastroEm",
+  "numeroParcela",
+  "nossoNumero",
+  "vencimento",
+  "dataPagamento",
+  "valorNominal",
+  "status",
+  "contratoId",
+]);
+
+function isTitulosSortField(value: string): value is TitulosSortField {
+  return TITULOS_SORT_FIELDS.has(value);
+}
+const PAGINATOR_TEMPLATE =
+  "FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport";
+const CURRENT_PAGE_REPORT_TEMPLATE = "{first}–{last} de {totalRecords}";
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
-const FILTER_INPUT_CLASS = "w-full rounded-xl border-white/10 bg-white/5 text-white";
+const TABLE_PT_WITH_REPORT = {
+  ...TABLE_PT,
+  header: { className: "border-white/5 bg-transparent px-6 pt-5 pb-0" },
+  paginator: {
+    ...(TABLE_PT.paginator as Record<string, unknown>),
+    root: {
+      className:
+        "border-white/5 bg-transparent p-6 flex flex-wrap items-center justify-center gap-2",
+    },
+    current: {
+      className:
+        "text-[10px] font-bold text-white/40 uppercase tracking-widest ml-0 sm:ml-2 w-full text-center sm:w-auto sm:text-left",
+    },
+  },
+};
+const FILTER_INPUT_CLASS =
+  "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white/70 placeholder:text-white/25 focus:border-blue-500/50 focus:outline-none transition-all [color-scheme:dark]";
+const FILTER_LABEL_CLASS =
+  "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35 leading-none";
+const FILTER_DATE_CLASS =
+  "bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white/70 focus:outline-none focus:border-blue-500/50 transition-all min-w-[140px] [color-scheme:dark]";
 const FILTRO_TODOS = "";
 
 const FILTER_DROPDOWN_PT = {
@@ -132,8 +205,37 @@ function tituloElegivelWhatsApp(status: TituloCobranca["status"]): boolean {
   return status === "EMITIDO";
 }
 
+function tituloElegivelPdf(status: TituloCobranca["status"]): boolean {
+  return podeBaixarPdfBoleto(status);
+}
+
 function tituloSelecionavel(status: TituloCobranca["status"]): boolean {
-  return tituloRegistravel(status) || tituloElegivelWhatsApp(status);
+  return (
+    tituloRegistravel(status) || tituloElegivelWhatsApp(status) || tituloElegivelPdf(status)
+  );
+}
+
+function TituloOrigemEmissaoIcon({ legado }: { legado?: boolean }) {
+  if (legado) {
+    return (
+      <span
+        title="Emissão manual / legado"
+        className="inline-flex items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 p-1.5 text-amber-300"
+        aria-label="Emissão manual / legado"
+      >
+        <FilePenLine size={14} strokeWidth={2} aria-hidden />
+      </span>
+    );
+  }
+  return (
+    <span
+      title="Emitido pelo sistema"
+      className="inline-flex items-center justify-center rounded-lg border border-sky-500/25 bg-sky-500/10 p-1.5 text-sky-300"
+      aria-label="Emitido pelo sistema"
+    >
+      <MonitorCog size={14} strokeWidth={2} aria-hidden />
+    </span>
+  );
 }
 
 export function TitulosList({
@@ -150,6 +252,7 @@ export function TitulosList({
   const [filterContrato, setFilterContrato] = useState("");
   const [filterNome, setFilterNome] = useState("");
   const [filterCpf, setFilterCpf] = useState("");
+  const [filterNossoNumero, setFilterNossoNumero] = useState("");
   const [filterEmpreendimento, setFilterEmpreendimento] = useState(FILTRO_TODOS);
   const [filterQuadra, setFilterQuadra] = useState(FILTRO_TODOS);
   const [filterLote, setFilterLote] = useState<number | null>(null);
@@ -157,8 +260,18 @@ export function TitulosList({
   const [filterQuadrasLoading, setFilterQuadrasLoading] = useState(false);
   const [filterLotes, setFilterLotes] = useState<number[]>([]);
   const [filterLotesLoading, setFilterLotesLoading] = useState(false);
+  const [filterVencimentoDe, setFilterVencimentoDe] = useState("");
+  const [filterVencimentoAte, setFilterVencimentoAte] = useState("");
+  const [filterEmissaoDe, setFilterEmissaoDe] = useState("");
+  const [filterEmissaoAte, setFilterEmissaoAte] = useState("");
+  const [filterPagamentoDe, setFilterPagamentoDe] = useState("");
+  const [filterPagamentoAte, setFilterPagamentoAte] = useState("");
   const [page, setPage] = useState(0);
+  const [sortField, setSortField] = useState<TitulosSortField>(DEFAULT_SORT_FIELD);
+  const [sortOrder, setSortOrder] = useState<1 | -1 | 0 | null | undefined>(DEFAULT_SORT_ORDER);
   const [refreshing, setRefreshing] = useState(false);
+  const [marcandoVencidos, setMarcandoVencidos] = useState(false);
+  const [marcarVencidosDialogOpen, setMarcarVencidosDialogOpen] = useState(false);
   const hasLoadedRef = useRef(false);
   const [pageData, setPageData] = useState<SpringPage<TituloCobranca> | null>(null);
   const [saving, setSaving] = useState(false);
@@ -187,6 +300,11 @@ export function TitulosList({
   const [whatsappLoteDialogOpen, setWhatsappLoteDialogOpen] = useState(false);
   const [whatsappLoteResultado, setWhatsappLoteResultado] =
     useState<TituloWhatsAppCobrancaLoteResult | null>(null);
+  const [emailLoteDialogOpen, setEmailLoteDialogOpen] = useState(false);
+  const [emailLoteResultado, setEmailLoteResultado] =
+    useState<TituloEmailCobrancaLoteResult | null>(null);
+  const [pdfLoteDialogOpen, setPdfLoteDialogOpen] = useState(false);
+  const [pdfLoteResultado, setPdfLoteResultado] = useState<TituloPdfLoteResult | null>(null);
   const [selecionandoTodos, setSelecionandoTodos] = useState(false);
 
   const titulosRegistraveisSelecionados = useMemo(
@@ -196,6 +314,11 @@ export function TitulosList({
 
   const titulosWhatsAppSelecionados = useMemo(
     () => selectedTitulos.filter((t) => tituloElegivelWhatsApp(t.status)),
+    [selectedTitulos],
+  );
+
+  const titulosPdfSelecionados = useMemo(
+    () => selectedTitulos.filter((t) => tituloElegivelPdf(t.status)),
     [selectedTitulos],
   );
 
@@ -221,6 +344,13 @@ export function TitulosList({
       contrato: filterContrato.trim() || undefined,
       nome: filterNome.trim() || undefined,
       cpf: filterCpf.trim() || undefined,
+      nossoNumero: filterNossoNumero.trim() || undefined,
+      vencimentoDe: filterVencimentoDe || undefined,
+      vencimentoAte: filterVencimentoAte || undefined,
+      cadastroDe: filterEmissaoDe || undefined,
+      cadastroAte: filterEmissaoAte || undefined,
+      pagamentoDe: filterPagamentoDe || undefined,
+      pagamentoAte: filterPagamentoAte || undefined,
     }),
     [
       statusFilter,
@@ -231,6 +361,13 @@ export function TitulosList({
       filterContrato,
       filterNome,
       filterCpf,
+      filterNossoNumero,
+      filterVencimentoDe,
+      filterVencimentoAte,
+      filterEmissaoDe,
+      filterEmissaoAte,
+      filterPagamentoDe,
+      filterPagamentoAte,
     ],
   );
 
@@ -249,6 +386,10 @@ export function TitulosList({
           pageToLoad,
           PAGE_SIZE,
           buildListFilters(overrides?.status),
+          {
+            field: sortField,
+            direction: sortOrder === 1 ? "asc" : "desc",
+          },
           { skipLoading },
         );
         setPageData(data);
@@ -262,7 +403,7 @@ export function TitulosList({
         hasLoadedRef.current = true;
       }
     },
-    [page, buildListFilters],
+    [page, sortField, sortOrder, buildListFilters],
   );
 
   useEffect(() => {
@@ -277,9 +418,16 @@ export function TitulosList({
     filterContrato,
     filterNome,
     filterCpf,
+    filterNossoNumero,
     filterEmpreendimento,
     filterQuadra,
     filterLote,
+    filterVencimentoDe,
+    filterVencimentoAte,
+    filterEmissaoDe,
+    filterEmissaoAte,
+    filterPagamentoDe,
+    filterPagamentoAte,
   ]);
 
   useEffect(() => {
@@ -353,10 +501,17 @@ export function TitulosList({
     setFilterContrato("");
     setFilterNome("");
     setFilterCpf("");
+    setFilterNossoNumero("");
     setFilterEmpreendimento(FILTRO_TODOS);
     setFilterQuadra(FILTRO_TODOS);
     setFilterLote(null);
     setStatusFilter("");
+    setFilterVencimentoDe("");
+    setFilterVencimentoAte("");
+    setFilterEmissaoDe("");
+    setFilterEmissaoAte("");
+    setFilterPagamentoDe("");
+    setFilterPagamentoAte("");
   };
 
   const temFiltrosAtivos =
@@ -364,9 +519,16 @@ export function TitulosList({
     !!filterContrato.trim() ||
     !!filterNome.trim() ||
     !!filterCpf.trim() ||
+    !!filterNossoNumero.trim() ||
     !!filterEmpreendimento.trim() ||
     !!filterQuadra.trim() ||
-    filterLote != null;
+    filterLote != null ||
+    !!filterVencimentoDe ||
+    !!filterVencimentoAte ||
+    !!filterEmissaoDe ||
+    !!filterEmissaoAte ||
+    !!filterPagamentoDe ||
+    !!filterPagamentoAte;
 
   useEffect(() => {
     if (!showNovo) {
@@ -434,11 +596,20 @@ export function TitulosList({
         setQuantidadeParcelas((q) =>
           maxPermitidas === 0 ? 0 : Math.min(Math.max(1, q), maxPermitidas),
         );
-        if (ctx.primeiroTituloLote && ctx.dataPrimeiraParcelaContrato) {
-          setDataPrimeiraParcela(parseIsoDate(ctx.dataPrimeiraParcelaContrato));
-        } else {
-          setDataPrimeiraParcela(null);
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        let vencLote = parseIsoDate(ctx.vencimentoSugerido);
+        if (
+          ctx.primeiroTituloLote &&
+          ctx.dataPrimeiraParcelaContrato &&
+          parseIsoDate(ctx.dataPrimeiraParcelaContrato).getTime() >= hoje.getTime()
+        ) {
+          vencLote = parseIsoDate(ctx.dataPrimeiraParcelaContrato);
         }
+        if (!isVencimentoFuturo(vencLote)) {
+          vencLote = parseIsoDate(ctx.vencimentoSugerido);
+        }
+        setDataPrimeiraParcela(normalizarDataCalendario(vencLote));
       })
       .catch((e) => {
         setContexto(null);
@@ -463,14 +634,30 @@ export function TitulosList({
     [contexto],
   );
 
+  const minVencimentoEmissao = useMemo(() => inicioDoDiaHoje(), []);
+
+  const podeRevisarNovoTitulo = useMemo(() => {
+    if (!contexto || contexto.avisoConvenio) return false;
+    if (maxParcelasPermitidas < 1 || quantidadeParcelas < 1) return false;
+    if (!dataPrimeiraParcela) return false;
+    return isVencimentoValidoParaNovoTitulo(dataPrimeiraParcela);
+  }, [
+    contexto,
+    dataPrimeiraParcela,
+    maxParcelasPermitidas,
+    quantidadeParcelas,
+  ]);
+
   const previewLote = useMemo(() => {
     if (!contexto || maxParcelasPermitidas < 1 || quantidadeParcelas < 1) return null;
     const qtd = Math.min(maxParcelasPermitidas, Math.floor(quantidadeParcelas));
     const parcelaInicial = contexto.numeroParcela;
     const parcelaFinal = parcelaInicial + qtd - 1;
 
-    const vencimentosDetalhe =
-      contexto.primeiroTituloLote && dataPrimeiraParcela
+    const usarDataPrimeiraLote =
+      dataPrimeiraParcela != null && isVencimentoFuturo(dataPrimeiraParcela);
+
+    const vencimentosDetalhe = usarDataPrimeiraLote
         ? calcularVencimentosComPrimeiraParcelaDetalhe(
             dataPrimeiraParcela,
             contexto.diaVencimentoMensal,
@@ -489,17 +676,16 @@ export function TitulosList({
       ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
       excedente: false,
       parcelaReajuste: false,
-      valor: contexto.valorNominal,
+      valor: contexto.valorNominal ?? null,
     }));
 
     const itensExcedentes: typeof itens = [];
     if (qtd === maxParcelasPermitidas && parcelaFinal < parcelaReajusteLimite) {
       for (let parcela = parcelaFinal + 1; parcela <= parcelaReajusteLimite; parcela++) {
         const offset = parcela - parcelaInicial + 1;
-        const detalhe =
-          contexto.primeiroTituloLote && dataPrimeiraParcela
+        const detalhe = usarDataPrimeiraLote
             ? calcularVencimentosComPrimeiraParcelaDetalhe(
-                dataPrimeiraParcela,
+                dataPrimeiraParcela!,
                 contexto.diaVencimentoMensal,
                 offset,
               ).at(-1)
@@ -516,7 +702,7 @@ export function TitulosList({
           ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
           excedente: true,
           parcelaReajuste: isParcelaReajuste(parcela),
-          valor: contexto.valorNominal,
+          valor: contexto.valorNominal ?? null,
         });
       }
     }
@@ -526,7 +712,7 @@ export function TitulosList({
       parcelaInicial,
       parcelaFinal,
       quantidade: qtd,
-      valorTotal: contexto.valorNominal * qtd,
+      valorTotal: (contexto.valorNominal ?? 0) * qtd,
       ajustadosPorDiaUtil,
       parcelaReajusteLimite,
       ultimaParcelaEmitivel,
@@ -547,6 +733,15 @@ export function TitulosList({
 
   const onPage = (e: DataTablePageEvent) => {
     setPage(e.page ?? 0);
+  };
+
+  const onSort = (e: DataTableSortEvent) => {
+    const field = e.sortField;
+    if (typeof field !== "string" || !isTitulosSortField(field)) return;
+    setSortField(field);
+    setSortOrder(e.sortOrder ?? DEFAULT_SORT_ORDER);
+    setPage(0);
+    setSelectedTitulos([]);
   };
 
   const baixarPdf = async (
@@ -742,7 +937,7 @@ export function TitulosList({
   const fecharWhatsAppLoteDialog = () => {
     setWhatsappLoteDialogOpen(false);
     setWhatsappLoteResultado(null);
-    if (whatsappLoteResultado && whatsappLoteResultado.enfileirados > 0) {
+    if (whatsappLoteResultado && whatsappLoteResultado.mensagensEnfileiradas > 0) {
       setSelectedTitulos([]);
     }
   };
@@ -755,17 +950,107 @@ export function TitulosList({
         titulosWhatsAppSelecionados.map((t) => t.id),
       );
       setWhatsappLoteResultado(resultado);
-      if (resultado.falhas === 0) {
-        toast.success(`${resultado.enfileirados} envio(s) enfileirado(s) na fila do WhatsApp.`);
-      } else if (resultado.enfileirados > 0) {
+      if (resultado.mensagensFalhas === 0) {
+        toast.success(
+          `${resultado.mensagensEnfileiradas} envio(s) enfileirado(s) na fila do WhatsApp.`,
+        );
+      } else if (resultado.mensagensEnfileiradas > 0) {
         toast.warning(
-          `${resultado.enfileirados} enfileirado(s), ${resultado.falhas} falha(s). Veja o detalhe.`,
+          `${resultado.mensagensEnfileiradas} enfileirado(s), ${resultado.mensagensFalhas} falha(s). Veja o detalhe.`,
         );
       } else {
         toast.error("Nenhum envio foi enfileirado.");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao enfileirar WhatsApp em lote.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const abrirEmailLote = () => {
+    if (titulosWhatsAppSelecionados.length === 0) {
+      toast.info("Selecione títulos na situação Emitido.");
+      return;
+    }
+    if (titulosWhatsAppSelecionados.length > LOTE_MAX) {
+      toast.error(`Selecione no máximo ${LOTE_MAX} títulos por operação.`);
+      return;
+    }
+    setEmailLoteResultado(null);
+    setEmailLoteDialogOpen(true);
+  };
+
+  const fecharEmailLoteDialog = () => {
+    setEmailLoteDialogOpen(false);
+    setEmailLoteResultado(null);
+    if (emailLoteResultado && emailLoteResultado.emailsEnfileirados > 0) {
+      setSelectedTitulos([]);
+    }
+  };
+
+  const confirmarEmailLote = async () => {
+    if (titulosWhatsAppSelecionados.length === 0) return;
+    setActionLoading(true);
+    try {
+      const resultado = await finService.enfileirarEmailCobrancaParcelaEmLote(
+        titulosWhatsAppSelecionados.map((t) => t.id),
+      );
+      setEmailLoteResultado(resultado);
+      if (resultado.emailsFalhas === 0) {
+        toast.success(
+          `${resultado.emailsEnfileirados} e-mail(s) enfileirado(s) na fila de envio.`,
+        );
+      } else if (resultado.emailsEnfileirados > 0) {
+        toast.warning(
+          `${resultado.emailsEnfileirados} enfileirado(s), ${resultado.emailsFalhas} falha(s). Veja o detalhe.`,
+        );
+      } else {
+        toast.error("Nenhum e-mail foi enfileirado.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enfileirar e-mail em lote.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const abrirPdfLote = () => {
+    if (titulosPdfSelecionados.length === 0) {
+      toast.info("Selecione títulos com boleto/PDF disponível para download.");
+      return;
+    }
+    if (titulosPdfSelecionados.length > LOTE_MAX) {
+      toast.error(`Selecione no máximo ${LOTE_MAX} títulos por operação.`);
+      return;
+    }
+    setPdfLoteResultado(null);
+    setPdfLoteDialogOpen(true);
+  };
+
+  const fecharPdfLoteDialog = () => {
+    setPdfLoteDialogOpen(false);
+    setPdfLoteResultado(null);
+  };
+
+  const confirmarPdfLote = async () => {
+    if (titulosPdfSelecionados.length === 0) return;
+    setActionLoading(true);
+    try {
+      const outcome = await finService.downloadPdfLote(
+        titulosPdfSelecionados.map((t) => t.id),
+      );
+      if (outcome.ok) {
+        toast.success(`PDF mesclado baixado (${outcome.filename}).`);
+        setPdfLoteDialogOpen(false);
+        setPdfLoteResultado(null);
+        setSelectedTitulos([]);
+      } else {
+        setPdfLoteResultado(outcome.resultado);
+        toast.error("Não foi possível mesclar todos os boletos. Veja o detalhe.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF em lote.");
     } finally {
       setActionLoading(false);
     }
@@ -916,8 +1201,8 @@ export function TitulosList({
       toast.error(contexto.avisoConvenio);
       return null;
     }
-    if (contexto.primeiroTituloLote && !dataPrimeiraParcela) {
-      toast.error("Informe a data da 1ª parcela.");
+    if (!dataPrimeiraParcela || !isVencimentoValidoParaNovoTitulo(dataPrimeiraParcela)) {
+      toast.error("Informe o vencimento da primeira parcela deste lote (hoje ou data futura).");
       return null;
     }
     if (maxParcelasPermitidas < 1) {
@@ -943,15 +1228,13 @@ export function TitulosList({
 
   const confirmarCriacaoTitulos = async () => {
     const qtd = validarFormNovoTitulo();
-    if (qtd == null || !contexto) return;
+    if (qtd == null || !contexto || !dataPrimeiraParcela) return;
     setSaving(true);
     try {
       const resultado = await finService.criarTitulosEmLote({
         contratoId: contexto.contratoId,
         quantidadeParcelas: qtd,
-        ...(contexto.primeiroTituloLote && dataPrimeiraParcela
-          ? { dataPrimeiraParcela: formatIsoDate(dataPrimeiraParcela) }
-          : {}),
+        dataPrimeiraParcela: formatIsoDate(dataPrimeiraParcela),
       });
       setPage(0);
       setStatusFilter("RASCUNHO");
@@ -981,29 +1264,80 @@ export function TitulosList({
   };
 
   const totalRecords = pageData?.totalElements ?? 0;
+  const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
+
+  const titulosTableHeader = (
+    <div className="flex flex-col gap-1 py-1 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-white/40">
+        <span className="font-bold text-white">
+          {refreshing && pageData == null ? "…" : totalRecords}
+        </span>{" "}
+        título{totalRecords === 1 ? "" : "s"} encontrado{totalRecords === 1 ? "" : "s"}
+        {totalRecords > 0 ? (
+          <span className="text-white/30">
+            {" "}
+            · a mostrar {range.from}–{range.to}
+          </span>
+        ) : null}
+      </p>
+    </div>
+  );
+
+  const confirmarMarcarVencidos = async () => {
+    setMarcandoVencidos(true);
+    try {
+      const { marcados } = await finService.marcarTitulosVencidos();
+      setMarcarVencidosDialogOpen(false);
+      if (marcados > 0) {
+        toast.success(
+          marcados === 1
+            ? "1 título atualizado para Vencido."
+            : `${marcados} títulos atualizados para Vencido.`,
+        );
+        await load(true);
+      } else {
+        toast.info("Nenhum título EMITIDO em atraso para atualizar.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao marcar títulos vencidos.");
+    } finally {
+      setMarcandoVencidos(false);
+    }
+  };
 
   return (
     <>
       <div className={cn("flex flex-col gap-5", !embedded && "px-4")}>
         <div className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-white/40">
-              <span className="font-bold text-white">{totalRecords}</span> títulos encontrados
-            </p>
-            <button
-              type="button"
-              onClick={() => void load(true)}
-              disabled={refreshing}
-              className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 disabled:pointer-events-none disabled:opacity-50 md:self-auto"
-            >
-              <RefreshCw size={14} className={cn("shrink-0", refreshing && "animate-spin")} />
-              Atualizar
-            </button>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
+            <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+              <button
+                type="button"
+                onClick={() => setMarcarVencidosDialogOpen(true)}
+                disabled={marcandoVencidos || refreshing}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-rose-200 transition-all hover:bg-rose-500/20 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <CalendarClock
+                  size={14}
+                  className={cn("shrink-0", marcandoVencidos && "animate-pulse")}
+                />
+                {marcandoVencidos ? "A processar…" : "Marcar vencidos"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void load(true)}
+                disabled={refreshing || marcandoVencidos}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={cn("shrink-0", refreshing && "animate-spin")} />
+                Atualizar
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label className={FILTER_LABEL_CLASS}>
                 Contrato
               </label>
               <InputText
@@ -1014,7 +1348,7 @@ export function TitulosList({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label className={FILTER_LABEL_CLASS}>
                 Nome
               </label>
               <InputText
@@ -1025,7 +1359,7 @@ export function TitulosList({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label className={FILTER_LABEL_CLASS}>
                 CPF
               </label>
               <InputText
@@ -1035,10 +1369,24 @@ export function TitulosList({
                 className={FILTER_INPUT_CLASS}
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={FILTER_LABEL_CLASS}>
+                Nosso número
+              </label>
+              <InputText
+                value={filterNossoNumero}
+                onChange={(e) => setFilterNossoNumero(e.target.value.replace(/\D/g, ""))}
+                placeholder="Somente números"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                className={FILTER_INPUT_CLASS}
+              />
+            </div>
             {!embedded || imovelId == null ? (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <label className={FILTER_LABEL_CLASS}>
                     Empreendimento
                   </label>
                   <Dropdown
@@ -1062,7 +1410,7 @@ export function TitulosList({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <label className={FILTER_LABEL_CLASS}>
                     Quadra
                   </label>
                   <Dropdown
@@ -1089,7 +1437,7 @@ export function TitulosList({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <label className={FILTER_LABEL_CLASS}>
                     Lote
                   </label>
                   <Dropdown
@@ -1108,13 +1456,103 @@ export function TitulosList({
               </>
             ) : null}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              <label
+                htmlFor="titulo-venc-de"
+                className={FILTER_LABEL_CLASS}
+              >
+                Vencimento de
+              </label>
+              <input
+                id="titulo-venc-de"
+                type="date"
+                value={filterVencimentoDe}
+                onChange={(e) => setFilterVencimentoDe(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-venc-ate"
+                className={FILTER_LABEL_CLASS}
+              >
+                Vencimento até
+              </label>
+              <input
+                id="titulo-venc-ate"
+                type="date"
+                value={filterVencimentoAte}
+                onChange={(e) => setFilterVencimentoAte(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-emissao-de"
+                className={FILTER_LABEL_CLASS}
+              >
+                Emissão de
+              </label>
+              <input
+                id="titulo-emissao-de"
+                type="date"
+                value={filterEmissaoDe}
+                onChange={(e) => setFilterEmissaoDe(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-emissao-ate"
+                className={FILTER_LABEL_CLASS}
+              >
+                Emissão até
+              </label>
+              <input
+                id="titulo-emissao-ate"
+                type="date"
+                value={filterEmissaoAte}
+                onChange={(e) => setFilterEmissaoAte(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-pag-de"
+                className={FILTER_LABEL_CLASS}
+              >
+                Pagamento de
+              </label>
+              <input
+                id="titulo-pag-de"
+                type="date"
+                value={filterPagamentoDe}
+                onChange={(e) => setFilterPagamentoDe(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="titulo-pag-ate"
+                className={FILTER_LABEL_CLASS}
+              >
+                Pagamento até
+              </label>
+              <input
+                id="titulo-pag-ate"
+                type="date"
+                value={filterPagamentoAte}
+                onChange={(e) => setFilterPagamentoAte(e.target.value)}
+                className={FILTER_DATE_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={FILTER_LABEL_CLASS}>
                 Status
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70 transition-all focus:border-blue-500/50 focus:outline-none"
+                className={FILTER_DATE_CLASS}
               >
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value || "all"} value={o.value} className="bg-[#020817]">
@@ -1183,6 +1621,17 @@ export function TitulosList({
               </button>
               <button
                 type="button"
+                onClick={abrirEmailLote}
+                disabled={
+                  actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-sky-200 transition hover:bg-sky-500/20 disabled:opacity-50"
+              >
+                <Mail size={14} />
+                Enviar e-mail
+              </button>
+              <button
+                type="button"
                 onClick={abrirWhatsAppLote}
                 disabled={
                   actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
@@ -1191,6 +1640,17 @@ export function TitulosList({
               >
                 <MessageCircle size={14} />
                 Enviar WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={abrirPdfLote}
+                disabled={
+                  actionLoading || selecionandoTodos || titulosPdfSelecionados.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-50"
+              >
+                <Download size={14} />
+                Baixar PDF em lote
               </button>
             </div>
           </div>
@@ -1206,12 +1666,21 @@ export function TitulosList({
             totalRecords={totalRecords}
             first={page * PAGE_SIZE}
             onPage={onPage}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSort={onSort}
+            sortMode="single"
+            removableSort={false}
             loading={refreshing}
+            header={titulosTableHeader}
+            paginatorTemplate={PAGINATOR_TEMPLATE}
+            currentPageReportTemplate={CURRENT_PAGE_REPORT_TEMPLATE}
             emptyMessage="Nenhum título encontrado."
-            responsiveLayout="stack"
-            breakpoint="960px"
+            scrollable
+            tableStyle={{ minWidth: "64rem" }}
+            responsiveLayout="scroll"
             className={DASHBOARD_DATATABLE_CLASS}
-            pt={TABLE_PT}
+            pt={TABLE_PT_WITH_REPORT}
             rowHover
             selection={selectedTitulos}
             selectionMode="checkbox"
@@ -1228,49 +1697,96 @@ export function TitulosList({
             <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
             {!embedded ? (
               <Column
+                field="contratoId"
                 header="Contrato"
+                sortable
                 body={(row: TituloCobranca) =>
                   dashboardCellMono(formatContratoRef(row.numeroContrato, row.contratoId))
                 }
-                style={{ width: "8%" }}
+                style={{ width: "6.5rem", maxWidth: "6.5rem" }}
               />
             ) : null}
-            <Column field="numeroParcela" header="Parc." style={{ width: "6%" }} />
             <Column
-              header="Nosso nº"
-              body={(row: TituloCobranca) => dashboardCellMono(row.nossoNumero)}
-              style={{ width: "12%" }}
+              field="numeroParcela"
+              header="Parc."
+              sortable
+              style={{ width: "3.5rem", maxWidth: "3.5rem" }}
             />
-            {embedded ? (
-              <Column
-                header="Geração"
-                body={(row: TituloCobranca) => dashboardCellText(formatDate(row.cadastroEm))}
-                style={{ width: "10%" }}
-              />
-            ) : null}
+            <Column
+              header="Origem"
+              body={(row: TituloCobranca) => (
+                <div className="flex justify-center">
+                  <TituloOrigemEmissaoIcon legado={row.legado} />
+                </div>
+              )}
+              style={{ width: "4rem", maxWidth: "4rem" }}
+            />
+            <Column
+              field="nossoNumero"
+              header="Nosso nº"
+              sortable
+              body={(row: TituloCobranca) => dashboardCellMono(row.nossoNumero)}
+              style={{ width: "7.5rem", maxWidth: "7.5rem" }}
+            />
+            <Column
+              field="cadastroEm"
+              header="Emissão"
+              sortable
+              body={(row: TituloCobranca) => dashboardCellText(formatDate(row.cadastroEm))}
+              style={{ width: "6rem", maxWidth: "6rem" }}
+            />
+            <Column
+              header="Usuário"
+              body={(row: TituloCobranca) =>
+                dashboardCellText(row.usuarioNome?.trim() || "—", {
+                  title: row.usuarioNome ?? undefined,
+                })
+              }
+              style={{ width: "9rem", maxWidth: "9rem" }}
+            />
             {embedded ? (
               <Column
                 header="Convênio"
                 body={(row: TituloCobranca) => dashboardCellText(row.convenioNome || "—")}
-                style={{ width: "14%" }}
+                style={{ width: "8rem", maxWidth: "8rem" }}
               />
             ) : null}
             <Column
+              field="vencimento"
               header="Vencimento"
+              sortable
               body={(row: TituloCobranca) => dashboardCellText(formatDate(row.vencimento))}
-              style={{ width: "10%" }}
+              style={{ width: "6rem", maxWidth: "6rem" }}
             />
             <Column
+              field="dataPagamento"
+              header="Pagamento"
+              sortable
+              body={(row: TituloCobranca) =>
+                dashboardCellText(formatDataPagamentoExibicao(row.dataPagamento))
+              }
+              style={{ width: "6rem", maxWidth: "6rem" }}
+            />
+            <Column
+              field="valorNominal"
               header="Valor"
+              sortable
               body={(row: TituloCobranca) => dashboardCellText(formatMoney(row.valorNominal))}
-              style={{ width: "12%" }}
+              style={{ width: "7rem", maxWidth: "7rem" }}
             />
             <Column
+              field="status"
               header="Status"
+              sortable
               body={(row: TituloCobranca) => dashboardStatusBadge(row.status, STATUS_TONES)}
-              style={{ width: "12%" }}
+              style={{ width: "7.5rem", maxWidth: "7.5rem" }}
             />
-            <Column header="Ações" body={actionBodyTemplate} align="right" style={{ width: "8%" }} />
+            <Column
+              header="Ações"
+              body={actionBodyTemplate}
+              align="right"
+              style={{ width: "4rem", maxWidth: "4rem" }}
+            />
           </DataTable>
         </DashboardDataTableShell>
 
@@ -1311,12 +1827,30 @@ export function TitulosList({
           loading={actionLoading}
         />
 
+        <TituloEmailLoteDialog
+          visible={emailLoteDialogOpen}
+          onHide={fecharEmailLoteDialog}
+          titulos={titulosWhatsAppSelecionados}
+          resultado={emailLoteResultado}
+          onConfirm={() => void confirmarEmailLote()}
+          loading={actionLoading}
+        />
+
         <TituloWhatsAppLoteDialog
           visible={whatsappLoteDialogOpen}
           onHide={fecharWhatsAppLoteDialog}
           titulos={titulosWhatsAppSelecionados}
           resultado={whatsappLoteResultado}
           onConfirm={() => void confirmarWhatsAppLote()}
+          loading={actionLoading}
+        />
+
+        <TituloPdfLoteDialog
+          visible={pdfLoteDialogOpen}
+          onHide={fecharPdfLoteDialog}
+          titulos={titulosPdfSelecionados}
+          resultado={pdfLoteResultado}
+          onConfirm={() => void confirmarPdfLote()}
           loading={actionLoading}
         />
       </div>
@@ -1364,10 +1898,7 @@ export function TitulosList({
                   disabled={
                     !contexto ||
                     contextoLoading ||
-                    !!contexto?.avisoConvenio ||
-                    maxParcelasPermitidas < 1 ||
-                    quantidadeParcelas < 1 ||
-                    (contexto?.primeiroTituloLote && !dataPrimeiraParcela)
+                    !podeRevisarNovoTitulo
                   }
                   onClick={irParaConfirmacao}
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
@@ -1506,7 +2037,7 @@ export function TitulosList({
                   Valor nominal
                 </label>
                 <InputNumber
-                  value={contexto.valorNominal}
+                  value={contexto.valorNominal ?? null}
                   mode="currency"
                   currency="BRL"
                   locale="pt-BR"
@@ -1515,25 +2046,26 @@ export function TitulosList({
                   disabled
                 />
               </div>
-              {contexto.primeiroTituloLote ? (
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
-                    Data da 1ª parcela
-                  </label>
-                  <p className="text-xs text-white/40">
-                    Valor do contrato; pode ajustar antes de gerar. As parcelas seguintes vencem no dia{" "}
-                    {contexto.diaVencimentoMensal} de cada mês (dia útil se cair em fim de semana).
-                  </p>
-                  <Calendar
-                    value={dataPrimeiraParcela}
-                    onChange={(e) => setDataPrimeiraParcela(e.value ?? null)}
-                    dateFormat="dd/mm/yy"
-                    showIcon
-                    className="w-full"
-                    inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25"
-                  />
-                </div>
-              ) : null}
+              <div className="flex flex-col gap-2 sm:col-span-3">
+                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+                  Vencimento da parcela {contexto.numeroParcela} (1.ª deste lote)
+                </label>
+                <p className="text-xs text-white/40">
+                  Pode ser hoje ou qualquer data futura. As parcelas seguintes deste lote vencem no dia{" "}
+                  {contexto.diaVencimentoMensal} de cada mês
+                  {contexto.primeiroTituloLote ? "" : " (dia útil se cair em fim de semana)"}.
+                </p>
+                <Calendar
+                  value={dataPrimeiraParcela}
+                  onChange={(e) => setDataPrimeiraParcela(normalizarDataCalendario(e.value))}
+                  dateFormat="dd/mm/yy"
+                  showIcon
+                  minDate={minVencimentoEmissao}
+                  disabled={contextoLoading}
+                  className="w-full"
+                  inputClassName="w-full border-white/10 bg-white/[0.05] p-3 text-white placeholder:text-white/25"
+                />
+              </div>
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
                   Quantidade de parcelas
@@ -1730,6 +2262,23 @@ export function TitulosList({
         </div>
       </DashboardDialog>
       ) : null}
+
+      <DashboardConfirmDialog
+        visible={marcarVencidosDialogOpen}
+        onHide={() => setMarcarVencidosDialogOpen(false)}
+        onConfirm={() => void confirmarMarcarVencidos()}
+        header="Marcar títulos vencidos"
+        tone="warning"
+        confirmLabel="Marcar vencidos"
+        loading={marcandoVencidos}
+        message={
+          <p>
+            Todos os títulos com status <span className="font-semibold text-white">Emitido</span> e data de
+            vencimento anterior a hoje passarão para{" "}
+            <span className="font-semibold text-rose-300">Vencido</span>.
+          </p>
+        }
+      />
     </>
   );
 }

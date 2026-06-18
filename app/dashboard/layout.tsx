@@ -1,29 +1,15 @@
 "use client";
 
-import { ReactNode, useState, useEffect, useRef, type ComponentType } from "react";
+import { ReactNode, useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { addLocale, locale } from "primereact/api";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { 
-  Gauge, 
-  Users, 
-  Building2, 
-  UserSquare, 
-  MapPin, 
-  FileText, 
+import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Bell,
-  Settings,
-  Search,
-  Contact,
-  User,
   ChevronDown,
-  LayoutGrid,
-  Home,
-  UserCircle,
-  Mail,
+  User,
   Menu as MenuIcon,
   X,
   MessageCircle,
@@ -331,7 +317,7 @@ function SidebarNavGroup({
     if (pathname.startsWith(item.prefix)) setOpen(true);
   }, [pathname, item.prefix]);
 
-  const visibleChildren = item.children.filter((c) => menuChildVisible(c, role));
+  const visibleChildren = item.children.filter((c: MenuChildDef) => menuChildVisible(c, role));
   const labelsVisible = expanded || mobileMenuOpen;
   const anyActive = pathname.startsWith(item.prefix);
   const ParentIcon = item.icon;
@@ -398,7 +384,7 @@ function SidebarNavGroup({
               c.href === FIN_UNICRED_WEBHOOKS_PATH ? unicredWebhookPendentes : 0;
             return (
               <Link
-                key={c.href}
+                key={c.id}
                 href={c.href}
                 onClick={onNavigate}
                 className={cn(
@@ -430,8 +416,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [peeking, setPeeking] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [menuEditing, setMenuEditing] = useState(false);
+  const [menuPreference, setMenuPreference] = useState<MenuPreference | null>(null);
+  const [menuDraft, setMenuDraft] = useState<MenuPreference | null>(null);
   const menuUser = useRef<Menu>(null);
-  
+
   const userEmail = mounted ? (getUserEmail() || "...") : "";
   const userInitial = userEmail !== "..." ? userEmail.charAt(0).toUpperCase() : "?";
 
@@ -473,6 +462,52 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const crmFunilEnabled = useCrmFunilEnabled(mounted && role === "ADMIN");
   const { pendentes: unicredWebhookPendentes } = useUnicredWebhookPendentes(finMenuEnabled);
   useRealtimeSocketKeeper(mounted);
+
+  useEffect(() => {
+    if (!mounted || !role || userEmail === "...") return;
+    setMenuPreference(loadMenuPreference(userEmail, role));
+  }, [mounted, role, userEmail]);
+
+  const visibleMenuBase = useMemo(() => {
+    return DASHBOARD_MENU_ITEMS.filter((item) => menuItemVisible(item, role, crmFunilEnabled)).map(
+      (item) => (item.kind === "group" ? filterVisibleMenuChildren(item, role) : item),
+    );
+  }, [role, crmFunilEnabled]);
+
+  const orderedMenuItems = useMemo(() => {
+    const pref = menuEditing ? menuDraft : menuPreference;
+    return applyMenuPreference(visibleMenuBase, pref);
+  }, [visibleMenuBase, menuPreference, menuDraft, menuEditing]);
+
+  const startMenuEditing = useCallback(() => {
+    setExpanded(true);
+    setPeeking(false);
+    setMenuDraft(
+      menuPreference ?? buildMenuPreferenceFromItems(visibleMenuBase),
+    );
+    setMenuEditing(true);
+  }, [menuPreference, visibleMenuBase]);
+
+  const saveMenuOrder = useCallback(() => {
+    if (!role || userEmail === "..." || !menuDraft) return;
+    saveMenuPreference(userEmail, role, menuDraft);
+    setMenuPreference(menuDraft);
+    setMenuEditing(false);
+    toast.success("Ordem do menu salva.");
+  }, [menuDraft, role, userEmail]);
+
+  const cancelMenuEditing = useCallback(() => {
+    setMenuDraft(null);
+    setMenuEditing(false);
+  }, []);
+
+  const resetMenuOrder = useCallback(() => {
+    if (!role || userEmail === "...") return;
+    clearMenuPreference(userEmail, role);
+    setMenuPreference(null);
+    setMenuDraft(createDraftPreference(visibleMenuBase));
+    toast.success("Menu restaurado ao padrão.");
+  }, [role, userEmail, visibleMenuBase]);
 
   if (!mounted) return null;
 
@@ -616,32 +651,63 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-6 flex flex-col gap-2 overflow-y-auto">
-          {MENU_ITEMS.filter((item) => menuItemVisible(item, role, crmFunilEnabled)).map((item) =>
-            item.kind === "link" ? (
-              <div key={item.href} onClick={() => setMobileMenuOpen(false)}>
-                <SidebarItem
-                  icon={<item.icon size={20} />}
-                  label={item.label}
-                  href={item.href}
+          {menuEditing && menuDraft && (isSidebarOpen || mobileMenuOpen) ? (
+            <DashboardMenuCustomizer
+              items={visibleMenuBase}
+              preference={menuDraft}
+              onPreferenceChange={setMenuDraft}
+              onSave={saveMenuOrder}
+              onCancel={cancelMenuEditing}
+              onReset={resetMenuOrder}
+            />
+          ) : (
+            orderedMenuItems.map((item) =>
+              item.kind === "link" ? (
+                <div key={item.id} onClick={() => setMobileMenuOpen(false)}>
+                  <SidebarItem
+                    icon={<item.icon size={20} />}
+                    label={item.label}
+                    href={item.href}
+                    expanded={isSidebarOpen || mobileMenuOpen}
+                  />
+                </div>
+              ) : (
+                <SidebarNavGroup
+                  key={item.id}
+                  item={item}
                   expanded={isSidebarOpen || mobileMenuOpen}
+                  mobileMenuOpen={mobileMenuOpen}
+                  pathname={pathname}
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  role={role}
+                  unicredWebhookPendentes={unicredWebhookPendentes}
                 />
-              </div>
-            ) : (
-              <SidebarNavGroup
-                key={item.prefix}
-                item={item}
-                expanded={isSidebarOpen || mobileMenuOpen}
-                mobileMenuOpen={mobileMenuOpen}
-                pathname={pathname}
-                onNavigate={() => setMobileMenuOpen(false)}
-                role={role}
-                unicredWebhookPendentes={unicredWebhookPendentes}
-              />
+              ),
             )
           )}
         </nav>
 
         <div className="p-3 border-t border-white/5 flex flex-col gap-2">
+          {(isSidebarOpen || mobileMenuOpen) && !menuEditing ? (
+            <button
+              type="button"
+              onClick={startMenuEditing}
+              className="flex items-center gap-4 px-4 py-3 rounded-xl text-white/60 hover:bg-white/5 hover:text-white transition-all w-full text-left"
+            >
+              <LayoutGrid size={20} className="shrink-0" />
+              <span className="font-medium animate-in fade-in duration-300">Organizar menu</span>
+            </button>
+          ) : null}
+          {menuEditing && (isSidebarOpen || mobileMenuOpen) ? (
+            <button
+              type="button"
+              onClick={cancelMenuEditing}
+              className="flex items-center gap-4 px-4 py-3 rounded-xl text-white/50 hover:bg-white/5 hover:text-white transition-all w-full text-left text-sm"
+            >
+              <ChevronLeft size={18} className="shrink-0" />
+              <span>Voltar ao menu</span>
+            </button>
+          ) : null}
           <button 
             onClick={handleLogout}
             className={cn(
