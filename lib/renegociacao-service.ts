@@ -1,4 +1,5 @@
 import { apiFetch } from "./api-fetch";
+import { baixarBlob, tryGetFilenameFromDisposition } from "./baixar-boleto-pdf";
 import {
   getRenegociacaoAprovarUrl,
   getRenegociacaoAuditoriaUrl,
@@ -7,6 +8,7 @@ import {
   getRenegociacaoCancelarUrl,
   getRenegociacaoEfetivarUrl,
   getRenegociacaoGerarDocumentosUrl,
+  getRenegociacaoPropostaPdfUrl,
   getRenegociacaoPropostaUrl,
   getRenegociacaoSimularUrl,
   getRenegociacaoSubmeterAprovacaoUrl,
@@ -122,6 +124,23 @@ export async function simularRenegociacao(
   });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
+}
+
+/** PDF da proposta comercial T1 (template Domus) após simulação persistida. */
+export async function baixarPropostaPdfT1(
+  contratoId: number,
+  renegociacaoId: number,
+  simulacaoId: number,
+): Promise<void> {
+  const url = getRenegociacaoPropostaPdfUrl(contratoId, renegociacaoId, simulacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  const blob = await res.blob();
+  const filename =
+    tryGetFilenameFromDisposition(res.headers.get("Content-Disposition")) ??
+    `proposta-t1-contrato-${contratoId}.pdf`;
+  baixarBlob(blob, filename);
 }
 
 /** Ponte Fase 1: T2/T3 usam motor de condições até o endpoint unificado existir. */
@@ -297,6 +316,11 @@ export function modalidadeUsaMotorCondicoes(m: ModalidadeRenegociacao | null): b
   return m === "T2_SALDO_DEVEDOR" || m === "T3_COMPLETA" || m === "T5_COM_ENTRADA";
 }
 
+/** Modalidades que efetivam títulos diretamente neste wizard (sem versão contratual). */
+export function modalidadeEfetivaNoWizard(m: ModalidadeRenegociacao | null): boolean {
+  return modalidadeUsaMotorCondicoes(m) || m === "T1_PARCELAS_VENCIDAS";
+}
+
 export async function cancelarRenegociacao(
   contratoId: number,
   renegociacaoId: number,
@@ -372,7 +396,7 @@ export async function efetivarRenegociacao(
   renegociacaoId: number,
   body: { confirmarCancelamentoTitulos: boolean; titulosCancelarIds: string[] },
   idempotencyKey: string,
-): Promise<{ renegociacaoId: number; versaoPublicadaId: number; status: string }> {
+): Promise<{ renegociacaoId: number; versaoPublicadaId?: number | null; status: string }> {
   const url = getRenegociacaoEfetivarUrl(contratoId, renegociacaoId);
   if (!url) throw new Error("API não configurada");
   const res = await apiFetch(url, {

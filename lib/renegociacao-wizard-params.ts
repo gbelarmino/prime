@@ -20,10 +20,12 @@ export const AJUDA_PARAMETROS_POR_MODALIDADE: Partial<
   Record<ModalidadeRenegociacao, AjudaParametrosModalidade>
 > = {
   T1_PARCELAS_VENCIDAS: {
-    descricaoPasso: "Acordo sobre parcelas em mora. A simulação considera títulos vencidos.",
-    parcelaInicial: "Opcional para corte; o motor foca em vencidas.",
-    quantidadeParcelas: "Número de parcelas do acordo de mora.",
-    desconto: "Desconto sobre o total vencido (quando aplicável).",
+    descricaoPasso:
+      "Acordo sobre mora: vencidas a valor presente, divididas em N parcelas e somadas às próximas N vincendas do contrato.",
+    parcelaInicial: "Opcional: parcela mínima das vencidas que entram no VP (1 = todas). Não confundir com a primeira vincenda.",
+    quantidadeParcelas:
+      "Em quantas parcelas o total do acordo será diluído (somado ao valor normal de cada vincenda).",
+    desconto: "Desconto sobre o VP total da mora (não incide sobre a parcela vigente).",
   },
   T2_SALDO_DEVEDOR: {
     descricaoPasso:
@@ -74,6 +76,10 @@ export function defaultsParametrosModalidade(
   financeiro?: { titulosAbertos?: { numeroParcela: number }[] } | null,
 ): Partial<ParametrosWizardRenegociacao> {
   const parcela = primeiraParcelaAberta(financeiro?.titulosAbertos) ?? 1;
+  if (modalidade === "T1_PARCELAS_VENCIDAS") {
+    // Filtro opcional de vencidas — default 1 inclui toda a mora (≠ parcela de corte T2/T3).
+    return { parcelaInicial: 1 };
+  }
   if (modalidade === "T4_QUITACAO") {
     return { parcelaInicial: parcela, quantidadeParcelas: 1 };
   }

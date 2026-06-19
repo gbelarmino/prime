@@ -61,7 +61,12 @@ export type MemoriaCalculoItem = {
 export type ParcelaFluxo = {
   numeroParcela: number;
   vencimento: string;
+  /** Valor composto (T1) ou parcela do cronograma */
   valorNominal: number;
+  /** T1: parcela vigente antes do acordo */
+  valorVigente?: number | null;
+  /** T1: parcela do acordo (mora) */
+  valorAcordo?: number | null;
 };
 
 export type TituloAfetado = {
@@ -70,6 +75,8 @@ export type TituloAfetado = {
   vencimento: string;
   valorNominal: number;
   status: string;
+  /** T1: VENCIDA | VINCENDA_REEMITIDA */
+  papel?: string | null;
 };
 
 export type RenegociacaoResumo = {
@@ -167,7 +174,7 @@ export const MODALIDADE_OPTIONS: {
   {
     value: "T1_PARCELAS_VENCIDAS",
     label: "Parcelas vencidas",
-    hint: "Acordo sobre mora sem alterar vincendas (confissão/termo).",
+    hint: "Mora a VP diluída em N parcelas, somada às próximas N vincendas (confissão/termo).",
     juridico: "CONFISSAO_DIVIDA / TERMO_PARCELAMENTO",
   },
   {

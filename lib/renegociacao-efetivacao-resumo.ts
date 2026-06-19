@@ -66,11 +66,58 @@ function resumoValoresT4(
   return linhas;
 }
 
+function resumoValoresT1(sim: RenegociacaoSimulacaoResponse): string[] {
+  const vp = sim.totalAnterior;
+  const acordo = sim.totalNovo;
+  const desconto = sim.memoriaCalculo.vlDesconto ?? Math.max(0, vp - acordo);
+  const cronograma = sim.cronogramaFuturo ?? [];
+  const linhas = [
+    `Mora (valor presente das vencidas): ${formatBrl(vp)}`,
+    desconto > 0.005
+      ? `Desconto sobre VP: ${formatBrl(desconto)} (${sim.pctDesconto.toLocaleString("pt-BR")}%)`
+      : "Desconto sobre VP: nenhum",
+    `Total do acordo (mora negociada): ${formatBrl(acordo)}`,
+  ];
+  if (cronograma.length > 0) {
+    const p = cronograma[0]!;
+    const ultima = cronograma[cronograma.length - 1]!;
+    const moraParc = p.valorAcordo ?? 0;
+    linhas.push(
+      `Diluição: ${cronograma.length} × ${formatBrl(moraParc)} de mora somados às vincendas ${p.numeroParcela}–${ultima.numeroParcela}.`,
+    );
+    linhas.push(
+      `Exemplo parcela ${p.numeroParcela}: ${formatBrl(p.valorVigente ?? 0)} (vigente) + ${formatBrl(moraParc)} (mora) = ${formatBrl(p.valorNominal)}.`,
+    );
+  }
+  return linhas;
+}
+
+function resumoTitulosT1(sim: RenegociacaoSimulacaoResponse | null): string[] {
+  if (!sim) return ["Simulação T1 não disponível."];
+  const vencidas = sim.titulosAfetados.filter((t) => t.papel === "VENCIDA");
+  const vincendas = sim.titulosAfetados.filter((t) => t.papel === "VINCENDA_REEMITIDA");
+  const linhas = [
+    `Cancelar ${vencidas.length} título(s) vencido(s) — dívida absorvida no acordo.`,
+    `Cancelar e reemitir ${vincendas.length} vincenda(s) com valor composto (vigente + mora).`,
+  ];
+  if (vincendas.length > 0) {
+    const nums = vincendas.map((t) => t.numeroParcela).sort((a, b) => a - b);
+    linhas.push(
+      `Vincendas reemitidas: ${nums[0]}–${nums[nums.length - 1]}. Demais vincendas permanecem inalteradas.`,
+    );
+  }
+  return linhas;
+}
+
 function resumoTitulos(
   sim: RenegociacaoSimulacaoResponse | null,
   parcelaInicial: number,
   financeiro: AtendimentoResumoFinanceiro | null,
+  modalidade: ModalidadeRenegociacao | null,
 ): string[] {
+  if (modalidade === "T1_PARCELAS_VENCIDAS") {
+    return resumoTitulosT1(sim);
+  }
   const afetados = sim?.titulosAfetados ?? [];
   if (afetados.length > 0) {
     return [
@@ -147,15 +194,21 @@ export function montarResumoEfetivacao(options: {
     const valores: string[] =
       modalidade === "T4_QUITACAO"
         ? resumoValoresT4(simulacao, inadimplenciaQuitacao)
-        : [
-            `Total anterior: ${formatBrl(simulacao.totalAnterior)}`,
-            `Total após negociação: ${formatBrl(simulacao.totalNovo)}`,
-            simulacao.pctDesconto > 0.005
-              ? `Desconto: ${simulacao.pctDesconto.toLocaleString("pt-BR")}%`
-              : "Sem desconto registrado",
-            `Saldo devedor de referência: ${formatBrl(simulacao.saldoDevedor)}`,
-          ];
-    if ((simulacao.cronogramaFuturo?.length ?? 0) > 0 && modalidade !== "T4_QUITACAO") {
+        : modalidade === "T1_PARCELAS_VENCIDAS"
+          ? resumoValoresT1(simulacao)
+          : [
+              `Total anterior: ${formatBrl(simulacao.totalAnterior)}`,
+              `Total após negociação: ${formatBrl(simulacao.totalNovo)}`,
+              simulacao.pctDesconto > 0.005
+                ? `Desconto: ${simulacao.pctDesconto.toLocaleString("pt-BR")}%`
+                : "Sem desconto registrado",
+              `Saldo devedor de referência: ${formatBrl(simulacao.saldoDevedor)}`,
+            ];
+    if (
+      (simulacao.cronogramaFuturo?.length ?? 0) > 0 &&
+      modalidade !== "T4_QUITACAO" &&
+      modalidade !== "T1_PARCELAS_VENCIDAS"
+    ) {
       valores.push(
         `Novo cronograma: ${simulacao.cronogramaFuturo.length} parcela(s) simulada(s).`,
       );
@@ -165,13 +218,28 @@ export function montarResumoEfetivacao(options: {
 
   secoes.push({
     titulo: "Títulos de cobrança",
-    itens: resumoTitulos(simulacao, parcelaInicial, financeiro),
+    itens: resumoTitulos(simulacao, parcelaInicial, financeiro, modalidade),
   });
 
   secoes.push({
     titulo: "Documentos e jurídico",
     itens: resumoDocumentos(simulacao, documentosOk),
   });
+
+  if (modalidade === "T1_PARCELAS_VENCIDAS" && processoValido) {
+    secoes.push({
+      titulo: "Ao clicar em Efetivar (neste wizard)",
+      itens: [
+        "Cancela todos os títulos vencidos incluídos no acordo (dívida absorvida).",
+        "Cancela e reemite as vincendas P..P+N−1 com valor composto (parcela vigente + mora).",
+        "Mantém inalteradas as vincendas após P+N−1.",
+        "Não altera versão contratual — apenas títulos de cobrança.",
+        "Registra auditoria; processo passa para status EFETIVADO.",
+        "Redireciona para a lista de contratos após sucesso.",
+      ],
+    });
+    return { podeEfetivarNoWizard: true, secoes };
+  }
 
   if (usaMotor && processoValido) {
     secoes.push({
@@ -209,15 +277,7 @@ export function montarResumoEfetivacao(options: {
     };
   }
 
-  if (modalidade === "T1_PARCELAS_VENCIDAS") {
-    secoes.push({
-      titulo: "Efetivação operacional (fora deste botão)",
-      itens: [
-        "Renegociar parcelas vencidas no painel de atendimento (cancelar/emitir títulos).",
-        "Vincular ocorrência e, quando exigido, versão contratual ou confissão de dívida.",
-      ],
-    });
-  } else if (modalidade === "T6_JUDICIAL") {
+  if (modalidade === "T6_JUDICIAL") {
     secoes.push({
       titulo: "Efetivação operacional (fora deste botão)",
       itens: [

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Calculator, FileText, Scale } from "lucide-react";
+import { ArrowRight, Calculator, Download, FileText, Scale } from "lucide-react";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
@@ -45,8 +45,10 @@ import {
   efetivarRenegociacao,
   gerarDocumentosRenegociacao,
   gerarPropostaRenegociacao,
+  modalidadeEfetivaNoWizard,
   modalidadeUsaMotorCondicoes,
   alinharSimulacaoQuitacaoT4,
+  baixarPropostaPdfT1,
   simularQuitacaoLocal,
   simularRenegociacao,
   simularViaCondicoesVersao,
@@ -65,6 +67,7 @@ import {
 } from "@/lib/renegociacao-inadimplencia-presente";
 import { InadimplenciaPresenteCard } from "@/components/dashboard/renegociacao-form/InadimplenciaPresenteCard";
 import { QuitacaoLiquidacaoMemoriaCard } from "@/components/dashboard/renegociacao-form/QuitacaoLiquidacaoMemoriaCard";
+import { T1AcordoDetalheCard } from "@/components/dashboard/renegociacao-form/T1AcordoDetalheCard";
 import { RenegociacaoEfetivacaoResumo } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResumo";
 import {
   MODALIDADE_OPTIONS,
@@ -79,6 +82,7 @@ import {
   type ContratoHonorariosFormValues,
 } from "@/lib/validations/contrato-honorarios";
 import { cn } from "@/lib/utils";
+import { previewT1Acordo } from "@/lib/renegociacao-t1-calculo";
 import {
   buildRenegociacaoDashboardUrl,
   MODALIDADE_ATALHO_ADITIVO,
@@ -156,6 +160,7 @@ export function RenegociacaoWizard({
   const [documentosOk, setDocumentosOk] = useState(false);
   const [processoRetomado, setProcessoRetomado] = useState(false);
   const [encargos, setEncargos] = useState<BoletoEncargosConfig | null>(null);
+  const [baixandoProposta, setBaixandoProposta] = useState(false);
 
   useEffect(() => {
     fetchBoletoEncargosConfig()
@@ -168,6 +173,22 @@ export function RenegociacaoWizard({
   const modalidadeMeta = useMemo(
     () => MODALIDADE_OPTIONS.find((o) => o.value === modalidade),
     [modalidade],
+  );
+
+  const motivoPadraoModalidade = useCallback((m: ModalidadeRenegociacao) => {
+    const label = MODALIDADE_OPTIONS.find((o) => o.value === m)?.label;
+    return label
+      ? `Renegociação — ${label} (fluxo unificado, ex-aditivo quando aplicável)`
+      : "Renegociação de condições financeiras";
+  }, []);
+
+  const aplicarModalidade = useCallback(
+    (value: ModalidadeRenegociacao | null) => {
+      setModalidade(value);
+      if (!value) return;
+      setMotivo((prev) => (prev.trim() ? prev : motivoPadraoModalidade(value)));
+    },
+    [motivoPadraoModalidade],
   );
 
   const ajudaParametros = modalidade ? AJUDA_PARAMETROS_POR_MODALIDADE[modalidade] : undefined;
@@ -186,6 +207,18 @@ export function RenegociacaoWizard({
     );
     return agregarInadimplenciaPresente(vencidos, encargos);
   }, [financeiro, encargos, modalidade, parcelaInicial]);
+
+  const previewT1 = useMemo(() => {
+    if (modalidade !== "T1_PARCELAS_VENCIDAS" || !financeiro || !encargos) return null;
+    return previewT1Acordo({
+      titulosAbertos: financeiro.titulosAbertos,
+      titulosVencidos: financeiro.titulosVencidos ?? [],
+      encargos,
+      parcelaInicial,
+      quantidadeParcelas,
+      pctDesconto,
+    });
+  }, [modalidade, financeiro, encargos, parcelaInicial, quantidadeParcelas, pctDesconto]);
 
   const inadimplenciaSimulacao = useMemo(() => {
     if (!simulacao || (modalidade !== "T4_QUITACAO" && modalidade !== "T1_PARCELAS_VENCIDAS")) {
@@ -219,15 +252,8 @@ export function RenegociacaoWizard({
 
   useEffect(() => {
     if (!modalidadeInicial) return;
-    setModalidade(modalidadeInicial);
-    setMotivo((prev) => {
-      if (prev.trim()) return prev;
-      const label = MODALIDADE_OPTIONS.find((o) => o.value === modalidadeInicial)?.label;
-      return label
-        ? `Renegociação — ${label} (fluxo unificado, ex-aditivo quando aplicável)`
-        : "Renegociação de condições financeiras";
-    });
-  }, [modalidadeInicial]);
+    aplicarModalidade(modalidadeInicial);
+  }, [modalidadeInicial, aplicarModalidade]);
 
   useEffect(() => {
     const id = renegociacaoIdInicial;
@@ -369,7 +395,9 @@ export function RenegociacaoWizard({
             condicoes: modalidadeUsaMotorCondicoes(modalidade) ? payload : undefined,
             politicaReajuste: modalidadeUsaMotorCondicoes(modalidade) ? "CADEIA" : undefined,
             confirmarCancelamentoTitulos:
-              modalidadeUsaMotorCondicoes(modalidade) || modalidade === "T4_QUITACAO"
+              modalidadeUsaMotorCondicoes(modalidade) ||
+              modalidade === "T4_QUITACAO" ||
+              modalidade === "T1_PARCELAS_VENCIDAS"
                 ? true
                 : undefined,
             dadosJudiciais:
@@ -460,9 +488,9 @@ export function RenegociacaoWizard({
         return;
       }
 
-      if (modalidade === "T1_PARCELAS_VENCIDAS" || modalidade === "T5_COM_ENTRADA") {
+      if (modalidade === "T5_COM_ENTRADA") {
         toast.info(
-          "T1/T5 no atendimento até unificação completa. Use o painel de atendimento ou conclua via aditivo.",
+          "T5 no atendimento até unificação completa. Use o painel de atendimento ou conclua via aditivo.",
           {
             action: {
               label: "Atendimento",
@@ -478,6 +506,24 @@ export function RenegociacaoWizard({
       toast.error(e instanceof Error ? e.message : "Falha na simulação");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const baixarPropostaT1Pdf = async () => {
+    const procId = renegociacaoId;
+    const simId = simulacao?.simulacaoId;
+    if (procId == null || procId <= 0 || simId == null) {
+      toast.error("Simule novamente pelo backend para gerar o PDF da proposta.");
+      return;
+    }
+    setBaixandoProposta(true);
+    try {
+      await baixarPropostaPdfT1(contratoId, procId, simId);
+      toast.success("Proposta T1 baixada.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao baixar proposta");
+    } finally {
+      setBaixandoProposta(false);
     }
   };
 
@@ -535,20 +581,26 @@ export function RenegociacaoWizard({
   const processarEfetivacao = async () => {
     const procId = renegociacaoId;
     if (procId == null || procId <= 0) return;
-    if (!modalidadeUsaMotorCondicoes(modalidade)) {
-      toast.info("T1/T4/T6: efetive via painel de atendimento ou aguarde integração de títulos.");
+    if (!modalidadeEfetivaNoWizard(modalidade)) {
+      toast.info("T4/T6: efetive via painel de atendimento ou aguarde integração de títulos.");
       return;
     }
     setLoading(true);
     try {
       const key = `reneg-${procId}-${Date.now()}`;
+      const titulosCancelarIds =
+        simulacao?.titulosAfetados.map((t) => t.id) ?? [];
       const res = await efetivarRenegociacao(
         contratoId,
         procId,
-        { confirmarCancelamentoTitulos: true, titulosCancelarIds: [] },
+        { confirmarCancelamentoTitulos: true, titulosCancelarIds },
         key,
       );
-      toast.success(`Renegociação efetivada. Versão #${res.versaoPublicadaId ?? "—"}.`);
+      const msg =
+        modalidade === "T1_PARCELAS_VENCIDAS"
+          ? "Renegociação T1 efetivada — títulos cancelados e reemitidos."
+          : `Renegociação efetivada. Versão #${res.versaoPublicadaId ?? "—"}.`;
+      toast.success(msg);
       router.push(`/dashboard/contratos?highlight=${contratoId}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha na efetivação");
@@ -567,14 +619,21 @@ export function RenegociacaoWizard({
       return;
     }
     if (step === 1) {
-      if (!modalidade || !motivo.trim()) {
-        toast.error("Preencha modalidade e motivo.");
+      if (!modalidade) {
+        toast.error("Selecione a modalidade.");
         return;
+      }
+      if (!motivo.trim()) {
+        setMotivo(motivoPadraoModalidade(modalidade));
       }
       setStep(2);
       return;
     }
     if (step === 2) {
+      if (modalidade === "T1_PARCELAS_VENCIDAS" && previewT1?.erro) {
+        toast.error(previewT1.erro);
+        return;
+      }
       await executarSimulacao();
       return;
     }
@@ -659,7 +718,7 @@ export function RenegociacaoWizard({
                     options={MODALIDADE_OPTIONS}
                     optionLabel="label"
                     optionValue="value"
-                    onChange={(e) => setModalidade(e.value)}
+                    onChange={(e) => aplicarModalidade(e.value ?? null)}
                     placeholder="Selecione…"
                     pt={RENEGOCIACAO_DROPDOWN_PT}
                     className="w-full"
@@ -724,10 +783,20 @@ export function RenegociacaoWizard({
                   </div>
                 )}
                 {modalidade === "T1_PARCELAS_VENCIDAS" && previewInadimplenciaVp && (
-                  <InadimplenciaPresenteCard
-                    agregado={previewInadimplenciaVp}
-                    nominalPainel={financeiro?.valorInadimplente}
-                  />
+                  <>
+                    <InadimplenciaPresenteCard
+                      agregado={previewInadimplenciaVp}
+                      nominalPainel={financeiro?.valorInadimplente}
+                    />
+                    {previewT1 && !previewT1.erro && (
+                      <T1AcordoDetalheCard preview={previewT1} />
+                    )}
+                    {previewT1?.erro && (
+                      <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200/90">
+                        {previewT1.erro}
+                      </p>
+                    )}
+                  </>
                 )}
                 <div className="grid w-full gap-5 md:grid-cols-2">
                 <div>
@@ -829,7 +898,9 @@ export function RenegociacaoWizard({
               description={
                 modalidade === "T4_QUITACAO"
                   ? "Liquidação: memória (saldo devedor + inadimplência a VP − desconto) e parcelas de pagamento. Nada altera o contrato até assinatura."
-                  : "Nenhuma alteração financeira até efetivação assinada."
+                  : modalidade === "T1_PARCELAS_VENCIDAS"
+                    ? "Acordo T1: mora a valor presente diluída e somada às próximas vincendas. Revise cada passo antes de gerar a proposta."
+                    : "Nenhuma alteração financeira até efetivação assinada."
               }
               contentClassName="!grid-cols-1 !gap-6 w-full min-w-0"
             >
@@ -884,6 +955,32 @@ export function RenegociacaoWizard({
                       </DashboardDataTableShell>
                     </div>
                   </>
+                ) : modalidade === "T1_PARCELAS_VENCIDAS" ? (
+                  <>
+                    <div className="flex w-full flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                      <MetricTile label="Mora (VP)" value={formatBrl(simulacao.totalAnterior)} />
+                      <MetricTile label="Total acordo" value={formatBrl(simulacao.totalNovo)} />
+                      <MetricTile
+                        label="Desconto"
+                        value={formatBrl(simulacao.memoriaCalculo?.vlDesconto ?? 0)}
+                      />
+                      <MetricTile
+                        label="Aprovação"
+                        value={
+                          simulacao.exigeAprovacao
+                            ? `Nível ${simulacao.nrNivelAprovacaoRequerido}`
+                            : "Automática"
+                        }
+                      />
+                    </div>
+                    {simulacao.memoriaCalculo && (
+                      <InadimplenciaPresenteCard
+                        agregado={inadimplenciaSimulacao}
+                        nominalPainel={financeiro?.valorInadimplente}
+                      />
+                    )}
+                    <T1AcordoDetalheCard simulacao={simulacao} />
+                  </>
                 ) : (
                   <>
                     <div className="flex w-full flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
@@ -899,18 +996,6 @@ export function RenegociacaoWizard({
                         }
                       />
                     </div>
-                    {modalidade === "T1_PARCELAS_VENCIDAS" && simulacao.memoriaCalculo && (
-                      <div className="flex w-full flex-col gap-3">
-                        <InadimplenciaPresenteCard
-                          agregado={inadimplenciaSimulacao}
-                          nominalPainel={financeiro?.valorInadimplente}
-                        />
-                        <MetricTile
-                          label="Desconto"
-                          value={formatBrl(simulacao.memoriaCalculo.vlDesconto)}
-                        />
-                      </div>
-                    )}
                     {simulacao.avisos.length > 0 && (
                       <ul className="list-disc space-y-1 pl-5 text-sm text-amber-200/90">
                         {simulacao.avisos.map((a) => (
@@ -1017,8 +1102,11 @@ export function RenegociacaoWizard({
                 propostaId={propostaId}
                 contratoId={contratoId}
               />
+              {modalidade === "T1_PARCELAS_VENCIDAS" && simulacao && (
+                <T1AcordoDetalheCard simulacao={simulacao} />
+              )}
               <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-end">
-                {modalidadeUsaMotorCondicoes(modalidade) &&
+                {modalidadeEfetivaNoWizard(modalidade) &&
                 renegociacaoId != null &&
                 renegociacaoId > 0 ? (
                   <Button
@@ -1028,7 +1116,7 @@ export function RenegociacaoWizard({
                     className="rounded-full border-0 bg-emerald-600 px-6 py-3 text-xs font-black uppercase tracking-widest"
                     label="Efetivar"
                   />
-                ) : modalidade === "T1_PARCELAS_VENCIDAS" || modalidade === "T6_JUDICIAL" ? (
+                ) : modalidade === "T6_JUDICIAL" ? (
                   <Link href={`/dashboard/atendimento/painel?id=${contratoId}`}>
                     <Button
                       type="button"
@@ -1043,6 +1131,12 @@ export function RenegociacaoWizard({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {step === 1 && !modalidade && (
+        <p className="mt-6 text-center text-sm text-amber-200/90">
+          Selecione a modalidade acima para avançar ao passo de parâmetros.
+        </p>
+      )}
 
       <div
         className={cn(
@@ -1061,6 +1155,22 @@ export function RenegociacaoWizard({
           />
         )}
         <div className="flex gap-3">
+          {step === 3 &&
+            modalidade === "T1_PARCELAS_VENCIDAS" &&
+            simulacao?.simulacaoId != null &&
+            renegociacaoId != null &&
+            renegociacaoId > 0 && (
+              <Button
+                type="button"
+                label="Baixar proposta"
+                icon={<Download className="mr-2 h-4 w-4" />}
+                loading={baixandoProposta}
+                disabled={loading || baixandoProposta}
+                onClick={baixarPropostaT1Pdf}
+                severity="secondary"
+                className="rounded-full border-white/10 bg-white/5 text-white"
+              />
+            )}
           {step === 2 && (
             <Button
               type="button"
@@ -1087,7 +1197,7 @@ export function RenegociacaoWizard({
               disabled={
                 loading ||
                 (step === 0 && !contratoApi) ||
-                (step === 1 && (!modalidade || !motivo.trim())) ||
+                (step === 1 && !modalidade) ||
                 (step === 3 && !simulacao) ||
                 (step >= 4 && (renegociacaoId == null || renegociacaoId <= 0))
               }

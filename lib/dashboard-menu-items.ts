@@ -22,6 +22,7 @@ import {
   ScrollText,
   Search,
   Send,
+  RefreshCw,
   TrendingUp,
   UserSquare,
   Users,
@@ -61,6 +62,7 @@ export type MenuGroupItem = {
 export const ATENDIMENTO_MENU_PREFIX = "/dashboard/atendimento";
 export const WHATSAPP_MENU_PREFIX = "/dashboard/whatsapp";
 export const EMAIL_MENU_PREFIX = "/dashboard/email";
+export const RENEGOCIACAO_MENU_PREFIX = "/dashboard/contratos/renegociacao";
 
 export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
   {
@@ -142,6 +144,28 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     label: "Contratos",
     icon: FileText,
     roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
+  },
+  {
+    kind: "group",
+    id: "grupo-renegociacao",
+    label: "Renegociação",
+    icon: RefreshCw,
+    roles: ["ADMIN", "ATENDIMENTO", "ADMINISTRATIVO"],
+    prefix: RENEGOCIACAO_MENU_PREFIX,
+    children: [
+      {
+        id: "renegociar",
+        href: RENEGOCIACAO_MENU_PREFIX,
+        label: "Renegociar",
+        icon: GitCompareArrows,
+      },
+      {
+        id: "renegociacao-consultar",
+        href: `${RENEGOCIACAO_MENU_PREFIX}/consultar`,
+        label: "Consultar",
+        icon: Search,
+      },
+    ],
   },
   {
     kind: "group",
@@ -241,6 +265,9 @@ export function menuItemVisible(
 ): boolean {
   if (role === "ATENDIMENTO") {
     if (item.kind === "group" && item.prefix === ATENDIMENTO_MENU_PREFIX) {
+      return true;
+    }
+    if (item.kind === "group" && item.prefix === RENEGOCIACAO_MENU_PREFIX) {
       return true;
     }
     if (item.kind === "group" && item.prefix === WHATSAPP_MENU_PREFIX) {

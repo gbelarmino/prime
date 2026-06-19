@@ -12,23 +12,9 @@ import {
   User,
   Menu as MenuIcon,
   X,
-  MessageCircle,
-  Zap,
-  Send,
-  FlaskConical,
-  ListOrdered,
-  Receipt,
-  FilePlus,
-  BookOpen,
-  Scale,
-  GitCompareArrows,
-  Headset,
-  Link2,
-  ScrollText,
-  TrendingUp,
-  Calculator,
-  Kanban,
-  RefreshCw,
+  Search,
+  Mail,
+  LayoutGrid,
 } from "lucide-react";
 import { Menu } from "primereact/menu";
 import { AppLogo } from "@/components/AppLogo";
@@ -58,29 +44,27 @@ import {
 } from "@/hooks/use-unicred-webhook-pendentes";
 import { useRealtimeSocketKeeper } from "@/hooks/use-realtime-socket-keeper";
 import { useCrmFunilEnabled } from "@/hooks/use-crm-funil-enabled";
+import {
+  DASHBOARD_MENU_ITEMS,
+  filterVisibleMenuChildren,
+  menuChildVisible,
+  menuItemVisible,
+  type MenuChildDef,
+  type MenuGroupItem,
+} from "@/lib/dashboard-menu-items";
+import {
+  applyMenuPreference,
+  buildMenuPreferenceFromItems,
+  clearMenuPreference,
+  loadMenuPreference,
+  saveMenuPreference,
+  type MenuPreference,
+} from "@/lib/dashboard-menu-preferences";
+import {
+  DashboardMenuCustomizer,
+  createDraftPreference,
+} from "@/components/dashboard/DashboardMenuCustomizer";
 
-type MenuIcon = ComponentType<{ size?: number; className?: string }>;
-
-type MenuLinkItem = {
-  kind: "link";
-  href: string;
-  label: string;
-  icon: MenuIcon;
-  roles?: string[];
-};
-
-type MenuGroupItem = {
-  kind: "group";
-  label: string;
-  icon: MenuIcon;
-  roles?: string[];
-  prefix: string;
-  children: { href: string; label: string; icon: MenuIcon; roles?: string[] }[];
-};
-
-const ATENDIMENTO_MENU_PREFIX = "/dashboard/atendimento";
-const WHATSAPP_MENU_PREFIX = "/dashboard/whatsapp";
-const EMAIL_MENU_PREFIX = "/dashboard/email";
 const CONTRATOS_MENU_PATH = "/dashboard/contratos";
 const RENEGOCIACAO_MENU_PREFIX = "/dashboard/contratos/renegociacao";
 const RENEGOCIACAO_CONSULTAR_PATH = `${RENEGOCIACAO_MENU_PREFIX}/consultar`;
@@ -109,181 +93,6 @@ function isRenegociacaoMenuChildActive(pathname: string, childHref: string): boo
     return pathname === childHref || pathname.startsWith(`${childHref}/`);
   }
   return pathname === childHref || pathname.startsWith(`${childHref}/`);
-}
-
-const MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
-  { kind: "link", href: ADMIN_DASHBOARD_HOME, label: "Início", icon: Home, roles: ["ADMIN"] },
-  {
-    kind: "link",
-    href: WELCOME_DASHBOARD_PATH,
-    label: "Início",
-    icon: Home,
-    roles: ["CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
-  },
-  {
-    kind: "link",
-    href: "/dashboard/clientes",
-    label: "Clientes",
-    icon: Contact,
-    roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
-  },
-  {
-    kind: "link",
-    href: "/dashboard/crm/funil",
-    label: "Funil CRM",
-    icon: Kanban,
-    roles: ["ADMIN"],
-  },
-  { kind: "link", href: "/dashboard/imobiliarias", label: "Imobiliárias", icon: Building2, roles: ["ADMIN"] },
-  {
-    kind: "link",
-    href: "/dashboard/corretores",
-    label: "Corretores",
-    icon: UserSquare,
-    roles: ["ADMIN", "IMOBILIARIA"],
-  },
-  {
-    kind: "link",
-    href: "/dashboard/imoveis",
-    label: "Imóveis",
-    icon: MapPin,
-    roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
-  },
-  { kind: "link", href: "/dashboard/usuarios", label: "Usuários", icon: Users, roles: ["ADMIN"] },
-  { kind: "link", href: "/dashboard/auditoria", label: "Auditoria", icon: ScrollText, roles: ["ADMIN"] },
-  {
-    kind: "link",
-    href: "/dashboard/contratos",
-    label: "Contratos",
-    icon: FileText,
-    roles: ["ADMIN", "CORRETOR", "IMOBILIARIA", "ADMINISTRATIVO"],
-  },
-  {
-    kind: "group",
-    label: "Renegociação",
-    icon: RefreshCw,
-    roles: ["ADMIN", "ATENDIMENTO", "ADMINISTRATIVO"],
-    prefix: "/dashboard/contratos/renegociacao",
-    children: [
-      {
-        href: "/dashboard/contratos/renegociacao",
-        label: "Renegociar",
-        icon: GitCompareArrows,
-      },
-      {
-        href: "/dashboard/contratos/renegociacao/consultar",
-        label: "Consultar",
-        icon: Search,
-      },
-    ],
-  },
-  {
-    kind: "group",
-    label: "Atendimento",
-    icon: Headset,
-    roles: ["ADMIN", "ATENDIMENTO", "ADMINISTRATIVO"],
-    prefix: "/dashboard/atendimento",
-    children: [
-      { href: "/dashboard/atendimento", label: "Consulta", icon: Search },
-    ],
-  },
-  {
-    kind: "group",
-    label: "Financeiro",
-    icon: Receipt,
-    roles: ["ADMIN", "ADMINISTRATIVO"],
-    prefix: "/dashboard/financeiro",
-    children: [
-      { href: "/dashboard/financeiro/titulos", label: "Títulos", icon: Receipt },
-      { href: "/dashboard/financeiro/titulos-avulso", label: "Título avulso", icon: FilePlus },
-      { href: "/dashboard/financeiro/simulacao-ipca", label: "Simulação IPCA", icon: Calculator },
-      { href: "/dashboard/financeiro/simulacao-igpm", label: "Simulação IGP-M", icon: Calculator },
-      { href: "/dashboard/financeiro/convenios", label: "Convênios", icon: Building2 },
-      { href: "/dashboard/financeiro/conciliacao", label: "Conciliação", icon: GitCompareArrows },
-      { href: "/dashboard/financeiro/unicred-webhooks", label: "Webhooks Unicred", icon: Link2 },
-      { href: "/dashboard/financeiro/lancamentos", label: "Lançamentos", icon: BookOpen },
-      { href: "/dashboard/financeiro/por-imovel", label: "Por imóvel", icon: Home },
-      { href: "/dashboard/financeiro/plano-contas", label: "Plano de contas", icon: Scale },
-      { href: "/dashboard/financeiro/indices-ipca", label: "IPCA", icon: TrendingUp },
-      { href: "/dashboard/financeiro/indices-igpm", label: "IGP-M", icon: TrendingUp },
-    ],
-  },
-  { kind: "link", href: "/dashboard/clicksign", label: "Portal Clicksign", icon: FileText, roles: ["ADMIN"] },
-  {
-    kind: "group",
-    label: "WhatsApp",
-    icon: MessageCircle,
-    roles: ["ADMIN", "ATENDIMENTO"],
-    prefix: WHATSAPP_MENU_PREFIX,
-    children: [
-      {
-        href: "/dashboard/whatsapp/conexao",
-        label: "Conexão",
-        icon: MessageCircle,
-        roles: ["ADMIN", "ATENDIMENTO"],
-      },
-      { href: "/dashboard/whatsapp/modelos", label: "Modelos de mensagem", icon: FileText, roles: ["ADMIN"] },
-      { href: "/dashboard/whatsapp/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
-      { href: "/dashboard/whatsapp/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
-      { href: "/dashboard/whatsapp/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
-      { href: "/dashboard/whatsapp/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN"] },
-    ],
-  },
-  {
-    kind: "group",
-    label: "E-mail",
-    icon: Mail,
-    roles: ["ADMIN"],
-    prefix: EMAIL_MENU_PREFIX,
-    children: [
-      { href: "/dashboard/email/conta", label: "Conta SMTP", icon: Mail, roles: ["ADMIN"] },
-      { href: "/dashboard/email/modelos", label: "Modelos de e-mail", icon: FileText, roles: ["ADMIN"] },
-      { href: "/dashboard/email/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
-      { href: "/dashboard/email/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
-      { href: "/dashboard/email/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
-      { href: "/dashboard/email/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN"] },
-    ],
-  },
-];
-
-function menuChildVisible(
-  child: { roles?: string[] },
-  role: string | null,
-): boolean {
-  if (!child.roles) return true;
-  return Boolean(role && child.roles.includes(role));
-}
-
-function menuItemVisible(
-  item: MenuLinkItem | MenuGroupItem,
-  role: string | null,
-  crmFunilEnabled: boolean | null,
-) {
-  if (role === "ATENDIMENTO") {
-    if (item.kind === "group" && item.prefix === ATENDIMENTO_MENU_PREFIX) {
-      return true;
-    }
-    if (item.kind === "group" && item.prefix === WHATSAPP_MENU_PREFIX) {
-      return item.children.some((c) => menuChildVisible(c, role));
-    }
-    return false;
-  }
-  if (role === "ADMINISTRATIVO") {
-    if (!item.roles?.includes("ADMINISTRATIVO")) return false;
-    if (item.kind === "group") {
-      return item.children.some((c) => menuChildVisible(c, role));
-    }
-    return true;
-  }
-  if (!item.roles) return true;
-  if (!role || !item.roles.includes(role)) return false;
-  if (
-    item.kind === "link" &&
-    (item.href === "/dashboard/crm/funil" || item.href.startsWith("/dashboard/crm/"))
-  ) {
-    return crmFunilEnabled === true;
-  }
-  return true;
 }
 
 function MenuDangerBadge({ count }: { count: number }) {
