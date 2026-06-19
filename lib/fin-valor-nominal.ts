@@ -145,7 +145,7 @@ export function aplicarReajuste(
   };
 }
 
-function vencimentoProjetado(
+export function vencimentoProjetadoParcela(
   numeroParcela: number,
   dataPrimeiraParcela: Date,
   diaVencimento: number,
@@ -233,7 +233,7 @@ export function calcularValorNominalParcela(
 
   const vencimentoPorParcela =
     vencimentoPorParcelaOverride ??
-    ((n: number) => vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento));
+    ((n: number) => vencimentoProjetadoParcela(n, dataPrimeiraParcela, diaVencimento));
 
   if (numeroParcela < 13) {
     return valorBaseSemReajuste(
@@ -272,7 +272,7 @@ export function detalheReajusteParcela(
 } {
   const vencimentoPorParcela =
     vencimentoPorParcelaOverride ??
-    ((n: number) => vencimentoProjetado(n, dataPrimeiraParcela, diaVencimento));
+    ((n: number) => vencimentoProjetadoParcela(n, dataPrimeiraParcela, diaVencimento));
 
   if (numeroParcela < 13) {
     return {

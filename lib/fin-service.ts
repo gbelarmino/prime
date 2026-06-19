@@ -67,6 +67,8 @@ import {
   getFinCobrancaGrupoByIdUrl,
   getFinCobrancaGrupoSimularUrl,
   getFinCobrancaGrupoEmitirUrl,
+  getFinCobrancaGrupoLoteUrl,
+  getFinCobrancaGrupoLegadoManualUrl,
   getFinCobrancaGrupoLiderUrl,
   getFinCobrancaGrupoMembrosUrl,
   getFinCobrancaGrupoDesativarUrl,
@@ -434,6 +436,45 @@ export interface CobrancaGrupoEmitirSimulacao {
 }
 
 export interface CobrancaGrupoEmitirResult {
+  titulo: TituloCobranca;
+  valorTotal: number;
+  rateios: CobrancaGrupoEmitirSimulacaoItem[];
+}
+
+export interface CobrancaGrupoLoteCreate {
+  convenioId?: string;
+  quantidadeParcelas: number;
+  dataPrimeiraParcela?: string;
+}
+
+export interface CobrancaGrupoLoteResult {
+  quantidade: number;
+  parcelaInicial: number;
+  parcelaFinal: number;
+  titulos: TituloCobranca[];
+}
+
+export interface CobrancaGrupoLegadoManualCreate {
+  numeroParcela: number;
+  vencimento: string;
+  membros: CobrancaGrupoEmitirMembro[];
+  convenioId?: string;
+  statusFinal: TituloLegadoManualStatus;
+  nossoNumero?: string;
+  linhaDigitavel?: string;
+  codigoBarras?: string;
+  idExternoBanco?: string;
+  urlBoleto?: string;
+  valorPago?: number;
+  dataPagamento?: string;
+  valorJuros?: number;
+  valorMulta?: number;
+  valorDesconto?: number;
+  valorTarifa?: number;
+  observacao?: string;
+}
+
+export interface CobrancaGrupoLegadoManualResult {
   titulo: TituloCobranca;
   valorTotal: number;
   rateios: CobrancaGrupoEmitirSimulacaoItem[];
@@ -1458,6 +1499,30 @@ export const finService = {
     const res = await apiFetch(getFinCobrancaGrupoEmitirUrl(grupoId), {
       method: "POST",
       headers,
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async criarTitulosLoteCobrancaGrupo(
+    grupoId: string,
+    body: CobrancaGrupoLoteCreate,
+  ): Promise<CobrancaGrupoLoteResult> {
+    const res = await apiFetch(getFinCobrancaGrupoLoteUrl(grupoId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async criarTituloLegadoManualCobrancaGrupo(
+    grupoId: string,
+    body: CobrancaGrupoLegadoManualCreate,
+  ): Promise<CobrancaGrupoLegadoManualResult> {
+    const res = await apiFetch(getFinCobrancaGrupoLegadoManualUrl(grupoId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     return parseJson(res);
