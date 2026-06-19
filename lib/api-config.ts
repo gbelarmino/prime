@@ -1084,6 +1084,14 @@ export function getFinCobrancaGrupoEmitirUrl(id: string): string {
   return `${getFinCobrancaGrupoByIdUrl(id)}/emitir`;
 }
 
+export function getFinCobrancaGrupoLoteUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/lote`;
+}
+
+export function getFinCobrancaGrupoLegadoManualUrl(id: string): string {
+  return `${getFinCobrancaGrupoByIdUrl(id)}/legado-manual`;
+}
+
 export function getFinCobrancaGrupoLiderUrl(id: string): string {
   return `${getFinCobrancaGrupoByIdUrl(id)}/lider`;
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
-import { Calendar } from "primereact/calendar";
+import { DashboardCalendar } from "@/lib/dashboard-calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputNumber } from "primereact/inputnumber";
 import { InputText } from "primereact/inputtext";
@@ -37,20 +37,6 @@ const DROPDOWN_PT = {
 };
 
 const CALENDAR_INPUT_CLASS = `${FORM_INPUT_CLASS} rounded-r-none`;
-
-/** Mesmo padrão do campo Data de Nascimento em `DadosPessoais`. */
-const DASHBOARD_CALENDAR_PT = {
-  panel: { className: "bg-[#071C33] border-white/10 shadow-2xl" },
-  header: { className: "bg-transparent border-white/5 p-2" },
-  title: { className: "text-white font-bold flex gap-2 justify-center" },
-  dropdownButton: {
-    root: {
-      className:
-        "bg-blue-600 border-none rounded-r-xl w-12 flex items-center justify-center",
-    },
-    icon: { className: "text-white text-lg" },
-  },
-};
 
 function calendarValueFromDate(date: Date | null): Date | null {
   if (!date) return null;
@@ -483,18 +469,13 @@ export function TituloLegadoManualDialog({
         </div>
         <div className="flex flex-col gap-2">
           <label className={FORM_LABEL_CLASS}>Vencimento</label>
-          <Calendar
+          <DashboardCalendar
             value={calendarValueFromDate(vencimento)}
             onChange={(e) => onCalendarDateChange(e.value, setVencimento)}
-            dateFormat="dd/mm/yy"
             placeholder="00/00/0000"
             mask="99/99/9999"
-            showIcon
-            locale="pt-BR"
-            icon="pi pi-calendar"
             className="w-full"
             inputClassName={CALENDAR_INPUT_CLASS}
-            pt={DASHBOARD_CALENDAR_PT}
             disabled={!isEditMode && !contexto}
           />
         </div>
@@ -586,18 +567,13 @@ export function TituloLegadoManualDialog({
             </div>
             <div className="flex flex-col gap-2">
               <label className={FORM_LABEL_CLASS}>Data pagamento</label>
-              <Calendar
+              <DashboardCalendar
                 value={calendarValueFromDate(dataPagamento)}
                 onChange={(e) => onCalendarDateChange(e.value, setDataPagamento)}
-                dateFormat="dd/mm/yy"
                 placeholder="00/00/0000"
                 mask="99/99/9999"
-                showIcon
-                locale="pt-BR"
-                icon="pi pi-calendar"
                 className="w-full"
                 inputClassName={CALENDAR_INPUT_CLASS}
-                pt={DASHBOARD_CALENDAR_PT}
               />
             </div>
             <div className="flex flex-col gap-2">
