@@ -228,86 +228,86 @@ export function CobrancaGrupoLotePreviewDialog({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.06] text-white/70">
-                  {(loading && itensDetalhe.length === 0
-                    ? previewLote.itensRevisao
-                    : itensDetalhe
-                  ).map((item) => (
-                    <tr
-                      key={item.parcela}
-                      className={cn(
-                        "bg-white/[0.02]",
-                        item.excedente &&
-                          "bg-violet-500/[0.08] ring-1 ring-inset ring-violet-500/25 opacity-80",
-                        !item.excedente &&
-                          item.ajustadoPorDiaUtil &&
-                          "bg-amber-500/[0.08] ring-1 ring-inset ring-amber-500/25",
-                      )}
-                    >
-                      <td className="px-4 py-2.5 align-top font-mono">
-                        <span className={cn(item.excedente && "text-violet-200/90")}>
-                          {item.parcela}
-                        </span>
-                        {item.excedente ? (
-                          <span className="mt-1 block text-[10px] font-medium text-violet-300/90">
-                            {item.parcelaReajuste
-                              ? "Reajuste — não será gerada"
-                              : "Fora deste lote"}
+                  {previewLote.itensRevisao.map((item) => {
+                    const detalhe = itensDetalhe.find((d) => d.parcela === item.parcela);
+                    return (
+                      <tr
+                        key={item.parcela}
+                        className={cn(
+                          "bg-white/[0.02]",
+                          item.excedente &&
+                            "bg-violet-500/[0.08] ring-1 ring-inset ring-violet-500/25 opacity-80",
+                          !item.excedente &&
+                            item.ajustadoPorDiaUtil &&
+                            "bg-amber-500/[0.08] ring-1 ring-inset ring-amber-500/25",
+                        )}
+                      >
+                        <td className="px-4 py-2.5 align-top font-mono">
+                          <span className={cn(item.excedente && "text-violet-200/90")}>
+                            {item.parcela}
                           </span>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-2.5 align-top">
-                        <div className="flex flex-col gap-1">
-                          <span
-                            className={cn(
-                              item.excedente && "text-violet-200/70 line-through decoration-violet-400/40",
-                              !item.excedente &&
-                                item.ajustadoPorDiaUtil &&
-                                "font-medium text-amber-100",
-                            )}
-                          >
-                            {formatDate(item.vencimento)}
-                          </span>
-                          {!item.excedente && item.ajustadoPorDiaUtil ? (
-                            <span className="text-[10px] font-medium text-amber-300/90">
-                              Seria {formatDate(item.vencimentoBruto)} (
-                              {diaSemanaCurto(parseIsoDate(item.vencimentoBruto))}) — fim de semana
+                          {item.excedente ? (
+                            <span className="mt-1 block text-[10px] font-medium text-violet-300/90">
+                              {item.parcelaReajuste
+                                ? "Reajuste — não será gerada"
+                                : "Fora deste lote"}
                             </span>
                           ) : null}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 align-top text-right">
-                        {!item.excedente ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="font-medium text-white/85">
-                              {loading && itensDetalhe.length === 0
-                                ? "…"
-                                : formatMoney(item.valorTotal)}
+                        </td>
+                        <td className="px-4 py-2.5 align-top">
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={cn(
+                                item.excedente &&
+                                  "text-violet-200/70 line-through decoration-violet-400/40",
+                                !item.excedente &&
+                                  item.ajustadoPorDiaUtil &&
+                                  "font-medium text-amber-100",
+                              )}
+                            >
+                              {formatDate(item.vencimento)}
                             </span>
-                            {"rateios" in item && item.rateios.length > 0 ? (
-                              <span className="text-[10px] text-white/40 leading-snug max-w-[12rem]">
-                                {item.rateios
-                                  .map(
-                                    (r) =>
-                                      `${r.numeroContrato ?? r.contratoId}: ${formatMoney(r.valorNominal)}`,
-                                  )
-                                  .join(" · ")}
-                              </span>
-                            ) : null}
-                            {item.aviso ? (
-                              <span
-                                className="text-[10px] text-amber-300/85 leading-snug max-w-[14rem] text-right"
-                                title={item.aviso}
-                              >
-                                {resumirAvisoIndiceLinha(item.aviso)}
+                            {!item.excedente && item.ajustadoPorDiaUtil ? (
+                              <span className="text-[10px] font-medium text-amber-300/90">
+                                Seria {formatDate(item.vencimentoBruto)} (
+                                {diaSemanaCurto(parseIsoDate(item.vencimentoBruto))}) — fim de
+                                semana
                               </span>
                             ) : null}
                           </div>
-                        ) : (
-                          <span className="text-white/30">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-4 py-2.5 align-top text-right">
+                          {!item.excedente ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="font-medium text-white/85">
+                                {loading && !detalhe ? "…" : formatMoney(detalhe?.valorTotal)}
+                              </span>
+                              {detalhe && detalhe.rateios.length > 0 ? (
+                                <span className="text-[10px] text-white/40 leading-snug max-w-[12rem]">
+                                  {detalhe.rateios
+                                    .map(
+                                      (r) =>
+                                        `${r.numeroContrato ?? r.contratoId}: ${formatMoney(r.valorNominal)}`,
+                                    )
+                                    .join(" · ")}
+                                </span>
+                              ) : null}
+                              {detalhe?.aviso ? (
+                                <span
+                                  className="text-[10px] text-amber-300/85 leading-snug max-w-[14rem] text-right"
+                                  title={detalhe.aviso}
+                                >
+                                  {resumirAvisoIndiceLinha(detalhe.aviso)}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-white/30">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
