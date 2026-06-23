@@ -1,4 +1,4 @@
-import type { IndiceEconomicoMensal, TituloCobranca } from "@/lib/fin-service";
+import { finService, type IndiceEconomicoMensal, type TituloCobranca, type TituloContextoLote } from "@/lib/fin-service";
 import { isParcelaReajuste } from "@/lib/fin-parcela-reajuste";
 import {
   calcularVencimentosComPrimeiraParcelaDetalhe,
@@ -252,6 +252,8 @@ export function simularParcelasIndice(opts: {
   indices: IndiceEconomicoMensal[];
   condicoes: CondicoesValorNominal;
   dataPrimeiraParcelaContrato?: string | null;
+  /** Vencimento informado na emissão/cálculo da parcela alvo (espelha backend). */
+  vencimentoParcelaAlvo?: Date | null;
 }): IndiceSimulacaoParcela[] {
   const {
     titulos,
@@ -260,14 +262,15 @@ export function simularParcelasIndice(opts: {
     indices,
     condicoes,
     dataPrimeiraParcelaContrato,
+    vencimentoParcelaAlvo,
   } = opts;
-  if (parcelaAtual < 1 || titulos.length === 0) return [];
+  if (parcelaAtual < 1) return [];
+  if (titulos.length === 0 && !dataPrimeiraParcelaContrato) return [];
 
   const sorted = [...titulos].sort((a, b) => a.numeroParcela - b.numeroParcela);
-  const primeiro = sorted[0];
   const dataPrimeiraParcela = dataPrimeiraParcelaContrato
     ? parseIsoDate(dataPrimeiraParcelaContrato)
-    : parseIsoDate(primeiro.vencimento);
+    : parseIsoDate(sorted[0]!.vencimento);
   const tituloPorParcela = new Map(sorted.map((t) => [t.numeroParcela, t]));
   const lookup = buildIndiceLookup(indices);
 
@@ -279,6 +282,10 @@ export function simularParcelasIndice(opts: {
 
   const vencimentos = new Map<number, Date>();
   for (let parcela = 1; parcela <= parcelaAtual; parcela++) {
+    if (vencimentoParcelaAlvo && parcela === parcelaAtual) {
+      vencimentos.set(parcela, vencimentoParcelaAlvo);
+      continue;
+    }
     const emitido = tituloPorParcela.get(parcela);
     if (emitido) {
       vencimentos.set(parcela, parseIsoDate(emitido.vencimento));
@@ -287,10 +294,16 @@ export function simularParcelasIndice(opts: {
     }
   }
 
-  const vencimentoPorParcela = (parcela: number): Date =>
-    vencimentos.get(parcela) ??
-    detalhes[parcela - 1]?.vencimento ??
-    dataPrimeiraParcela;
+  const vencimentoPorParcela = (parcela: number): Date => {
+    if (vencimentoParcelaAlvo && parcela === parcelaAtual) {
+      return vencimentoParcelaAlvo;
+    }
+    return (
+      vencimentos.get(parcela) ??
+      detalhes[parcela - 1]?.vencimento ??
+      dataPrimeiraParcela
+    );
+  };
 
   const marcosCorte = buildMarcadoresCorteIndice({
     parcelaAtual,
@@ -375,4 +388,127 @@ export function resumoBasesContrato(condicoes: CondicoesValorNominal): string {
     return `1–${qtd}: fracionado · ${qtd + 1}+: parcela cheia`;
   }
   return "parcela cheia em todas as faixas";
+}
+
+function listarIndices(
+  tipo: TipoIndiceSimulacao,
+  periodo: { desde: string; ate: string },
+): Promise<IndiceEconomicoMensal[]> {
+  return tipo === "IPCA"
+    ? finService.listIndicesIpca(periodo)
+    : finService.listIndicesIgpm(periodo);
+}
+
+export async function listarTitulosDoLote(
+  empreendimento: string,
+  quadra: string,
+  lote: number,
+): Promise<TituloCobranca[]> {
+  const size = 200;
+  let page = 0;
+  const todos: TituloCobranca[] = [];
+  for (;;) {
+    const res = await finService.listTitulos(page, size, {
+      empreendimento,
+      quadra,
+      lote,
+    });
+    todos.push(...(res.content ?? []));
+    if (res.number >= res.totalPages - 1 || (res.content?.length ?? 0) < size) break;
+    page += 1;
+  }
+  return todos.sort((a, b) => a.numeroParcela - b.numeroParcela);
+}
+
+export type SimulacaoEvolucaoContrato = {
+  contexto: TituloContextoLote;
+  simulacao: IndiceSimulacaoParcela[];
+  labelIndice: string;
+  tipoIndice: TipoIndiceSimulacao | null;
+  condicoesResumo: string;
+  primeiraVencimento: string;
+};
+
+export async function carregarSimulacaoEvolucaoContrato(opts: {
+  empreendimento: string;
+  quadra: string;
+  lote: number;
+  parcelaAlvo: number;
+  vencimentoParcelaAlvo?: Date | null;
+}): Promise<SimulacaoEvolucaoContrato> {
+  const { empreendimento, quadra, lote, parcelaAlvo, vencimentoParcelaAlvo } = opts;
+  const [titulos, contexto] = await Promise.all([
+    listarTitulosDoLote(empreendimento, quadra, lote),
+    finService.contextoLote(empreendimento, quadra, lote),
+  ]);
+
+  if (contexto.valorParcela == null) {
+    throw new Error("Contrato sem valor de parcela configurado.");
+  }
+
+  const condicoes: CondicoesValorNominal = {
+    quantidadeParcelasFracionadas: contexto.quantidadeParcelasFracionadas ?? null,
+    valorFracionadoVendedora: contexto.valorFracionadoVendedora ?? null,
+    valorParcela: contexto.valorParcela,
+    tipoCorrecaoAnual: contexto.tipoCorrecaoAnual ?? null,
+  };
+
+  const tipoIndiceContrato = resolverTipoIndiceContrato(contexto.tipoCorrecaoAnual);
+  const labelIndice =
+    contexto.tipoCorrecaoAnual === "NENHUM"
+      ? "sem índice"
+      : tipoIndiceContrato === "IPCA"
+        ? "IPCA"
+        : "IGP-M";
+
+  const dataPrimeira = contexto.dataPrimeiraParcelaContrato;
+  const indices =
+    tipoIndiceContrato != null
+      ? await listarIndices(
+          tipoIndiceContrato,
+          periodoIndiceParaSimulacao(
+            dataPrimeira,
+            parcelaAlvo,
+            tipoIndiceContrato,
+            new Date(),
+            condicoes.quantidadeParcelasFracionadas,
+          ),
+        )
+      : [];
+
+  const simulacao = simularParcelasIndice({
+    titulos,
+    diaVencimentoMensal: contexto.diaVencimentoMensal,
+    parcelaAtual: parcelaAlvo,
+    indices,
+    condicoes,
+    dataPrimeiraParcelaContrato: dataPrimeira,
+    vencimentoParcelaAlvo,
+  });
+
+  const partes = [
+    resumoBasesContrato(condicoes),
+    condicoes.valorFracionadoVendedora != null
+      ? `fracionado ${condicoes.valorFracionadoVendedora.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })}`
+      : null,
+    `parcela ${contexto.valorParcela.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    })}`,
+    contexto.tipoCorrecaoAnual
+      ? `correção ${contexto.tipoCorrecaoAnual === "NENHUM" ? "nenhuma" : labelIndice}`
+      : "correção IGP-M (legado)",
+  ].filter(Boolean);
+
+  return {
+    contexto,
+    simulacao,
+    labelIndice,
+    tipoIndice: tipoIndiceContrato,
+    condicoesResumo: partes.join(" · "),
+    primeiraVencimento: dataPrimeira,
+  };
 }

@@ -30,6 +30,7 @@ import {
 } from "@/lib/fin-calculo-indice-aviso";
 import { buildPreviewLote, resolveMaxParcelasLote } from "@/lib/fin-lote-preview";
 import { CobrancaGrupoLotePreviewDialog } from "@/components/dashboard/fin/CobrancaGrupoLotePreviewDialog";
+import { CobrancaGrupoCalculoDetalheDialog } from "@/components/dashboard/fin/CobrancaGrupoCalculoDetalheDialog";
 import { convenioEmpreendimentoDropdownOptions } from "@/lib/convenio-label";
 import {
   inicioDoDiaHoje,
@@ -286,6 +287,7 @@ export function CobrancaGruposWorkspace() {
   const [dataPrimeiraLote, setDataPrimeiraLote] = useState<Date | null>(null);
   const [criandoLote, setCriandoLote] = useState(false);
   const [previewLoteModalOpen, setPreviewLoteModalOpen] = useState(false);
+  const [calculoDetalheModalOpen, setCalculoDetalheModalOpen] = useState(false);
 
   const [vencimentoLegado, setVencimentoLegado] = useState<Date | null>(null);
   const [statusLegado, setStatusLegado] = useState<TituloLegadoManualStatus>("PAGO");
@@ -614,6 +616,7 @@ export function CobrancaGruposWorkspace() {
       } else {
         toast.success("Valores calculados para todos os lotes.");
       }
+      setCalculoDetalheModalOpen(true);
     } catch (e) {
       setSimulacao(null);
       toast.error(e instanceof Error ? e.message : "Falha ao calcular valores.");
@@ -868,6 +871,19 @@ export function CobrancaGruposWorkspace() {
                           onClick={() => void calcularValores()}
                         >
                           {simulando ? "Calculando…" : "Calcular"}
+                        </button>
+                        <button
+                          type="button"
+                          className={`${BTN_SECONDARY} whitespace-nowrap px-4`}
+                          disabled={!simulacao || simulando}
+                          title={
+                            simulacao
+                              ? "Ver evolução das parcelas e índices aplicados"
+                              : "Calcule os valores primeiro"
+                          }
+                          onClick={() => setCalculoDetalheModalOpen(true)}
+                        >
+                          Ver cálculo
                         </button>
                       </div>
                     </div>
@@ -1250,6 +1266,17 @@ export function CobrancaGruposWorkspace() {
         convenioId={convenioId}
         convenioNome={convenioNomeSelecionado}
         numeroContratoLider={contextoLider?.numeroContrato}
+      />
+
+      <CobrancaGrupoCalculoDetalheDialog
+        visible={calculoDetalheModalOpen}
+        onHide={() => setCalculoDetalheModalOpen(false)}
+        grupo={grupoSelecionado}
+        simulacao={simulacao}
+        parcelaAlvo={parcelaLider}
+        vencimentoEmissao={
+          vencimento && isVencimentoFuturo(vencimento) ? vencimento : inicioDoDiaHoje()
+        }
       />
     </div>
   );
