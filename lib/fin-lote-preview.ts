@@ -1,6 +1,7 @@
 import {
   isParcelaReajuste,
   maxParcelasAteProximoReajuste,
+  parcelaReajusteBloqueadaParaLote,
   proximaParcelaComReajuste,
   ultimaParcelaEmitivelEmLote,
 } from "@/lib/fin-parcela-reajuste";
@@ -28,6 +29,8 @@ export type PreviewLote = {
   ajustadosPorDiaUtil: number;
   parcelaReajusteLimite: number;
   ultimaParcelaEmitivel: number;
+  /** Próxima parcela 13/25/37… que bloqueia emissão em lote após o intervalo. */
+  parcelaReajusteProxima: number;
   primeiroVencimento: string | null;
   ultimoVencimento: string | null;
   itens: PreviewLoteItem[];
@@ -144,6 +147,7 @@ export function buildPreviewLote(input: {
     ajustadosPorDiaUtil,
     parcelaReajusteLimite,
     ultimaParcelaEmitivel,
+    parcelaReajusteProxima: parcelaReajusteBloqueadaParaLote(parcelaInicial),
     primeiroVencimento: itens[0]?.vencimento ?? null,
     ultimoVencimento: itens.at(-1)?.vencimento ?? null,
     itens,

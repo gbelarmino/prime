@@ -29,6 +29,7 @@ import {
   type ResumoCalculoIndice,
 } from "@/lib/fin-calculo-indice-aviso";
 import { buildPreviewLote, resolveMaxParcelasLote } from "@/lib/fin-lote-preview";
+import { parcelasReajusteNoIntervalo } from "@/lib/fin-parcela-reajuste";
 import { CobrancaGrupoLotePreviewDialog } from "@/components/dashboard/fin/CobrancaGrupoLotePreviewDialog";
 import { CobrancaGrupoCalculoDetalheDialog } from "@/components/dashboard/fin/CobrancaGrupoCalculoDetalheDialog";
 import { convenioEmpreendimentoDropdownOptions } from "@/lib/convenio-label";
@@ -284,6 +285,7 @@ export function CobrancaGruposWorkspace() {
   const [contextoLider, setContextoLider] = useState<TituloContextoLote | null>(null);
 
   const [quantidadeLote, setQuantidadeLote] = useState<number | null>(1);
+  const [parcelaInicialLote, setParcelaInicialLote] = useState<number | null>(null);
   const [dataPrimeiraLote, setDataPrimeiraLote] = useState<Date | null>(null);
   const [criandoLote, setCriandoLote] = useState(false);
   const [previewLoteModalOpen, setPreviewLoteModalOpen] = useState(false);
@@ -386,6 +388,7 @@ export function CobrancaGruposWorkspace() {
             setConvenioId(ctx.convenioId);
           }
           setParcelaLider(ctx.numeroParcela ?? lider.proximaParcela ?? 1);
+          setParcelaInicialLote(ctx.numeroParcela ?? lider.proximaParcela ?? 1);
         })
         .catch(() => {
           setVencimento(null);
@@ -525,28 +528,57 @@ export function CobrancaGruposWorkspace() {
         dataPagamentoLegado != null));
 
   const maxParcelasLote = useMemo(() => {
-    if (!contextoLider) return 12;
+    if (!contextoLider || parcelaInicialLote == null || parcelaInicialLote < 1) return 12;
     return Math.min(
       12,
       resolveMaxParcelasLote(
-        contextoLider.numeroParcela,
-        contextoLider.maxParcelasPermitidas,
+        parcelaInicialLote,
+        contextoLider.numeroParcela === parcelaInicialLote
+          ? contextoLider.maxParcelasPermitidas
+          : null,
       ),
     );
-  }, [contextoLider]);
+  }, [contextoLider, parcelaInicialLote]);
 
   const previewLoteGrupo = useMemo(() => {
-    if (!contextoLider || quantidadeLote == null || quantidadeLote < 1) return null;
+    if (
+      !contextoLider ||
+      parcelaInicialLote == null ||
+      parcelaInicialLote < 1 ||
+      quantidadeLote == null ||
+      quantidadeLote < 1
+    ) {
+      return null;
+    }
     return buildPreviewLote({
-      parcelaInicial: contextoLider.numeroParcela,
+      parcelaInicial: parcelaInicialLote,
       diaVencimentoMensal: contextoLider.diaVencimentoMensal,
       referenciaVencimento: contextoLider.referenciaVencimento,
       quantidadeParcelas: quantidadeLote,
       dataPrimeiraParcela: dataPrimeiraLote,
-      maxParcelasPermitidas: contextoLider.maxParcelasPermitidas,
-      parcelaReajusteLimite: contextoLider.parcelaReajusteLimite,
+      maxParcelasPermitidas:
+        contextoLider.numeroParcela === parcelaInicialLote
+          ? contextoLider.maxParcelasPermitidas
+          : null,
+      parcelaReajusteLimite:
+        contextoLider.numeroParcela === parcelaInicialLote
+          ? contextoLider.parcelaReajusteLimite
+          : null,
     });
-  }, [contextoLider, quantidadeLote, dataPrimeiraLote]);
+  }, [contextoLider, parcelaInicialLote, quantidadeLote, dataPrimeiraLote]);
+
+  const parcelasReajusteNoLotePreview = useMemo(() => {
+    if (!previewLoteGrupo) return [];
+    return parcelasReajusteNoIntervalo(
+      previewLoteGrupo.parcelaInicial,
+      previewLoteGrupo.parcelaFinal,
+    );
+  }, [previewLoteGrupo]);
+
+  const parcelaInicialDivergeDoContrato =
+    contextoLider != null &&
+    parcelaInicialLote != null &&
+    parcelaInicialLote !== contextoLider.numeroParcela;
 
   useEffect(() => {
     if (quantidadeLote != null && quantidadeLote > maxParcelasLote) {
@@ -565,13 +597,25 @@ export function CobrancaGruposWorkspace() {
     grupoSelecionado != null &&
     convenioId != null &&
     contextoLider != null &&
+    parcelaInicialLote != null &&
+    parcelaInicialLote === contextoLider.numeroParcela &&
     quantidadeLote != null &&
     quantidadeLote >= 1 &&
     quantidadeLote <= maxParcelasLote &&
     previewLoteGrupo != null &&
     previewLoteGrupo.quantidade >= 1;
 
-  const podePrevisualizarLote = podeCriarLote && previewLoteGrupo != null;
+  const podePrevisualizarLote =
+    grupoSelecionado != null &&
+    convenioId != null &&
+    contextoLider != null &&
+    parcelaInicialLote != null &&
+    parcelaInicialLote >= 1 &&
+    quantidadeLote != null &&
+    quantidadeLote >= 1 &&
+    quantidadeLote <= maxParcelasLote &&
+    previewLoteGrupo != null &&
+    previewLoteGrupo.quantidade >= 1;
 
   async function criarGrupo(sugestao: CobrancaGrupoSugestao) {
     const chave = sugestao.numeroContratoBase;
@@ -1101,6 +1145,17 @@ export function CobrancaGruposWorkspace() {
                     <div className="flex flex-col gap-2">
                       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-4">
                         <div className="flex flex-col gap-2 w-full sm:w-[5.25rem] shrink-0">
+                          <label className={FORM_LABEL_CLASS}>Parc. inicial</label>
+                          <InputNumber
+                            value={parcelaInicialLote}
+                            onValueChange={(e) => setParcelaInicialLote(e.value ?? null)}
+                            min={1}
+                            className="w-full"
+                            inputClassName={FORM_INPUT_CLASS}
+                            useGrouping={false}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2 w-full sm:w-[5.25rem] shrink-0">
                           <label className={FORM_LABEL_CLASS}>Quantidade</label>
                           <InputNumber
                             value={quantidadeLote}
@@ -1139,9 +1194,37 @@ export function CobrancaGruposWorkspace() {
                           {criandoLote ? "Criando…" : "Criar rascunhos"}
                         </button>
                       </div>
-                      <p className="text-xs text-white/35 leading-relaxed sm:ml-[calc(5.25rem+1rem)] sm:max-w-[11.5rem]">
-                        Opcional — usa sugestão do contrato quando vazio.
+                      <p className="text-xs text-white/35 leading-relaxed">
+                        {contextoLider ? (
+                          <>
+                            Próxima parcela do contrato líder:{" "}
+                            <span className="text-white/55">{contextoLider.numeroParcela}</span>.
+                            {parcelaInicialDivergeDoContrato ? (
+                              <>
+                                {" "}
+                                A pré-visualização usa a parcela inicial informada; para criar
+                                rascunhos, ajuste para {contextoLider.numeroParcela}.
+                              </>
+                            ) : null}
+                          </>
+                        ) : (
+                          "Carregando contexto do líder…"
+                        )}
                       </p>
+                      <p className="text-xs text-white/35 leading-relaxed sm:max-w-[11.5rem]">
+                        1ª parcela (vencimento): opcional — usa sugestão do contrato quando vazio.
+                      </p>
+                      {previewLoteGrupo ? (
+                        <p className="text-xs text-violet-200/70 leading-relaxed">
+                          Reajuste IPCA/IGP-M nas parcelas 13, 25, 37… — próxima bloqueada:{" "}
+                          {previewLoteGrupo.parcelaReajusteProxima}. Este lote:{" "}
+                          {previewLoteGrupo.parcelaInicial}–{previewLoteGrupo.parcelaFinal}
+                          {parcelasReajusteNoLotePreview.length > 0
+                            ? ` (inclui reajuste na(s) ${parcelasReajusteNoLotePreview.join(", ")})`
+                            : " (sem parcela de reajuste no intervalo)"}
+                          .
+                        </p>
+                      ) : null}
                       {contextoLider && maxParcelasLote < 12 ? (
                         <p className="text-xs text-violet-200/70 leading-relaxed">
                           Até {maxParcelasLote} parcela(s) neste lote (limite até a próxima de

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
+import { FinIndiceSimulacaoParcelaTable } from "@/components/dashboard/fin/FinIndiceSimulacaoParcelaTable";
 import {
   finService,
   formatContratoRef,
@@ -9,7 +10,12 @@ import {
   type CobrancaGrupoEmitirSimulacaoItem,
 } from "@/lib/fin-service";
 import { resumirAvisoIndiceLinha } from "@/lib/fin-calculo-indice-aviso";
+import {
+  carregarSimulacaoEvolucaoContrato,
+  type SimulacaoEvolucaoContrato,
+} from "@/lib/fin-indice-simulacao";
 import type { PreviewLote } from "@/lib/fin-lote-preview";
+import { parcelasReajusteNoIntervalo } from "@/lib/fin-parcela-reajuste";
 import {
   diaSemanaCurto,
   parseIsoDate,
@@ -61,19 +67,70 @@ export function CobrancaGrupoLotePreviewDialog({
   convenioNome,
   numeroContratoLider,
 }: CobrancaGrupoLotePreviewDialogProps) {
-  const [loading, setLoading] = useState(false);
+  const [loadingApi, setLoadingApi] = useState(false);
+  const [loadingSimulacao, setLoadingSimulacao] = useState(false);
   const [itensDetalhe, setItensDetalhe] = useState<ItemDetalhe[]>([]);
+  const [evolucaoLider, setEvolucaoLider] = useState<SimulacaoEvolucaoContrato | null>(null);
+  const [erroSimulacao, setErroSimulacao] = useState<string | null>(null);
+
+  const liderMembro = useMemo(
+    () => grupo?.membros.find((m) => m.contratoId === grupo.contratoLiderId) ?? null,
+    [grupo],
+  );
 
   useEffect(() => {
     if (!visible || !grupo || !previewLote || !convenioId) {
       setItensDetalhe([]);
+      setEvolucaoLider(null);
+      setErroSimulacao(null);
       return;
     }
 
     let cancelled = false;
-    setLoading(true);
+    setLoadingApi(true);
+    setLoadingSimulacao(true);
+    setErroSimulacao(null);
+
+    const parcelaAlvoSimulacao = previewLote.parcelaReajusteLimite;
+    const ultimaParcelaLote = previewLote.itens.at(-1);
+    const vencimentoAlvo =
+      ultimaParcelaLote != null
+        ? parseIsoDate(ultimaParcelaLote.vencimento)
+        : null;
 
     void (async () => {
+      const simulacaoPromise =
+        liderMembro?.quadra && liderMembro.lote != null
+          ? carregarSimulacaoEvolucaoContrato({
+              empreendimento: grupo.empreendimento,
+              quadra: liderMembro.quadra,
+              lote: liderMembro.lote,
+              parcelaAlvo: parcelaAlvoSimulacao,
+              vencimentoParcelaAlvo: vencimentoAlvo,
+            })
+              .then((evolucao) => {
+                if (!cancelled) setEvolucaoLider(evolucao);
+                return evolucao;
+              })
+              .catch((e) => {
+                const msg =
+                  e instanceof Error ? e.message : "Falha ao montar evolução IPCA/IGP-M.";
+                if (!cancelled) {
+                  setEvolucaoLider(null);
+                  setErroSimulacao(msg);
+                }
+                return null;
+              })
+              .finally(() => {
+                if (!cancelled) setLoadingSimulacao(false);
+              })
+          : Promise.resolve(null).finally(() => {
+              if (!cancelled) {
+                setLoadingSimulacao(false);
+                setErroSimulacao("Líder sem quadra/lote para simulação.");
+              }
+            });
+
       const membros = grupo.membros.map((m) => ({ contratoId: m.contratoId }));
       const detalhes: ItemDetalhe[] = [];
 
@@ -111,14 +168,25 @@ export function CobrancaGrupoLotePreviewDialog({
       }
 
       if (!cancelled) setItensDetalhe(detalhes);
+      await simulacaoPromise;
     })().finally(() => {
-      if (!cancelled) setLoading(false);
+      if (!cancelled) setLoadingApi(false);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [visible, grupo, previewLote, convenioId]);
+  }, [visible, grupo, previewLote, convenioId, liderMembro]);
+
+  const valoresBackendPorParcela = useMemo(() => {
+    const map: Record<number, number | null> = {};
+    for (const item of itensDetalhe) {
+      if (!item.excedente && item.valorTotal != null) {
+        map[item.parcela] = item.valorTotal;
+      }
+    }
+    return map;
+  }, [itensDetalhe]);
 
   const valorTotalLote = useMemo(() => {
     let total = 0;
@@ -133,6 +201,16 @@ export function CobrancaGrupoLotePreviewDialog({
     }
     return incompleto ? null : total;
   }, [itensDetalhe]);
+
+  const parcelasReajusteIntervalo = useMemo(() => {
+    if (!previewLote) return [];
+    return parcelasReajusteNoIntervalo(
+      previewLote.parcelaInicial,
+      previewLote.parcelaFinal,
+    );
+  }, [previewLote]);
+
+  const loading = loadingApi || loadingSimulacao;
 
   const prontoParaCriar = useMemo(
     () =>
@@ -149,7 +227,7 @@ export function CobrancaGrupoLotePreviewDialog({
       visible={visible}
       onHide={onHide}
       header="Pré-visualização — rascunhos em lote"
-      className="w-full max-w-2xl"
+      className="w-full max-w-4xl"
       pt={{
         root: { className: "rounded-2xl border border-white/10 bg-[#0a2540] shadow-2xl" },
         header: { className: "border-b border-white/10 px-6 py-4" },
@@ -173,11 +251,12 @@ export function CobrancaGrupoLotePreviewDialog({
       {previewLote && grupo ? (
         <div className="flex flex-col gap-5">
           <p className="text-sm text-white/50 leading-relaxed">
-            Cada linha será um rascunho consolidado no contrato líder, com rateio automático entre
-            os {grupo.membros.length} lotes do grupo.
+            Mesma simulação IPCA/IGP-M da tela Financeiro e do detalhe de cálculo do grupo. Cada
+            parcela do lote vira um rascunho consolidado no contrato líder, com rateio entre os{" "}
+            {grupo.membros.length} lotes.
           </p>
 
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
             <div>
               <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
                 Grupo
@@ -200,25 +279,68 @@ export function CobrancaGrupoLotePreviewDialog({
             </div>
             <div>
               <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
-                Parcelas
+                Lote
               </dt>
               <dd className="mt-0.5 text-white/80">
-                {previewLote.parcelaInicial}–{previewLote.parcelaFinal} ({previewLote.quantidade}{" "}
-                título{previewLote.quantidade === 1 ? "" : "s"})
+                parc. {previewLote.parcelaInicial}–{previewLote.parcelaFinal} (
+                {previewLote.quantidade} título{previewLote.quantidade === 1 ? "" : "s"})
               </dd>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-2 sm:col-span-4">
               <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
-                Total nominal estimado
+                Total consolidado (API)
               </dt>
               <dd className="mt-0.5 font-semibold text-emerald-300">
-                {loading ? "Calculando…" : formatMoney(valorTotalLote)}
+                {loadingApi ? "Calculando…" : formatMoney(valorTotalLote)}
               </dd>
             </div>
           </dl>
 
           <div className="overflow-hidden rounded-xl border border-white/10">
-            <div className="max-h-72 overflow-y-auto">
+            <div className="border-b border-white/10 bg-white/[0.02] px-4 py-3">
+              <p className="text-sm font-medium text-white/85">
+                Evolução — contrato líder
+              </p>
+              <p className="mt-1 text-xs text-white/40">
+                Reajuste nas parcelas 13, 25, 37… · próxima bloqueada em lote:{" "}
+                {previewLote.parcelaReajusteProxima}
+                {parcelasReajusteIntervalo.length > 0
+                  ? ` · reajuste no intervalo: ${parcelasReajusteIntervalo.join(", ")}`
+                  : ""}
+              </p>
+            </div>
+            <div className="max-h-[28rem] overflow-y-auto py-2">
+              {loadingSimulacao ? (
+                <p className="px-4 py-10 text-center text-sm text-white/40">
+                  Montando evolução das parcelas…
+                </p>
+              ) : erroSimulacao ? (
+                <p className="px-4 py-10 text-center text-sm text-rose-300/90">{erroSimulacao}</p>
+              ) : evolucaoLider ? (
+                <FinIndiceSimulacaoParcelaTable
+                  simulacao={evolucaoLider.simulacao}
+                  labelIndice={evolucaoLider.labelIndice}
+                  condicoesResumo={evolucaoLider.condicoesResumo}
+                  primeiraVencimento={evolucaoLider.primeiraVencimento}
+                  parcelaInicialLote={previewLote.parcelaInicial}
+                  parcelaFinalLote={previewLote.parcelaFinal}
+                  valoresBackendPorParcela={valoresBackendPorParcela}
+                  mostrarColunaBackend
+                  mostrarColunasEmitido
+                />
+              ) : (
+                <p className="px-4 py-10 text-center text-sm text-white/35">
+                  Sem evolução disponível.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-white/10">
+            <div className="border-b border-white/10 bg-white/[0.02] px-4 py-3">
+              <p className="text-sm font-medium text-white/85">Vencimentos e rateios do lote</p>
+            </div>
+            <div className="max-h-56 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead className="sticky top-0 bg-[#0a2540] text-[10px] font-bold uppercase tracking-widest text-white/40">
                   <tr>
@@ -280,7 +402,7 @@ export function CobrancaGrupoLotePreviewDialog({
                           {!item.excedente ? (
                             <div className="flex flex-col items-end gap-1">
                               <span className="font-medium text-white/85">
-                                {loading && !detalhe ? "…" : formatMoney(detalhe?.valorTotal)}
+                                {loadingApi && !detalhe ? "…" : formatMoney(detalhe?.valorTotal)}
                               </span>
                               {detalhe && detalhe.rateios.length > 0 ? (
                                 <span className="text-[10px] text-white/40 leading-snug max-w-[12rem]">
@@ -332,18 +454,22 @@ export function CobrancaGrupoLotePreviewDialog({
 
           <p className="text-xs text-white/35 leading-relaxed">
             Emissão em lote até a parcela {previewLote.ultimaParcelaEmitivel}. Status final:{" "}
-            <span className="text-white/55">RASCUNHO</span>.
+            <span className="text-white/55">RASCUNHO</span>. Coluna Simulado = mesmas regras IPCA/IGP-M
+            (6% + índice se positivo, teto 12%; índice negativo → só 6%); coluna API = soma dos
+            rateios do grupo.
             {!prontoParaCriar && !loading ? (
               <>
                 {" "}
-                Algumas parcelas não puderam ser calculadas — corrija os avisos ou informe valores
-                manualmente antes de criar os rascunhos.
+                Algumas parcelas não puderam ser calculadas — corrija os avisos antes de criar os
+                rascunhos.
               </>
             ) : null}
           </p>
         </div>
       ) : (
-        <p className="text-sm text-white/45">Selecione quantidade e convênio para pré-visualizar.</p>
+        <p className="text-sm text-white/45">
+          Informe parcela inicial, quantidade e convênio para pré-visualizar.
+        </p>
       )}
     </DashboardDialog>
   );
