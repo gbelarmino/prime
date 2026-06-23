@@ -287,8 +287,8 @@ export function CobrancaGrupoCalculoDetalheDialog({
 
           <p className="text-xs text-white/30 leading-relaxed">
             A coluna API mostra o valor retornado pelo servidor no botão Calcular. Simulado usa as
-            mesmas regras da tela Financeiro → Simulação IPCA/IGP-M (6% fixo + índice do contrato,
-            teto 12%).
+            mesmas regras da tela Financeiro → Simulação IPCA/IGP-M (6% fixo + índice se positivo,
+            teto 12%; índice negativo → só 6%).
             {vencimentoEmissao
               ? ` Vencimento ${formatDate(vencimentoEmissao)} aplicado na parcela ${parcelaAlvo}.`
               : ""}

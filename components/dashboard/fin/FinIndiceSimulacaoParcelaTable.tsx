@@ -212,7 +212,7 @@ export function FinIndiceSimulacaoParcelaTable({
         <p className="mb-3 px-4 text-[11px] text-white/40">
           {condicoesResumo}
           {primeiraVencimento ? ` · 1º vencimento ${formatDate(primeiraVencimento)}` : ""} ·
-          reajuste 6% + {labelIndice} (teto 12%) nas parcelas 13, 25, 37… · linhas em azul = mês de
+          reajuste 6% + {labelIndice} se positivo (teto 12%; índice negativo → só 6%) nas parcelas 13, 25, 37… · linhas em azul = mês de
           corte do índice · linhas em roxo = reajuste aplicado
           {parcelaDestaque != null ? ` · linha em verde = parcela ${parcelaDestaque} calculada` : ""}
         </p>

@@ -1,6 +1,7 @@
 /**
  * Espelha {@code TituloValorNominalCalculator} (aires-api): trilho fracionado,
  * reajuste 6% + índice do contrato (IPCA/IGPM, teto 12%) nas parcelas 13, 25, 37…
+ * Índice negativo não reduz o reajuste (permanece 6%); positivo soma ao fixo até o teto.
  */
 
 import {
@@ -120,6 +121,17 @@ export function mesCorteIndiceReajuste(vencimento: Date): number {
   return anoMesFromDate(subtractMonths(vencimento, 2));
 }
 
+/** Fração decimal do reajuste total (6% + índice se positivo, teto 12%). */
+export function percentualReajusteTotal(indiceFraction: number): number {
+  const fixo = REAJUSTE_PERCENTUAL_FIXO / 100;
+  const teto = REAJUSTE_PERCENTUAL_TETO / 100;
+  if (indiceFraction < 0) {
+    return fixo;
+  }
+  const total = fixo + indiceFraction;
+  return total > teto ? teto : total;
+}
+
 function anoMesReferenciaVencimento(vencimento: Date): number {
   return mesCorteIndiceReajuste(vencimento);
 }
@@ -134,10 +146,7 @@ export function aplicarReajuste(
   const referenciaFim = anoMesReferenciaVencimento(vencimento);
   const usaIndice = tipoCorrecaoAnual !== "NENHUM";
   const ipca = usaIndice ? acumularVariacaoFraction(lookup, referenciaFim, mesesIpca) : 0;
-  let total = REAJUSTE_PERCENTUAL_FIXO / 100 + ipca;
-  if (total > REAJUSTE_PERCENTUAL_TETO / 100) {
-    total = REAJUSTE_PERCENTUAL_TETO / 100;
-  }
+  const total = usaIndice ? percentualReajusteTotal(ipca) : REAJUSTE_PERCENTUAL_FIXO / 100;
   return {
     valor: roundMoney(base * (1 + total)),
     ipcaAcumulado: ipca * 100,
