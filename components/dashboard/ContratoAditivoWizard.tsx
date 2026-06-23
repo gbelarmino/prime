@@ -94,6 +94,18 @@ const TITULO_STATUS_LABEL: Record<string, string> = {
   EM_CONCILIACAO: "Conciliação",
 };
 
+const TITULO_STATUS_TONES: Record<string, string> = {
+  RASCUNHO: "border-white/10 bg-white/10 text-white/50",
+  AGUARDANDO_REGISTRO: "border-blue-500/25 bg-blue-500/15 text-blue-300",
+  REGISTRADO: "border-blue-500/25 bg-blue-500/15 text-blue-300",
+  EMITIDO: "border-amber-500/25 bg-amber-500/15 text-amber-300",
+  PAGO: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
+  VENCIDO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
+  CANCELADO: "border-white/10 bg-white/10 text-white/40",
+  ERRO_REGISTRO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
+  EM_CONCILIACAO: "border-amber-500/25 bg-amber-500/15 text-amber-300",
+};
+
 const TABLE_PT_COMPACT = dashboardDataTablePt({ density: "compact", paginator: false });
 
 const STEP_MOTION = {
@@ -637,7 +649,8 @@ export function ContratoAditivoWizard({ contratoId }: Props) {
                               body={(row) =>
                                 dashboardStatusBadge(
                                   TITULO_STATUS_LABEL[row.status] ?? row.status,
-                                  row.status === "VENCIDO" ? "danger" : "warning",
+                                  TITULO_STATUS_TONES,
+                                  row.status,
                                 )
                               }
                             />

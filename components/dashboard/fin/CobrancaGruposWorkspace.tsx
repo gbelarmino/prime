@@ -315,7 +315,13 @@ export function CobrancaGruposWorkspace() {
         finService.listEmpreendimentoConvenios(),
       ]);
       if (gruposRes.status === "rejected" || sugestoesRes.status === "rejected") {
-        throw gruposRes.status === "rejected" ? gruposRes.reason : sugestoesRes.reason;
+        const err =
+          gruposRes.status === "rejected"
+            ? gruposRes.reason
+            : sugestoesRes.status === "rejected"
+              ? sugestoesRes.reason
+              : undefined;
+        throw err;
       }
       setGrupos(gruposRes.value);
       setSugestoes(sugestoesRes.value.filter((x) => !x.jaPossuiGrupoAtivo));
