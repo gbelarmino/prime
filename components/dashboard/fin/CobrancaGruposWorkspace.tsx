@@ -308,16 +308,26 @@ export function CobrancaGruposWorkspace() {
   const recarregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [g, s, c, vinculos] = await Promise.all([
+      const [gruposRes, sugestoesRes, conveniosRes, vinculosRes] = await Promise.allSettled([
         finService.listCobrancaGrupos({ skipLoading: true }),
         finService.listCobrancaGruposSugestoes({ skipLoading: true }),
         finService.listConvenios(),
         finService.listEmpreendimentoConvenios(),
       ]);
-      setGrupos(g);
-      setSugestoes(s.filter((x) => !x.jaPossuiGrupoAtivo));
-      setConvenios(c);
-      setEmpreendimentoConvenios(vinculos);
+      if (gruposRes.status === "rejected" || sugestoesRes.status === "rejected") {
+        throw gruposRes.status === "rejected" ? gruposRes.reason : sugestoesRes.reason;
+      }
+      setGrupos(gruposRes.value);
+      setSugestoes(sugestoesRes.value.filter((x) => !x.jaPossuiGrupoAtivo));
+      if (conveniosRes.status === "fulfilled") {
+        setConvenios(conveniosRes.value);
+      }
+      if (vinculosRes.status === "fulfilled") {
+        setEmpreendimentoConvenios(vinculosRes.value);
+      }
+      if (conveniosRes.status === "rejected" || vinculosRes.status === "rejected") {
+        toast.warning("Grupos carregados, mas convênios por empreendimento não puderam ser listados.");
+      }
     } catch {
       toast.error("Falha ao carregar grupos de cobrança.");
     } finally {
