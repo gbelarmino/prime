@@ -37,6 +37,7 @@ const BTN_WARN =
 const SITUACAO_LABELS: Record<string, string> = {
   DESCRIPTOGRAFADO: "Descriptografado",
   PROCESSADO: "Processado",
+  PENDENTE_CONCILIACAO: "Pendente conciliação",
   SEM_CHAVE: "Sem chave",
   FALHA_PROCESSAMENTO: "Falha",
 };
@@ -44,8 +45,9 @@ const SITUACAO_LABELS: Record<string, string> = {
 const SITUACAO_TONES: Record<string, string> = {
   DESCRIPTOGRAFADO: "border-blue-500/25 bg-blue-500/15 text-blue-300",
   PROCESSADO: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
+  PENDENTE_CONCILIACAO: "border-amber-500/25 bg-amber-500/15 text-amber-300",
   SEM_CHAVE: "border-rose-500/25 bg-rose-500/15 text-rose-300",
-  FALHA_PROCESSAMENTO: "border-amber-500/25 bg-amber-500/15 text-amber-300",
+  FALHA_PROCESSAMENTO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
 };
 
 type ExecucaoLog = {

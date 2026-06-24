@@ -718,6 +718,7 @@ export interface UnicredWebhookReprocessamentoLoteRequest {
 export type UnicredWebhookReprocessamentoSituacao =
   | "DESCRIPTOGRAFADO"
   | "PROCESSADO"
+  | "PENDENTE_CONCILIACAO"
   | "SEM_CHAVE"
   | "FALHA_PROCESSAMENTO";
 
