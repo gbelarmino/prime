@@ -444,6 +444,12 @@ export function UnicredWebhookConciliacaoWorkspace() {
             }
           />
           <Column
+            header="Nosso número"
+            body={(r: UnicredWebhookConciliacaoResumo) =>
+              dashboardCellMono(r.nossoNumero ?? "—")
+            }
+          />
+          <Column
             header="Pagador"
             body={(r: UnicredWebhookConciliacaoResumo) =>
               dashboardCellText(r.pagadorNome ?? r.pagadorDocumento ?? "—")
