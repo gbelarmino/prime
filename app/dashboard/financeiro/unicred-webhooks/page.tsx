@@ -14,8 +14,9 @@ export default function UnicredWebhookConciliacaoPage() {
           Webhooks Unicred
         </h1>
         <p className="mt-1 max-w-2xl font-medium leading-relaxed text-white/40">
-          Eventos de pagamento recebidos do banco sem título correspondente no sistema. Vincule a uma
-          parcela existente ou crie um título retroativo para manter a conciliação correta.
+          Liquidações recebidas do Unicred sem título correspondente no sistema. Vincule a uma parcela
+          existente ou crie um título retroativo. Instruções e outros movimentos são processados
+          automaticamente e não aparecem nesta fila.
         </p>
       </div>
 
