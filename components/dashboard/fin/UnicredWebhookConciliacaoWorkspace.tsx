@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DataTable } from "primereact/datatable";
+import { DataTable, type DataTablePageEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { Dropdown } from "primereact/dropdown";
@@ -35,6 +35,7 @@ import {
   type UnicredWebhookConciliacaoStatus,
 } from "@/lib/fin-service";
 import type { SpringPage } from "@/lib/spring-page";
+import { springPageDisplayRange } from "@/lib/spring-page";
 import { notifyUnicredWebhookPendentesChanged } from "@/hooks/use-unicred-webhook-pendentes";
 
 const STATUS_OPTIONS: { label: string; value: UnicredWebhookConciliacaoStatus | "" }[] = [
@@ -83,6 +84,8 @@ const DROPDOWN_PT = {
 };
 
 const TABVIEW_PT = dashboardTabViewPt();
+const PAGE_SIZE = 20;
+const TABLE_PT = dashboardDataTablePt();
 
 const BTN_SECONDARY =
   "inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/60 transition hover:border-white/15 hover:bg-white/[0.08] hover:text-white/90 disabled:opacity-50";
@@ -106,7 +109,8 @@ function formatDateTime(iso: string): string {
 export function UnicredWebhookConciliacaoWorkspace() {
   const router = useRouter();
   const [statusFiltro, setStatusFiltro] = useState<UnicredWebhookConciliacaoStatus | "">("PENDENTE");
-  const [page, setPage] = useState<SpringPage<UnicredWebhookConciliacaoResumo> | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageData, setPageData] = useState<SpringPage<UnicredWebhookConciliacaoResumo> | null>(null);
   const [pendentes, setPendentes] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -132,10 +136,15 @@ export function UnicredWebhookConciliacaoWorkspace() {
     setLoading(true);
     try {
       const [lista, cont] = await Promise.all([
-        finService.listUnicredWebhookConciliacao(0, 25, statusFiltro || "PENDENTE", { skipLoading: true }),
+        finService.listUnicredWebhookConciliacao(
+          pageIndex,
+          PAGE_SIZE,
+          statusFiltro || "PENDENTE",
+          { skipLoading: true },
+        ),
         finService.contagemUnicredWebhookPendentes(),
       ]);
-      setPage(lista);
+      setPageData(lista);
       setPendentes(cont.pendentes);
       notifyUnicredWebhookPendentesChanged();
     } catch (e) {
@@ -143,7 +152,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [statusFiltro]);
+  }, [statusFiltro, pageIndex]);
 
   useEffect(() => {
     void carregarLista();
@@ -296,6 +305,14 @@ export function UnicredWebhookConciliacaoWorkspace() {
     </div>
   );
 
+  const rows = pageData?.content ?? [];
+  const totalRecords = pageData?.totalElements ?? 0;
+  const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
+
+  const onPage = (e: DataTablePageEvent) => {
+    setPageIndex(e.page ?? 0);
+  };
+
   const isPendente = detalhe?.resumo.statusConciliacao === "PENDENTE";
   const sugestoesCount = detalhe?.sugestoesTitulos.length ?? 0;
   const podeVincular = Boolean(tituloSelecionado?.id || tituloIdManual.trim());
@@ -364,7 +381,10 @@ export function UnicredWebhookConciliacaoWorkspace() {
               options={STATUS_OPTIONS}
               optionLabel="label"
               optionValue="value"
-              onChange={(e) => setStatusFiltro(e.value)}
+              onChange={(e) => {
+                setStatusFiltro(e.value);
+                setPageIndex(0);
+              }}
               className="w-48"
             />
           </div>
@@ -378,18 +398,34 @@ export function UnicredWebhookConciliacaoWorkspace() {
             Atualizar
           </button>
         </div>
-        <p className="text-sm text-amber-300/90">
-          <span className="font-mono font-semibold tabular-nums">{pendentes}</span> pendente(s) de
-          conciliação
+        <p className="text-sm text-white/40">
+          <span className="font-bold text-white">{totalRecords}</span> evento(s) nesta situação
+          {totalRecords > 0 ? (
+            <span className="text-white/30">
+              {" "}
+              · a mostrar {range.from}–{range.to}
+            </span>
+          ) : null}
+          <span className="mx-2 text-white/20">·</span>
+          <span className="text-amber-300/90">
+            <span className="font-mono font-semibold tabular-nums">{pendentes}</span> pendente(s)
+          </span>
         </p>
       </div>
 
       <DashboardDataTableShell>
         <DataTable
-          value={page?.content ?? []}
+          value={rows}
+          dataKey="id"
+          lazy
+          paginator
+          rows={PAGE_SIZE}
+          totalRecords={totalRecords}
+          first={pageIndex * PAGE_SIZE}
+          onPage={onPage}
           loading={loading}
           className={DASHBOARD_DATATABLE_CLASS}
-          pt={dashboardDataTablePt()}
+          pt={TABLE_PT}
           rowHover
           onRowClick={(e) => void abrirDetalhe(e.data.id)}
           emptyMessage="Nenhum evento nesta situação."
@@ -439,8 +475,8 @@ export function UnicredWebhookConciliacaoWorkspace() {
         ) : (
           <div className="flex flex-col gap-5 text-white">
             <p className="text-sm text-white/50">
-              Liquidação ou outro movimento recebido sem título correspondente no sistema. Vincule a
-              um título existente ou crie um registro retroativo.
+              Liquidação recebida sem título correspondente no sistema. Vincule a um título existente
+              ou crie um registro retroativo.
             </p>
 
             <div
