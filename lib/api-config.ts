@@ -1489,6 +1489,11 @@ export function getFinUnicredWebhookConciliacaoReprocessarUrl(id: string): strin
   return `${getFinUnicredWebhookConciliacaoByIdUrl(id)}/reprocessar`;
 }
 
+export function getFinUnicredWebhookReprocessarFalhasAuthUrl(): string {
+  const base = getFinUnicredWebhookConciliacaoUrl();
+  return base ? `${base}/reprocessar-falhas-auth` : "";
+}
+
 export type AuditoriaAtividadesQuery = {
   q?: string;
   modulo?: string;

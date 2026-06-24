@@ -193,6 +193,12 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
       { id: "fin-convenios", href: "/dashboard/financeiro/convenios", label: "Convênios", icon: Building2 },
       { id: "fin-conciliacao", href: "/dashboard/financeiro/conciliacao", label: "Conciliação", icon: GitCompareArrows },
       { id: "fin-unicred-webhooks", href: "/dashboard/financeiro/unicred-webhooks", label: "Webhooks Unicred", icon: Link2 },
+      {
+        id: "fin-unicred-reprocessar",
+        href: "/dashboard/financeiro/unicred-webhooks/reprocessar",
+        label: "Reprocessar webhooks",
+        icon: RefreshCw,
+      },
       { id: "fin-lancamentos", href: "/dashboard/financeiro/lancamentos", label: "Lançamentos", icon: BookOpen },
       { id: "fin-fluxo-receita", href: "/dashboard/financeiro/fluxo-receita", label: "Fluxo de receita", icon: BarChart3 },
       { id: "fin-por-imovel", href: "/dashboard/financeiro/por-imovel", label: "Por imóvel", icon: Home },

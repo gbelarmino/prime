@@ -35,6 +35,7 @@ import {
   getFinUnicredWebhookConciliacaoListUrl,
   getFinUnicredWebhookConciliacaoPendentesUrl,
   getFinUnicredWebhookConciliacaoReprocessarUrl,
+  getFinUnicredWebhookReprocessarFalhasAuthUrl,
   getFinUnicredWebhookConciliacaoVincularUrl,
   getFinPorImovelByIdUrl,
   getFinPorImovelListUrl,
@@ -709,6 +710,34 @@ export interface UnicredWebhookCriarTituloPayload {
   observacao?: string;
 }
 
+export interface UnicredWebhookReprocessamentoLoteRequest {
+  limite?: number;
+  dryRun?: boolean;
+}
+
+export type UnicredWebhookReprocessamentoSituacao =
+  | "DESCRIPTOGRAFADO"
+  | "PROCESSADO"
+  | "SEM_CHAVE"
+  | "FALHA_PROCESSAMENTO";
+
+export interface UnicredWebhookReprocessamentoLoteItem {
+  logId: string;
+  situacao: UnicredWebhookReprocessamentoSituacao | string;
+  mensagem?: string | null;
+  convenioId?: string | null;
+  codigoMovimento?: string | null;
+}
+
+export interface UnicredWebhookReprocessamentoLoteResponse {
+  candidatos: number;
+  descriptografados: number;
+  processados: number;
+  falhas: number;
+  dryRun: boolean;
+  itens: UnicredWebhookReprocessamentoLoteItem[];
+}
+
 async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { message?: string };
@@ -1376,6 +1405,19 @@ export const finService = {
 
   async reprocessarUnicredWebhook(id: string): Promise<TituloCobranca> {
     const res = await apiFetch(getFinUnicredWebhookConciliacaoReprocessarUrl(id), { method: "POST" });
+    return parseJson(res);
+  },
+
+  async reprocessarUnicredWebhookFalhasAuth(
+    payload?: UnicredWebhookReprocessamentoLoteRequest,
+    options?: FinFetchOptions,
+  ): Promise<UnicredWebhookReprocessamentoLoteResponse> {
+    const res = await apiFetch(getFinUnicredWebhookReprocessarFalhasAuthUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload ?? {}),
+      skipLoading: options?.skipLoading,
+    });
     return parseJson(res);
   },
 
