@@ -1454,12 +1454,24 @@ export function getFinUnicredWebhookConciliacaoUrl(): string {
 export function getFinUnicredWebhookConciliacaoListUrl(
   page = 0,
   size = 20,
-  status?: string,
+  filters?: {
+    status?: string;
+    nome?: string;
+    nossoNumero?: string;
+    dataRecebimentoDe?: string;
+    dataRecebimentoAte?: string;
+    contrato?: string;
+  },
 ): string {
   const base = getFinUnicredWebhookConciliacaoUrl();
   if (!base) return "";
   const params = new URLSearchParams({ page: String(page), size: String(size) });
-  if (status) params.set("status", status);
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.nome) params.set("nome", filters.nome);
+  if (filters?.nossoNumero) params.set("nossoNumero", filters.nossoNumero);
+  if (filters?.dataRecebimentoDe) params.set("dataRecebimentoDe", filters.dataRecebimentoDe);
+  if (filters?.dataRecebimentoAte) params.set("dataRecebimentoAte", filters.dataRecebimentoAte);
+  if (filters?.contrato) params.set("contrato", filters.contrato);
   return `${base}?${params.toString()}`;
 }
 

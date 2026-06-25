@@ -17,6 +17,8 @@ import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTab
 import {
   DASHBOARD_DATATABLE_CLASS,
   DASHBOARD_DATATABLE_INSET_SHELL_CLASS,
+  DASHBOARD_SEARCH_ICON_COMPACT_CLASS,
+  DASHBOARD_SEARCH_INPUT_COMPACT_CLASS,
   DASHBOARD_TABVIEW_CLASS,
   dashboardCellMono,
   dashboardCellText,
@@ -85,7 +87,10 @@ const DROPDOWN_PT = {
 
 const TABVIEW_PT = dashboardTabViewPt();
 const PAGE_SIZE = 20;
-const TABLE_PT = dashboardDataTablePt();
+const TABLE_PT = dashboardDataTablePt({ density: "default" });
+
+const FILTER_INPUT_CLASS =
+  "bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs text-white/70 focus:outline-none focus:border-blue-500/50 transition-all min-w-[140px] [color-scheme:dark]";
 
 const BTN_SECONDARY =
   "inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/60 transition hover:border-white/15 hover:bg-white/[0.08] hover:text-white/90 disabled:opacity-50";
@@ -110,6 +115,11 @@ export function UnicredWebhookConciliacaoWorkspace() {
   const router = useRouter();
   const [statusFiltro, setStatusFiltro] = useState<UnicredWebhookConciliacaoStatus | "">("PENDENTE");
   const [pageIndex, setPageIndex] = useState(0);
+  const [nomeFiltro, setNomeFiltro] = useState("");
+  const [nossoNumeroFiltro, setNossoNumeroFiltro] = useState("");
+  const [dataRecebimentoDe, setDataRecebimentoDe] = useState("");
+  const [dataRecebimentoAte, setDataRecebimentoAte] = useState("");
+  const [contratoFiltro, setContratoFiltro] = useState("");
   const [pageData, setPageData] = useState<SpringPage<UnicredWebhookConciliacaoResumo> | null>(null);
   const [pendentes, setPendentes] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -140,6 +150,13 @@ export function UnicredWebhookConciliacaoWorkspace() {
           pageIndex,
           PAGE_SIZE,
           statusFiltro || "PENDENTE",
+          {
+            nome: nomeFiltro.trim() || undefined,
+            nossoNumero: nossoNumeroFiltro.trim() || undefined,
+            dataRecebimentoDe: dataRecebimentoDe || undefined,
+            dataRecebimentoAte: dataRecebimentoAte || undefined,
+            contrato: contratoFiltro.trim() || undefined,
+          },
           { skipLoading: true },
         ),
         finService.contagemUnicredWebhookPendentes(),
@@ -152,11 +169,23 @@ export function UnicredWebhookConciliacaoWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [statusFiltro, pageIndex]);
+  }, [
+    statusFiltro,
+    pageIndex,
+    nomeFiltro,
+    nossoNumeroFiltro,
+    dataRecebimentoDe,
+    dataRecebimentoAte,
+    contratoFiltro,
+  ]);
 
   useEffect(() => {
     void carregarLista();
   }, [carregarLista]);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [statusFiltro, nomeFiltro, nossoNumeroFiltro, dataRecebimentoDe, dataRecebimentoAte, contratoFiltro]);
 
   useEffect(() => {
     finService
@@ -370,47 +399,143 @@ export function UnicredWebhookConciliacaoWorkspace() {
 
   return (
     <div className="flex flex-col gap-6 px-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
-              Situação
-            </label>
-            <Dropdown
-              value={statusFiltro}
-              options={STATUS_OPTIONS}
-              optionLabel="label"
-              optionValue="value"
-              onChange={(e) => {
-                setStatusFiltro(e.value);
-                setPageIndex(0);
-              }}
-              className="w-48"
-            />
-          </div>
+      <div className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.03] p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-white/40">
+            <span className="font-bold text-white">{totalRecords}</span> evento(s) encontrados
+            {totalRecords > 0 ? (
+              <span className="text-white/30">
+                {" "}
+                · a mostrar {range.from}–{range.to}
+              </span>
+            ) : null}
+            <span className="mx-2 text-white/20">·</span>
+            <span className="text-amber-300/90">
+              <span className="font-mono font-semibold tabular-nums">{pendentes}</span> pendente(s)
+            </span>
+          </p>
           <button
             type="button"
             onClick={() => void carregarLista()}
             disabled={loading}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-white hover:bg-white/10"
+            className="inline-flex h-10 items-center gap-2 self-start rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-white hover:bg-white/10 md:self-auto"
           >
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
             Atualizar
           </button>
         </div>
-        <p className="text-sm text-white/40">
-          <span className="font-bold text-white">{totalRecords}</span> evento(s) nesta situação
-          {totalRecords > 0 ? (
-            <span className="text-white/30">
-              {" "}
-              · a mostrar {range.from}–{range.to}
-            </span>
-          ) : null}
-          <span className="mx-2 text-white/20">·</span>
-          <span className="text-amber-300/90">
-            <span className="font-mono font-semibold tabular-nums">{pendentes}</span> pendente(s)
-          </span>
-        </p>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="webhook-status"
+              className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Situação
+            </label>
+            <Dropdown
+              inputId="webhook-status"
+              value={statusFiltro}
+              options={STATUS_OPTIONS}
+              optionLabel="label"
+              optionValue="value"
+              onChange={(e) => setStatusFiltro(e.value)}
+              className="w-48"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="webhook-recebido-de"
+              className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Recebido de
+            </label>
+            <input
+              id="webhook-recebido-de"
+              type="date"
+              value={dataRecebimentoDe}
+              onChange={(e) => setDataRecebimentoDe(e.target.value)}
+              className={FILTER_INPUT_CLASS}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="webhook-recebido-ate"
+              className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Recebido até
+            </label>
+            <input
+              id="webhook-recebido-ate"
+              type="date"
+              value={dataRecebimentoAte}
+              onChange={(e) => setDataRecebimentoAte(e.target.value)}
+              className={FILTER_INPUT_CLASS}
+            />
+          </div>
+
+          <div className="relative min-w-[180px] flex-1">
+            <label
+              htmlFor="webhook-nome"
+              className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Nome pagador
+            </label>
+            <div className="relative w-full">
+              <Search className={DASHBOARD_SEARCH_ICON_COMPACT_CLASS} size={16} />
+              <InputText
+                id="webhook-nome"
+                value={nomeFiltro}
+                onChange={(e) => setNomeFiltro(e.target.value)}
+                placeholder="Buscar por nome…"
+                className={DASHBOARD_SEARCH_INPUT_COMPACT_CLASS}
+                pt={{ root: { className: "w-full" } }}
+              />
+            </div>
+          </div>
+
+          <div className="relative min-w-[160px] flex-1">
+            <label
+              htmlFor="webhook-nosso-numero"
+              className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Nosso número
+            </label>
+            <div className="relative w-full">
+              <Search className={DASHBOARD_SEARCH_ICON_COMPACT_CLASS} size={16} />
+              <InputText
+                id="webhook-nosso-numero"
+                value={nossoNumeroFiltro}
+                onChange={(e) => setNossoNumeroFiltro(e.target.value)}
+                placeholder="Nosso número…"
+                className={DASHBOARD_SEARCH_INPUT_COMPACT_CLASS}
+                pt={{ root: { className: "w-full font-mono" } }}
+              />
+            </div>
+          </div>
+
+          <div className="relative min-w-[140px] flex-1">
+            <label
+              htmlFor="webhook-contrato"
+              className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Contrato
+            </label>
+            <div className="relative w-full">
+              <Search className={DASHBOARD_SEARCH_ICON_COMPACT_CLASS} size={16} />
+              <InputText
+                id="webhook-contrato"
+                value={contratoFiltro}
+                onChange={(e) => setContratoFiltro(e.target.value)}
+                placeholder="Nº contrato…"
+                className={DASHBOARD_SEARCH_INPUT_COMPACT_CLASS}
+                pt={{ root: { className: "w-full font-mono" } }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       <DashboardDataTableShell>
@@ -428,40 +553,47 @@ export function UnicredWebhookConciliacaoWorkspace() {
           pt={TABLE_PT}
           rowHover
           onRowClick={(e) => void abrirDetalhe(e.data.id)}
-          emptyMessage="Nenhum evento nesta situação."
+          emptyMessage="Nenhum evento encontrado com os filtros atuais."
+          responsiveLayout="stack"
+          breakpoint="960px"
         >
           <Column
             header="Recebido"
             body={(r: UnicredWebhookConciliacaoResumo) =>
               dashboardCellText(formatDateTime(r.dataRecebimento))
             }
+            style={{ width: "14%" }}
           />
-          <Column header="Movimento" body={movimentoBody} />
           <Column
-            header="Valor"
+            header="Contrato"
             body={(r: UnicredWebhookConciliacaoResumo) =>
-              dashboardCellMono(formatMoney(r.valorRecebido ?? r.valorTitulo))
+              dashboardCellMono(r.numeroContrato ?? "—")
             }
+            style={{ width: "10%" }}
           />
           <Column
             header="Nosso número"
             body={(r: UnicredWebhookConciliacaoResumo) =>
               dashboardCellMono(r.nossoNumero ?? "—")
             }
+            style={{ width: "12%" }}
           />
           <Column
             header="Pagador"
             body={(r: UnicredWebhookConciliacaoResumo) =>
               dashboardCellText(r.pagadorNome ?? r.pagadorDocumento ?? "—")
             }
+            style={{ width: "18%" }}
           />
+          <Column header="Movimento" body={movimentoBody} style={{ width: "16%" }} />
           <Column
-            header="UUID Unicred"
+            header="Valor"
             body={(r: UnicredWebhookConciliacaoResumo) =>
-              dashboardCellMono(r.uuidTituloExterno?.slice(0, 12) ?? "—")
+              dashboardCellMono(formatMoney(r.valorRecebido ?? r.valorTitulo))
             }
+            style={{ width: "10%" }}
           />
-          <Column header="Situação" body={statusBody} />
+          <Column header="Situação" body={statusBody} style={{ width: "12%" }} />
         </DataTable>
       </DashboardDataTableShell>
 

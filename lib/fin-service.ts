@@ -684,6 +684,7 @@ export interface UnicredWebhookConciliacaoResumo {
   nossoNumero?: string | null;
   pagadorNome?: string | null;
   pagadorDocumento?: string | null;
+  numeroContrato?: string | null;
   tituloVinculadoId?: string | null;
   liquidacao: boolean;
 }
@@ -713,6 +714,14 @@ export interface UnicredWebhookCriarTituloPayload {
 export interface UnicredWebhookReprocessamentoLoteRequest {
   limite?: number;
   dryRun?: boolean;
+}
+
+export interface UnicredWebhookConciliacaoFiltros {
+  nome?: string;
+  nossoNumero?: string;
+  dataRecebimentoDe?: string;
+  dataRecebimentoAte?: string;
+  contrato?: string;
 }
 
 export type UnicredWebhookReprocessamentoSituacao =
@@ -1341,11 +1350,22 @@ export const finService = {
     page = 0,
     size = 20,
     status?: UnicredWebhookConciliacaoStatus,
+    filtros?: UnicredWebhookConciliacaoFiltros,
     options?: FinFetchOptions,
   ): Promise<SpringPage<UnicredWebhookConciliacaoResumo>> {
-    const res = await apiFetch(getFinUnicredWebhookConciliacaoListUrl(page, size, status), {
-      skipLoading: options?.skipLoading,
-    });
+    const res = await apiFetch(
+      getFinUnicredWebhookConciliacaoListUrl(page, size, {
+        status,
+        nome: filtros?.nome,
+        nossoNumero: filtros?.nossoNumero,
+        dataRecebimentoDe: filtros?.dataRecebimentoDe,
+        dataRecebimentoAte: filtros?.dataRecebimentoAte,
+        contrato: filtros?.contrato,
+      }),
+      {
+        skipLoading: options?.skipLoading,
+      },
+    );
     return parseJson(res);
   },
 
