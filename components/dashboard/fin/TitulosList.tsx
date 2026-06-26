@@ -73,8 +73,11 @@ import {
   normalizarDataCalendario,
   parseIsoDate,
 } from "@/lib/fin-vencimento";
-import type { SpringPage } from "@/lib/spring-page";
-import { springPageDisplayRange } from "@/lib/spring-page";
+import {
+  buildParcelasVencimentosNovoLote,
+  calcularValoresNominaisNovoLote,
+} from "@/lib/fin-indice-simulacao";
+import { springPageDisplayRange, type SpringPage } from "@/lib/spring-page";
 
 const STATUS_OPTIONS = [
   { label: "Todos", value: "" },
@@ -288,6 +291,10 @@ export function TitulosList({
   const [contextoLoading, setContextoLoading] = useState(false);
   const [quantidadeParcelas, setQuantidadeParcelas] = useState<number>(1);
   const [dataPrimeiraParcela, setDataPrimeiraParcela] = useState<Date | null>(null);
+  const [valoresNominaisPorParcela, setValoresNominaisPorParcela] = useState<
+    Map<number, number> | null
+  >(null);
+  const [valoresNominaisLoading, setValoresNominaisLoading] = useState(false);
   const [novoTituloStep, setNovoTituloStep] = useState<NovoTituloStep>("form");
   const [registrarDialogOpen, setRegistrarDialogOpen] = useState(false);
   const [tituloParaRegistrar, setTituloParaRegistrar] = useState<TituloCobranca | null>(null);
@@ -331,6 +338,8 @@ export function TitulosList({
     setContexto(null);
     setQuantidadeParcelas(1);
     setDataPrimeiraParcela(null);
+    setValoresNominaisPorParcela(null);
+    setValoresNominaisLoading(false);
     setNovoTituloStep("form");
   }, []);
 
@@ -634,6 +643,65 @@ export function TitulosList({
     [contexto],
   );
 
+  const parcelasVencimentosPreview = useMemo(() => {
+    if (!contexto) return null;
+    return buildParcelasVencimentosNovoLote({
+      contexto,
+      dataPrimeiraParcela,
+      quantidadeParcelas,
+      maxParcelasPermitidas,
+      parcelaReajusteLimite,
+    });
+  }, [
+    contexto,
+    dataPrimeiraParcela,
+    quantidadeParcelas,
+    maxParcelasPermitidas,
+    parcelaReajusteLimite,
+  ]);
+
+  useEffect(() => {
+    if (!showNovo || !contexto || contexto.valorParcela == null) {
+      setValoresNominaisPorParcela(null);
+      setValoresNominaisLoading(false);
+      return;
+    }
+    if (!parcelasVencimentosPreview || parcelasVencimentosPreview.size === 0) {
+      setValoresNominaisPorParcela(null);
+      return;
+    }
+
+    let cancelled = false;
+    setValoresNominaisLoading(true);
+    void calcularValoresNominaisNovoLote(contexto, parcelasVencimentosPreview)
+      .then((valores) => {
+        if (!cancelled) {
+          setValoresNominaisPorParcela(valores);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setValoresNominaisPorParcela(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setValoresNominaisLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showNovo, contexto, parcelasVencimentosPreview]);
+
+  const valorNominalExibido = useMemo(() => {
+    if (!contexto) return null;
+    return (
+      valoresNominaisPorParcela?.get(contexto.numeroParcela) ?? contexto.valorNominal ?? null
+    );
+  }, [contexto, valoresNominaisPorParcela]);
+
   const minVencimentoEmissao = useMemo(() => inicioDoDiaHoje(), []);
 
   const podeRevisarNovoTitulo = useMemo(() => {
@@ -669,15 +737,18 @@ export function TitulosList({
             qtd,
           );
 
-    const itens = vencimentosDetalhe.map((detalhe, index) => ({
-      parcela: parcelaInicial + index,
-      vencimento: formatIsoDate(detalhe.vencimento),
-      vencimentoBruto: formatIsoDate(detalhe.vencimentoBruto),
-      ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
-      excedente: false,
-      parcelaReajuste: false,
-      valor: contexto.valorNominal ?? null,
-    }));
+    const itens = vencimentosDetalhe.map((detalhe, index) => {
+      const parcela = parcelaInicial + index;
+      return {
+        parcela,
+        vencimento: formatIsoDate(detalhe.vencimento),
+        vencimentoBruto: formatIsoDate(detalhe.vencimentoBruto),
+        ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
+        excedente: false,
+        parcelaReajuste: false,
+        valor: valoresNominaisPorParcela?.get(parcela) ?? contexto.valorNominal ?? null,
+      };
+    });
 
     const itensExcedentes: typeof itens = [];
     if (qtd === maxParcelasPermitidas && parcelaFinal < parcelaReajusteLimite) {
@@ -702,17 +773,18 @@ export function TitulosList({
           ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
           excedente: true,
           parcelaReajuste: isParcelaReajuste(parcela),
-          valor: contexto.valorNominal ?? null,
+          valor: valoresNominaisPorParcela?.get(parcela) ?? contexto.valorNominal ?? null,
         });
       }
     }
 
     const ajustadosPorDiaUtil = itens.filter((item) => item.ajustadoPorDiaUtil).length;
+    const valorTotal = itens.reduce((sum, item) => sum + (item.valor ?? 0), 0);
     return {
       parcelaInicial,
       parcelaFinal,
       quantidade: qtd,
-      valorTotal: (contexto.valorNominal ?? 0) * qtd,
+      valorTotal,
       ajustadosPorDiaUtil,
       parcelaReajusteLimite,
       ultimaParcelaEmitivel,
@@ -729,6 +801,7 @@ export function TitulosList({
     maxParcelasPermitidas,
     parcelaReajusteLimite,
     ultimaParcelaEmitivel,
+    valoresNominaisPorParcela,
   ]);
 
   const onPage = (e: DataTablePageEvent) => {
@@ -2037,7 +2110,7 @@ export function TitulosList({
                   Valor nominal
                 </label>
                 <InputNumber
-                  value={contexto.valorNominal ?? null}
+                  value={valorNominalExibido}
                   mode="currency"
                   currency="BRL"
                   locale="pt-BR"
@@ -2045,6 +2118,9 @@ export function TitulosList({
                   inputClassName="w-full border-white/10 bg-white/[0.03] p-3 text-white/50 cursor-not-allowed"
                   disabled
                 />
+                {valoresNominaisLoading ? (
+                  <p className="text-xs text-white/35">Recalculando valor com índice do contrato…</p>
+                ) : null}
               </div>
               <div className="flex flex-col gap-2 sm:col-span-3">
                 <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">

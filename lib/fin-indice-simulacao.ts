@@ -4,6 +4,7 @@ import {
   calcularVencimentosComPrimeiraParcelaDetalhe,
   calcularVencimentosParcelasDetalhe,
   formatIsoDate,
+  isVencimentoFuturo,
   parseIsoDate,
 } from "@/lib/fin-vencimento";
 import {
@@ -13,6 +14,7 @@ import {
   mesesIpcaParaReajuste,
   parcelaReajusteDoCiclo,
   REAJUSTE_PERCENTUAL_FIXO,
+  vencimentoProjetadoParcela,
   type CondicoesValorNominal,
   type IndiceMensalLookup,
 } from "@/lib/fin-valor-nominal";
@@ -511,4 +513,145 @@ export async function carregarSimulacaoEvolucaoContrato(opts: {
     condicoesResumo: partes.join(" · "),
     primeiraVencimento: dataPrimeira,
   };
+}
+
+export function condicoesFromContexto(ctx: TituloContextoLote): CondicoesValorNominal {
+  if (ctx.valorParcela == null) {
+    throw new Error("Contrato sem valor de parcela configurado.");
+  }
+  return {
+    quantidadeParcelasFracionadas: ctx.quantidadeParcelasFracionadas ?? null,
+    valorFracionadoVendedora: ctx.valorFracionadoVendedora ?? null,
+    valorParcela: ctx.valorParcela,
+    tipoCorrecaoAnual: ctx.tipoCorrecaoAnual ?? null,
+  };
+}
+
+/** Vencimentos do lote (espelha backend + preview TitulosList). */
+export function buildParcelasVencimentosNovoLote(opts: {
+  contexto: TituloContextoLote;
+  dataPrimeiraParcela: Date | null;
+  quantidadeParcelas: number;
+  maxParcelasPermitidas: number;
+  parcelaReajusteLimite: number;
+}): Map<number, Date> {
+  const {
+    contexto,
+    dataPrimeiraParcela,
+    quantidadeParcelas,
+    maxParcelasPermitidas,
+    parcelaReajusteLimite,
+  } = opts;
+  const map = new Map<number, Date>();
+  const parcelaInicial = contexto.numeroParcela;
+  const usarDataPrimeiraLote =
+    dataPrimeiraParcela != null && isVencimentoFuturo(dataPrimeiraParcela);
+  const referencia = parseIsoDate(contexto.referenciaVencimento ?? contexto.vencimentoSugerido);
+
+  const vencimentoDetalheParaOffset = (offset: number): Date | undefined => {
+    const detalhe = usarDataPrimeiraLote
+      ? calcularVencimentosComPrimeiraParcelaDetalhe(
+          dataPrimeiraParcela!,
+          contexto.diaVencimentoMensal,
+          offset,
+        ).at(-1)
+      : calcularVencimentosParcelasDetalhe(
+          contexto.diaVencimentoMensal,
+          referencia,
+          offset,
+        ).at(-1);
+    return detalhe?.vencimento;
+  };
+
+  if (maxParcelasPermitidas >= 1 && quantidadeParcelas >= 1) {
+    const qtd = Math.min(maxParcelasPermitidas, Math.floor(quantidadeParcelas));
+    const parcelaFinal = parcelaInicial + qtd - 1;
+    const vencimentosDetalhe = usarDataPrimeiraLote
+      ? calcularVencimentosComPrimeiraParcelaDetalhe(
+          dataPrimeiraParcela!,
+          contexto.diaVencimentoMensal,
+          qtd,
+        )
+      : calcularVencimentosParcelasDetalhe(
+          contexto.diaVencimentoMensal,
+          referencia,
+          qtd,
+        );
+
+    vencimentosDetalhe.forEach((detalhe, index) => {
+      map.set(parcelaInicial + index, detalhe.vencimento);
+    });
+
+    if (qtd === maxParcelasPermitidas && parcelaFinal < parcelaReajusteLimite) {
+      for (let parcela = parcelaFinal + 1; parcela <= parcelaReajusteLimite; parcela++) {
+        const offset = parcela - parcelaInicial + 1;
+        const vencimento = vencimentoDetalheParaOffset(offset);
+        if (vencimento) {
+          map.set(parcela, vencimento);
+        }
+      }
+    }
+  } else {
+    const vencimento =
+      dataPrimeiraParcela != null && isVencimentoFuturo(dataPrimeiraParcela)
+        ? dataPrimeiraParcela
+        : parseIsoDate(contexto.vencimentoSugerido);
+    map.set(parcelaInicial, vencimento);
+  }
+
+  return map;
+}
+
+/**
+ * Valor nominal por parcela na emissão em lote (espelha TituloValorNominalService no backend).
+ */
+export async function calcularValoresNominaisNovoLote(
+  contexto: TituloContextoLote,
+  parcelasComVencimento: Map<number, Date>,
+): Promise<Map<number, number>> {
+  if (contexto.valorParcela == null || parcelasComVencimento.size === 0) {
+    return new Map();
+  }
+
+  const condicoes = condicoesFromContexto(contexto);
+  const dataPrimeiraContrato = parseIsoDate(contexto.dataPrimeiraParcelaContrato);
+  const diaVencimento = contexto.diaVencimentoMensal;
+  const maxParcela = Math.max(...parcelasComVencimento.keys());
+  const tipoIndice = resolverTipoIndiceContrato(contexto.tipoCorrecaoAnual);
+
+  let lookup: IndiceMensalLookup = {
+    variacaoMensalPorAnoMes: new Map(),
+    variacao12MesesPorAnoMes: new Map(),
+  };
+
+  if (maxParcela >= 13 && tipoIndice != null) {
+    const indices = await listarIndices(
+      tipoIndice,
+      periodoIndiceParaSimulacao(
+        contexto.dataPrimeiraParcelaContrato,
+        maxParcela,
+        tipoIndice,
+        new Date(),
+        condicoes.quantidadeParcelasFracionadas,
+      ),
+    );
+    lookup = buildIndiceLookup(indices);
+  }
+
+  const resultado = new Map<number, number>();
+  for (const [parcela, vencimentoLote] of parcelasComVencimento) {
+    const valor = detalheReajusteParcela(
+      condicoes,
+      parcela,
+      dataPrimeiraContrato,
+      diaVencimento,
+      lookup,
+      (p) =>
+        p === parcela
+          ? vencimentoLote
+          : vencimentoProjetadoParcela(p, dataPrimeiraContrato, diaVencimento),
+    ).valorNominal;
+    resultado.set(parcela, valor);
+  }
+  return resultado;
 }
