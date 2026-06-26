@@ -449,14 +449,17 @@ export function TitulosIndiceSimulacaoWorkspace({
     });
   }, [titulos, contexto]);
 
+  const ultimaParcelaEmitida = useMemo(() => {
+    const emitidos = titulos.filter(
+      (t) => t.status !== "CANCELADO" && t.status !== "RASCUNHO",
+    );
+    return emitidos.length ? Math.max(...emitidos.map((t) => t.numeroParcela)) : 0;
+  }, [titulos]);
+
   const parcelaSimulacao = useMemo(() => {
-    if (!contexto || titulos.length === 0) return 0;
-    return resolverParcelaLimiteSimulacao({
-      titulos,
-      diaVencimentoMensal: contexto.diaVencimentoMensal,
-      dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
-    });
-  }, [titulos, contexto]);
+    if (titulos.length === 0) return 0;
+    return resolverParcelaLimiteSimulacao(titulos);
+  }, [titulos]);
 
   const primeiraParcela = titulos[0] ?? null;
 
@@ -600,7 +603,7 @@ export function TitulosIndiceSimulacaoWorkspace({
             title={ui.tituloPainel}
             subtitle={
               parcelaSimulacao > 0
-                ? `${subtituloLote} · parcelas 1–${parcelaSimulacao} (vencidas até a ${parcelaAteMes}) · próxima ${contexto?.numeroParcela ?? "—"}`
+                ? `${subtituloLote} · parcelas 1–${parcelaSimulacao} (última emitida: ${ultimaParcelaEmitida}) · próxima ${contexto?.numeroParcela ?? "—"}`
                 : `${subtituloLote} · nenhuma parcela vencida até o mês atual`
             }
           >

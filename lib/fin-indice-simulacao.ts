@@ -1,5 +1,5 @@
 import { finService, type IndiceEconomicoMensal, type TituloCobranca, type TituloContextoLote } from "@/lib/fin-service";
-import { isParcelaReajuste, proximaParcelaComReajuste } from "@/lib/fin-parcela-reajuste";
+import { isParcelaReajuste } from "@/lib/fin-parcela-reajuste";
 import {
   calcularVencimentosComPrimeiraParcelaDetalhe,
   calcularVencimentosParcelasDetalhe,
@@ -224,27 +224,20 @@ export function resolverParcelaLimiteMesAtual(opts: {
 }
 
 /**
- * Extensão da simulação: até o fim do lote arredondado ao múltiplo de 12 seguinte,
- * incluindo o próximo reajuste e seu ponto de corte (parcela reajuste − 2).
+ * Extensão da simulação: múltiplo de 12 estritamente superior à última parcela emitida.
+ * Ex.: última emitida 72 → simula até 84; última 71 → até 72.
  */
-export function resolverParcelaLimiteSimulacao(opts: {
-  titulos: TituloCobranca[];
-  diaVencimentoMensal: number;
-  dataPrimeiraParcelaContrato?: string | null;
-  referencia?: Date;
-}): number {
-  const ateMes = resolverParcelaLimiteMesAtual(opts);
-  const maxEmitida = opts.titulos.length
-    ? Math.max(...opts.titulos.map((t) => t.numeroParcela))
+export function resolverParcelaLimiteSimulacao(titulos: TituloCobranca[]): number {
+  const emitidos = titulos.filter(
+    (t) => t.status !== "CANCELADO" && t.status !== "RASCUNHO",
+  );
+  const maxEmitida = emitidos.length
+    ? Math.max(...emitidos.map((t) => t.numeroParcela))
     : 0;
-  const base = Math.max(ateMes, maxEmitida);
-  if (base < 1) {
+  if (maxEmitida < 1) {
     return 0;
   }
-  const multiplo12 = Math.ceil(base / 12) * 12;
-  const proximoReajuste = proximaParcelaComReajuste(Math.max(ateMes, 1));
-  const marcoProximo = parcelaMarcoCorteParaReajuste(proximoReajuste);
-  return Math.max(multiplo12, marcoProximo, proximoReajuste);
+  return Math.ceil((maxEmitida + 1) / 12) * 12;
 }
 
 /** @deprecated Emissão usa 6% fixo; mantido para compatibilidade de UI legada. */
@@ -271,11 +264,7 @@ export function simularParcelasIndice(opts: {
     dataPrimeiraParcelaContrato,
     vencimentoParcelaAlvo,
   } = opts;
-  const parcelaLimite = resolverParcelaLimiteSimulacao({
-    titulos,
-    diaVencimentoMensal,
-    dataPrimeiraParcelaContrato,
-  });
+  const parcelaLimite = resolverParcelaLimiteSimulacao(titulos);
   if (parcelaLimite < 1) return [];
   if (titulos.length === 0 && !dataPrimeiraParcelaContrato) return [];
 
