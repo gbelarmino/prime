@@ -109,14 +109,16 @@ function referenciaAntesPrimeiroVencimento(primeiroVencimento: Date): Date {
 
 function parcelaComVencimentoNoAnoMes(
   alvoAnoMes: number,
-  vencimentos: Map<number, Date>,
+  vencimentoPorParcela: (parcela: number) => Date,
+  parcelaAte: number,
 ): number | null {
-  for (const [parcela, venc] of vencimentos) {
-    if (anoMesFromDate(venc) === alvoAnoMes) {
-      return parcela;
+  let encontrada: number | null = null;
+  for (let parcela = 1; parcela <= parcelaAte; parcela++) {
+    if (anoMesFromDate(vencimentoPorParcela(parcela)) === alvoAnoMes) {
+      encontrada = parcela;
     }
   }
-  return null;
+  return encontrada;
 }
 
 type MarcoCorteIndice = {
@@ -128,20 +130,33 @@ type MarcoCorteIndice = {
 
 function buildMarcadoresCorteIndice(opts: {
   parcelaAtual: number;
-  vencimentos: Map<number, Date>;
+  diaVencimentoMensal: number;
   vencimentoPorParcela: (parcela: number) => Date;
   condicoes: CondicoesValorNominal;
   lookup: IndiceMensalLookup;
 }): Map<number, MarcoCorteIndice> {
-  const { parcelaAtual, vencimentos, vencimentoPorParcela, condicoes, lookup } = opts;
+  const { parcelaAtual, diaVencimentoMensal, vencimentoPorParcela, condicoes, lookup } = opts;
   const qtdFracionadas = condicoes.quantidadeParcelasFracionadas ?? 0;
   const marcos = new Map<number, MarcoCorteIndice>();
 
+  const vencimentoReajusteParaMarco = (parcelaReajuste: number): Date => {
+    for (let ancora = parcelaReajuste - 1; ancora >= 1; ancora--) {
+      const vencimentoAncora = vencimentoPorParcela(ancora);
+      return extrapolarVencimentoParcela(
+        diaVencimentoMensal,
+        ancora,
+        vencimentoAncora,
+        parcelaReajuste,
+      );
+    }
+    return vencimentoPorParcela(parcelaReajuste);
+  };
+
   for (let parcelaReajuste = 13; parcelaReajuste <= parcelaAtual + 12; parcelaReajuste += 12) {
-    const vencReajuste = vencimentoPorParcela(parcelaReajuste);
+    const vencReajuste = vencimentoReajusteParaMarco(parcelaReajuste);
     const anoMesCorte = mesCorteIndiceReajuste(vencReajuste);
-    const parcelaMarco = parcelaComVencimentoNoAnoMes(anoMesCorte, vencimentos);
-    if (parcelaMarco == null || parcelaMarco > parcelaAtual) continue;
+    const parcelaMarco = parcelaComVencimentoNoAnoMes(anoMesCorte, vencimentoPorParcela, parcelaAtual);
+    if (parcelaMarco == null) continue;
 
     const mesesIndice = mesesIpcaParaReajuste(parcelaReajuste, qtdFracionadas);
     const indiceAcumulado =
@@ -283,7 +298,7 @@ export function simularParcelasIndice(opts: {
 
   const marcosCorte = buildMarcadoresCorteIndice({
     parcelaAtual,
-    vencimentos,
+    diaVencimentoMensal,
     vencimentoPorParcela,
     condicoes,
     lookup,
@@ -500,10 +515,35 @@ export function condicoesFromContexto(ctx: TituloContextoLote): CondicoesValorNo
   };
 }
 
+function titulosEfetivosParaVencimento(titulos: TituloCobranca[]): TituloCobranca[] {
+  return titulos.filter((t) => t.status !== "CANCELADO" && t.status !== "RASCUNHO");
+}
+
+function extrapolarVencimentoParcela(
+  diaVencimento: number,
+  parcelaAnchor: number,
+  vencimentoAnchor: Date,
+  parcelaAlvo: number,
+): Date {
+  if (parcelaAlvo === parcelaAnchor) {
+    return vencimentoAnchor;
+  }
+  const offset = parcelaAlvo - parcelaAnchor;
+  if (offset <= 0) {
+    throw new Error("Parcela alvo deve ser posterior à âncora.");
+  }
+  const extrapolados = calcularVencimentosParcelasDetalhe(
+    diaVencimento,
+    vencimentoAnchor,
+    offset,
+  );
+  return extrapolados[offset - 1]!.vencimento;
+}
+
 /**
  * Vencimentos efetivos por parcela para cálculo de valor nominal (espelha backend + simulação).
- * Prioriza vencimento informado na emissão, depois título emitido, lacunas pela projeção do contrato
- * e parcelas futuras por extrapolação a partir do último vencimento conhecido.
+ * Prioriza vencimento informado na emissão, depois título emitido (exceto rascunho/cancelado),
+ * lacunas por extrapolação a partir da última parcela conhecida e, por fim, projeção do contrato.
  */
 export function buildVencimentoPorParcelaCalculo(opts: {
   titulos: TituloCobranca[];
@@ -512,8 +552,9 @@ export function buildVencimentoPorParcelaCalculo(opts: {
   parcelaMaxima: number;
   vencimentosInformados?: Map<number, Date>;
 }): (parcela: number) => Date {
+  const titulosCalculo = titulosEfetivosParaVencimento(opts.titulos);
   const tituloPorParcela = new Map(
-    [...opts.titulos]
+    [...titulosCalculo]
       .sort((a, b) => a.numeroParcela - b.numeroParcela)
       .map((t) => [t.numeroParcela, t] as const),
   );
@@ -524,80 +565,78 @@ export function buildVencimentoPorParcelaCalculo(opts: {
     opts.parcelaMaxima,
   );
 
-  const conhecidos = new Map<number, Date>();
+  const ancoras = new Map<number, Date>();
   for (let parcela = 1; parcela <= opts.parcelaMaxima; parcela++) {
     const informado = opts.vencimentosInformados?.get(parcela);
     if (informado) {
-      conhecidos.set(parcela, informado);
+      ancoras.set(parcela, informado);
       continue;
     }
     const emitido = tituloPorParcela.get(parcela);
     if (emitido) {
-      conhecidos.set(parcela, parseIsoDate(emitido.vencimento));
+      ancoras.set(parcela, parseIsoDate(emitido.vencimento));
       continue;
     }
     const projetado = detalhes[parcela - 1]?.vencimento;
     if (projetado) {
-      conhecidos.set(parcela, projetado);
+      ancoras.set(parcela, projetado);
     }
-  }
-
-  let ultimaParcela = 0;
-  let ultimoVencimento = dataPrimeira;
-  const registrarUltimo = (parcela: number, vencimento: Date) => {
-    if (parcela >= ultimaParcela) {
-      ultimaParcela = parcela;
-      ultimoVencimento = vencimento;
-    }
-  };
-  for (const [parcela, vencimento] of conhecidos) {
-    registrarUltimo(parcela, vencimento);
   }
   for (const [parcela, vencimento] of opts.vencimentosInformados ?? []) {
-    registrarUltimo(parcela, vencimento);
-  }
-  for (const titulo of opts.titulos) {
-    registrarUltimo(titulo.numeroParcela, parseIsoDate(titulo.vencimento));
+    ancoras.set(parcela, vencimento);
   }
 
-  const extrapolacaoCache = new Map<number, Date>();
+  const resolverAncoraAnterior = (parcela: number): { parcela: number; vencimento: Date } | null => {
+    let melhor: { parcela: number; vencimento: Date } | null = null;
+    for (const [p, v] of ancoras) {
+      if (p <= parcela && (!melhor || p > melhor.parcela)) {
+        melhor = { parcela: p, vencimento: v };
+      }
+    }
+    return melhor;
+  };
+
+  const cache = new Map<number, Date>();
 
   return (parcela: number) => {
-    const informado = opts.vencimentosInformados?.get(parcela);
-    if (informado) {
-      return informado;
-    }
-    const emitido = tituloPorParcela.get(parcela);
-    if (emitido) {
-      return parseIsoDate(emitido.vencimento);
-    }
-    const conhecido = conhecidos.get(parcela);
-    if (conhecido) {
-      return conhecido;
-    }
-
-    const cached = extrapolacaoCache.get(parcela);
+    const cached = cache.get(parcela);
     if (cached) {
       return cached;
     }
 
-    if (parcela <= ultimaParcela) {
-      return (
-        detalhes[parcela - 1]?.vencimento ??
-        vencimentoProjetadoParcela(parcela, dataPrimeira, opts.diaVencimentoMensal)
-      );
+    const informado = opts.vencimentosInformados?.get(parcela);
+    if (informado) {
+      cache.set(parcela, informado);
+      return informado;
+    }
+    const emitido = tituloPorParcela.get(parcela);
+    if (emitido) {
+      const vencimento = parseIsoDate(emitido.vencimento);
+      cache.set(parcela, vencimento);
+      return vencimento;
+    }
+    const ancoraConhecida = ancoras.get(parcela);
+    if (ancoraConhecida) {
+      cache.set(parcela, ancoraConhecida);
+      return ancoraConhecida;
     }
 
-    const offset = parcela - ultimaParcela;
-    const extrapolados = calcularVencimentosParcelasDetalhe(
-      opts.diaVencimentoMensal,
-      ultimoVencimento,
-      offset,
-    );
+    const ancora = resolverAncoraAnterior(parcela);
+    if (ancora && parcela > ancora.parcela) {
+      const vencimento = extrapolarVencimentoParcela(
+        opts.diaVencimentoMensal,
+        ancora.parcela,
+        ancora.vencimento,
+        parcela,
+      );
+      cache.set(parcela, vencimento);
+      return vencimento;
+    }
+
     const vencimento =
-      extrapolados[offset - 1]?.vencimento ??
+      detalhes[parcela - 1]?.vencimento ??
       vencimentoProjetadoParcela(parcela, dataPrimeira, opts.diaVencimentoMensal);
-    extrapolacaoCache.set(parcela, vencimento);
+    cache.set(parcela, vencimento);
     return vencimento;
   };
 }
