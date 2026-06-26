@@ -9,6 +9,7 @@ import {
   formatPercentualIndice,
   periodoIndiceParaSimulacao,
   resolverParcelaLimiteMesAtual,
+  resolverParcelaLimiteSimulacao,
   resolverTipoIndiceContrato,
   resumoBasesContrato,
   simularParcelasIndice,
@@ -439,9 +440,18 @@ export function TitulosIndiceSimulacaoWorkspace({
     return partes.join(" · ");
   }, [condicoes]);
 
-  const parcelaAtual = useMemo(() => {
+  const parcelaAteMes = useMemo(() => {
     if (!contexto || titulos.length === 0) return 0;
     return resolverParcelaLimiteMesAtual({
+      titulos,
+      diaVencimentoMensal: contexto.diaVencimentoMensal,
+      dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
+    });
+  }, [titulos, contexto]);
+
+  const parcelaSimulacao = useMemo(() => {
+    if (!contexto || titulos.length === 0) return 0;
+    return resolverParcelaLimiteSimulacao({
       titulos,
       diaVencimentoMensal: contexto.diaVencimentoMensal,
       dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
@@ -451,7 +461,7 @@ export function TitulosIndiceSimulacaoWorkspace({
   const primeiraParcela = titulos[0] ?? null;
 
   useEffect(() => {
-    if (!pesquisado || !primeiraParcela || !contexto || !condicoes || parcelaAtual < 1) {
+    if (!pesquisado || !primeiraParcela || !contexto || !condicoes || parcelaSimulacao < 1) {
       setSimulacao([]);
       return;
     }
@@ -462,7 +472,7 @@ export function TitulosIndiceSimulacaoWorkspace({
       contexto.dataPrimeiraParcelaContrato ?? primeiraParcela.vencimento;
     const periodo = periodoIndiceParaSimulacao(
       dataPrimeira,
-      parcelaAtual,
+      parcelaSimulacao,
       tipoIndiceEfetivo,
       new Date(),
       condicoes.quantidadeParcelasFracionadas,
@@ -475,7 +485,7 @@ export function TitulosIndiceSimulacaoWorkspace({
           simularParcelasIndice({
             titulos,
             diaVencimentoMensal: contexto.diaVencimentoMensal,
-            parcelaAtual,
+            parcelaAtual: parcelaAteMes,
             indices,
             condicoes,
             dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
@@ -499,7 +509,8 @@ export function TitulosIndiceSimulacaoWorkspace({
     pesquisado,
     titulos,
     contexto,
-    parcelaAtual,
+    parcelaAteMes,
+    parcelaSimulacao,
     condicoes,
     primeiraParcela,
     tipoIndiceEfetivo,
@@ -588,8 +599,8 @@ export function TitulosIndiceSimulacaoWorkspace({
           <PainelCard
             title={ui.tituloPainel}
             subtitle={
-              parcelaAtual > 0
-                ? `${subtituloLote} · parcelas 1–${parcelaAtual} (até o mês atual) · próxima ${contexto?.numeroParcela ?? "—"}`
+              parcelaSimulacao > 0
+                ? `${subtituloLote} · parcelas 1–${parcelaSimulacao} (vencidas até a ${parcelaAteMes}) · próxima ${contexto?.numeroParcela ?? "—"}`
                 : `${subtituloLote} · nenhuma parcela vencida até o mês atual`
             }
           >
