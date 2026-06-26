@@ -10,6 +10,7 @@ import {
 import {
   acumularVariacaoFraction,
   detalheReajusteParcela,
+  indiceDisponivelParaPeriodo,
   mesCorteIndiceReajuste,
   mesesIpcaParaReajuste,
   parcelaReajusteDoCiclo,
@@ -38,10 +39,16 @@ export type IndiceSimulacaoParcela = {
   parcela: number;
   vencimento: string;
   valorSimulado: number;
+  /** Parcela de reajuste (13, 25, 37…) na série. */
   parcelaReajuste: boolean;
+  /** Reajuste calculado e aplicado nesta parcela. */
   reajusteAplicadoNestaParcela: boolean;
+  /** Parcela de reajuste aguardando publicação do índice (valor não recalculado). */
+  reajusteAguardandoIndice: boolean;
   /** Parcela cujo vencimento cai no mês de corte do índice (fim da janela acumulada). */
   marcoCorteIndice: boolean;
+  /** Marco de corte sem série completa do índice para o período. */
+  indiceCorteIndisponivel: boolean;
   parcelaReajusteDestino: number | null;
   indiceAcumuladoMarcoCorte: number | null;
   mesCorteIndiceLabel: string | null;
@@ -114,9 +121,10 @@ export function parcelaMarcoCorteParaReajuste(parcelaReajuste: number): number {
 
 type MarcoCorteIndice = {
   parcelaReajusteDestino: number;
-  indiceAcumuladoMarcoCorte: number;
+  indiceAcumuladoMarcoCorte: number | null;
   mesCorteIndiceLabel: string;
   mesesIndiceMarcoCorte: number;
+  indiceDisponivel: boolean;
 };
 
 function buildMarcadoresCorteIndice(opts: {
@@ -138,16 +146,22 @@ function buildMarcadoresCorteIndice(opts: {
     const vencReajuste = vencimentoPorParcela(parcelaReajuste);
     const anoMesCorte = mesCorteIndiceReajuste(vencReajuste);
     const mesesIndice = mesesIpcaParaReajuste(parcelaReajuste, qtdFracionadas);
-    const indiceAcumulado =
-      condicoes.tipoCorrecaoAnual === "NENHUM"
-        ? 0
-        : acumularVariacaoFraction(lookup, anoMesCorte, mesesIndice) * 100;
+
+    if (condicoes.tipoCorrecaoAnual === "NENHUM") {
+      continue;
+    }
+
+    const indiceDisponivel = indiceDisponivelParaPeriodo(lookup, anoMesCorte, mesesIndice);
+    const indiceAcumulado = indiceDisponivel
+      ? acumularVariacaoFraction(lookup, anoMesCorte, mesesIndice) * 100
+      : null;
 
     marcos.set(parcelaMarco, {
       parcelaReajusteDestino: parcelaReajuste,
       indiceAcumuladoMarcoCorte: indiceAcumulado,
       mesCorteIndiceLabel: formatAnoMesLabel(anoMesCorte),
       mesesIndiceMarcoCorte: mesesIndice,
+      indiceDisponivel,
     });
   }
 
@@ -314,8 +328,9 @@ export function simularParcelasIndice(opts: {
       lookup,
       vencimentoPorParcela,
     );
-    const reajusteNesta =
-      parcela >= 13 && parcela === parcelaReajusteDoCiclo(parcela);
+    const ehParcelaReajuste = isParcelaReajuste(parcela);
+    const reajusteCalculado =
+      ehParcelaReajuste && detalhe.indiceDisponivelParaReajuste;
     const emitido = tituloPorParcela.get(parcela) ?? null;
     const valorEmitido = emitido?.valorNominal ?? null;
     const valor = detalhe.valorNominal;
@@ -326,19 +341,21 @@ export function simularParcelasIndice(opts: {
       parcela,
       vencimento: formatIsoDate(vencimentos.get(parcela)!),
       valorSimulado: valor,
-      parcelaReajuste: isParcelaReajuste(parcela),
-      reajusteAplicadoNestaParcela: reajusteNesta,
+      parcelaReajuste: ehParcelaReajuste,
+      reajusteAplicadoNestaParcela: reajusteCalculado,
+      reajusteAguardandoIndice: ehParcelaReajuste && !detalhe.indiceDisponivelParaReajuste,
       marcoCorteIndice: marco != null,
+      indiceCorteIndisponivel: marco != null && !marco.indiceDisponivel,
       parcelaReajusteDestino: marco?.parcelaReajusteDestino ?? null,
       indiceAcumuladoMarcoCorte: marco?.indiceAcumuladoMarcoCorte ?? null,
       mesCorteIndiceLabel: marco?.mesCorteIndiceLabel ?? null,
       mesesIndiceMarcoCorte: marco?.mesesIndiceMarcoCorte ?? null,
-      percentualFixoReajuste: reajusteNesta ? REAJUSTE_PERCENTUAL_FIXO : null,
-      indice12MesesReferencia: reajusteNesta ? detalhe.ipcaAcumulado : null,
-      mesesIndiceReferencia: reajusteNesta ? detalhe.mesesIpcaReferencia : null,
-      percentualTotalReajuste: reajusteNesta ? detalhe.percentualTotalReajuste : null,
+      percentualFixoReajuste: reajusteCalculado ? REAJUSTE_PERCENTUAL_FIXO : null,
+      indice12MesesReferencia: reajusteCalculado ? detalhe.ipcaAcumulado : null,
+      mesesIndiceReferencia: reajusteCalculado ? detalhe.mesesIpcaReferencia : null,
+      percentualTotalReajuste: reajusteCalculado ? detalhe.percentualTotalReajuste : null,
       mesReferenciaIndice:
-        reajusteNesta && detalhe.anoMesReferencia != null
+        reajusteCalculado && detalhe.anoMesReferencia != null
           ? formatAnoMesLabel(detalhe.anoMesReferencia)
           : null,
       tituloEmitido: emitido,

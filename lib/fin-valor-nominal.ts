@@ -91,12 +91,15 @@ function subtractAnoMes(anoMes: number, meses: number): number {
   return d.getFullYear() * 100 + (d.getMonth() + 1);
 }
 
-/** Fração decimal acumulada (ex.: 0.045 = 4,5%). */
+/** Fração decimal acumulada (ex.: 0.045 = 4,5%). Retorna 0 se a série estiver incompleta. */
 export function acumularVariacaoFraction(
   lookup: IndiceMensalLookup,
   fimInclusiveAnoMes: number,
   meses: number,
 ): number {
+  if (!indiceDisponivelParaPeriodo(lookup, fimInclusiveAnoMes, meses)) {
+    return 0;
+  }
   if (meses === 12) {
     const v12 = lookup.variacao12MesesPorAnoMes.get(fimInclusiveAnoMes);
     if (v12 != null) {
@@ -107,13 +110,31 @@ export function acumularVariacaoFraction(
   let acumulado = 1;
   for (let i = 0; i < meses; i++) {
     const anoMes = subtractAnoMes(fimInclusiveAnoMes, meses - 1 - i);
-    const mensal = lookup.variacaoMensalPorAnoMes.get(anoMes);
-    if (mensal == null) {
-      return 0;
-    }
+    const mensal = lookup.variacaoMensalPorAnoMes.get(anoMes)!;
     acumulado *= 1 + mensal / 100;
   }
   return acumulado - 1;
+}
+
+/** Série do índice completa para o período de corte (12 meses ou coluna acumulada). */
+export function indiceDisponivelParaPeriodo(
+  lookup: IndiceMensalLookup,
+  fimInclusiveAnoMes: number,
+  meses: number,
+): boolean {
+  if (meses === 12) {
+    const v12 = lookup.variacao12MesesPorAnoMes.get(fimInclusiveAnoMes);
+    if (v12 != null) {
+      return true;
+    }
+  }
+  for (let i = 0; i < meses; i++) {
+    const anoMes = subtractAnoMes(fimInclusiveAnoMes, meses - 1 - i);
+    if (lookup.variacaoMensalPorAnoMes.get(anoMes) == null) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** Dois meses antes do mês de vencimento do ciclo de reajuste (fim da janela do índice). */
@@ -187,12 +208,20 @@ function valorNaParcelaReajuste(
   const valorParcela = ch.valorParcela;
   const vencimento = vencimentoPorParcela(parcelaReajuste);
   const mesesIpca = mesesIpcaParaReajuste(parcelaReajuste, qtdFracionadas);
+  const referenciaFim = anoMesReferenciaVencimento(vencimento);
+  const indiceDisponivel =
+    ch.tipoCorrecaoAnual !== "NENHUM" &&
+    indiceDisponivelParaPeriodo(lookup, referenciaFim, mesesIpca);
 
   let resultado: number;
   if (parcelaReajuste === 13) {
     const base =
       13 <= qtdFracionadas && fracionado != null ? fracionado : valorParcela;
-    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
+    if (!indiceDisponivel) {
+      resultado = roundMoney(base);
+    } else {
+      resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
+    }
   } else if (parcelaReajuste === 25) {
     const base = valorNaParcelaReajuste(
       ch,
@@ -201,7 +230,11 @@ function valorNaParcelaReajuste(
       lookup,
       cache,
     );
-    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
+    if (!indiceDisponivel) {
+      resultado = base;
+    } else {
+      resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
+    }
   } else {
     const parcelaAnterior = parcelaReajuste - 12;
     const base = valorNaParcelaReajuste(
@@ -211,7 +244,11 @@ function valorNaParcelaReajuste(
       lookup,
       cache,
     );
-    resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
+    if (!indiceDisponivel) {
+      resultado = base;
+    } else {
+      resultado = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual).valor;
+    }
   }
 
   cache.set(parcelaReajuste, resultado);
@@ -278,6 +315,7 @@ export function detalheReajusteParcela(
   ipcaAcumulado: number | null;
   percentualTotalReajuste: number | null;
   anoMesReferencia: number | null;
+  indiceDisponivelParaReajuste: boolean;
 } {
   const vencimentoPorParcela =
     vencimentoPorParcelaOverride ??
@@ -298,6 +336,7 @@ export function detalheReajusteParcela(
       ipcaAcumulado: null,
       percentualTotalReajuste: null,
       anoMesReferencia: null,
+      indiceDisponivelParaReajuste: false,
     };
   }
 
@@ -306,6 +345,9 @@ export function detalheReajusteParcela(
   const mesesIpca = mesesIpcaParaReajuste(parcelaReajusteCiclo, qtdFracionadas);
   const vencimento = vencimentoPorParcela(parcelaReajusteCiclo);
   const anoMesReferencia = anoMesReferenciaVencimento(vencimento);
+  const indiceDisponivelParaReajuste =
+    ch.tipoCorrecaoAnual !== "NENHUM" &&
+    indiceDisponivelParaPeriodo(lookup, anoMesReferencia, mesesIpca);
 
   const cache = new Map<number, number>();
   const valorNominal = valorNaParcelaReajuste(
@@ -340,15 +382,18 @@ export function detalheReajusteParcela(
     );
   }
 
-  const reajuste = aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual);
+  const reajuste = indiceDisponivelParaReajuste
+    ? aplicarReajuste(base, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual)
+    : null;
 
   return {
     valorNominal,
     parcelaReajusteCiclo,
-    mesesIpcaReferencia: mesesIpca,
-    ipcaAcumulado: reajuste.ipcaAcumulado,
-    percentualTotalReajuste: reajuste.percentualTotal,
-    anoMesReferencia,
+    mesesIpcaReferencia: indiceDisponivelParaReajuste ? mesesIpca : null,
+    ipcaAcumulado: reajuste?.ipcaAcumulado ?? null,
+    percentualTotalReajuste: reajuste?.percentualTotal ?? null,
+    anoMesReferencia: indiceDisponivelParaReajuste ? anoMesReferencia : null,
+    indiceDisponivelParaReajuste,
   };
 }
 

@@ -1,10 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  formatPercentualIndice,
-  type IndiceSimulacaoParcela,
-} from "@/lib/fin-indice-simulacao";
+import { type IndiceSimulacaoParcela } from "@/lib/fin-indice-simulacao";
+import { SimulacaoIndiceParcelaDetalhes } from "@/components/dashboard/fin/SimulacaoIndiceParcelaDetalhes";
 import { parseIsoDate } from "@/lib/fin-vencimento";
 
 function formatMoney(v: number | null | undefined): string {
@@ -70,11 +68,15 @@ export function LinhaSimulacaoIndice({
         item.parcelaReajuste &&
           !ehDestaque &&
           !ehNoLote &&
-          "bg-violet-500/[0.08] ring-1 ring-inset ring-violet-500/20",
+          (item.reajusteAguardandoIndice
+            ? "bg-amber-500/[0.08] ring-1 ring-inset ring-amber-500/25"
+            : "bg-violet-500/[0.08] ring-1 ring-inset ring-violet-500/20"),
         item.marcoCorteIndice &&
           !item.parcelaReajuste &&
           !ehDestaque &&
-          "bg-sky-500/[0.07] ring-1 ring-inset ring-sky-500/25",
+          (item.indiceCorteIndisponivel
+            ? "bg-amber-500/[0.07] ring-1 ring-inset ring-amber-500/20"
+            : "bg-sky-500/[0.07] ring-1 ring-inset ring-sky-500/25"),
         temDivergencia && !item.parcelaReajuste && !item.marcoCorteIndice && !ehDestaque && "bg-amber-500/[0.06]",
       )}
     >
@@ -91,59 +93,7 @@ export function LinhaSimulacaoIndice({
             </span>
           ) : null}
         </div>
-        {item.marcoCorteIndice ? (
-          <div className="mt-1 text-[10px] leading-tight text-sky-200/90">
-            <span className="font-semibold text-sky-100">
-              {labelIndice}{" "}
-              {item.indiceAcumuladoMarcoCorte != null
-                ? formatPercentualIndice(item.indiceAcumuladoMarcoCorte)
-                : "—"}{" "}
-              acumulado
-            </span>
-            <span className="block text-sky-200/75">
-              até {item.mesCorteIndiceLabel ?? "—"}
-              {item.mesesIndiceMarcoCorte != null && item.mesesIndiceMarcoCorte !== 12
-                ? ` (${item.mesesIndiceMarcoCorte} meses)`
-                : item.mesesIndiceMarcoCorte === 12
-                  ? " (12 meses)"
-                  : ""}
-            </span>
-            {item.parcelaReajusteDestino != null ? (
-              <span className="block font-medium text-sky-100/85">
-                → reajuste na parc. {item.parcelaReajusteDestino}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-        {item.reajusteAplicadoNestaParcela ? (
-          <div className="mt-1 text-[10px] leading-tight text-violet-300/90">
-            <span className="font-semibold">
-              {item.percentualTotalReajuste != null
-                ? `Reajuste ${formatPercentualIndice(item.percentualTotalReajuste)}`
-                : "Reajuste —"}
-            </span>
-            <span className="block text-violet-300/75">
-              {formatPercentualIndice(item.percentualFixoReajuste)} fixo
-              {item.indice12MesesReferencia != null
-                ? ` + ${labelIndice} ${formatPercentualIndice(item.indice12MesesReferencia)}${
-                    item.mesesIndiceReferencia != null && item.mesesIndiceReferencia !== 12
-                      ? ` (${item.mesesIndiceReferencia} meses)`
-                      : item.mesesIndiceReferencia === 12
-                        ? " (12 meses)"
-                        : ""
-                  }`
-                : ` + ${labelIndice} —`}
-            </span>
-            {item.mesReferenciaIndice ? (
-              <span className="block font-medium text-violet-200/90">
-                Corte: {item.mesReferenciaIndice}
-                {item.indice12MesesReferencia != null
-                  ? ` · ${labelIndice} ${formatPercentualIndice(item.indice12MesesReferencia)}`
-                  : ""}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
+        <SimulacaoIndiceParcelaDetalhes item={item} labelIndice={labelIndice} />
       </td>
       <td className="px-4 py-2.5">{formatDate(item.vencimento)}</td>
       <td className="px-4 py-2.5 text-right font-medium text-emerald-200/90">
