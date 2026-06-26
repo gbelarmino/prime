@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DataTable, type DataTablePageEvent } from "primereact/datatable";
+import { DataTable, type DataTablePageEvent, type DataTableSortEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { MultiSelect } from "primereact/multiselect";
@@ -34,6 +34,34 @@ import type { SpringPage } from "@/lib/spring-page";
 const PAGE_SIZE = 20;
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
 const MULTISELECT_PT = dashboardMultiSelectPt();
+
+type AtendimentoSortField =
+  | "contratoId"
+  | "numeroContrato"
+  | "contratanteNome"
+  | "cpf"
+  | "empreendimento"
+  | "saldoDevedor"
+  | "percentualQuitacao"
+  | "statusFinanceiro";
+
+const DEFAULT_SORT_FIELD: AtendimentoSortField = "contratoId";
+const DEFAULT_SORT_ORDER = -1;
+
+const ATENDIMENTO_SORT_FIELDS = new Set<string>([
+  "contratoId",
+  "numeroContrato",
+  "contratanteNome",
+  "cpf",
+  "empreendimento",
+  "saldoDevedor",
+  "percentualQuitacao",
+  "statusFinanceiro",
+]);
+
+function isAtendimentoSortField(value: string): value is AtendimentoSortField {
+  return ATENDIMENTO_SORT_FIELDS.has(value);
+}
 
 const FILTER_INPUT_CLASS = "w-full rounded-xl border-white/10 bg-white/5 text-white";
 
@@ -67,6 +95,8 @@ export function AtendimentoBusca() {
   const [filters, setFilters] = useState<AtendimentoBuscaFilters>({});
   const [applied, setApplied] = useState<AtendimentoBuscaFilters>({});
   const [page, setPage] = useState(0);
+  const [sortField, setSortField] = useState<AtendimentoSortField>(DEFAULT_SORT_FIELD);
+  const [sortOrder, setSortOrder] = useState<1 | -1 | 0 | null | undefined>(DEFAULT_SORT_ORDER);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [pageData, setPageData] = useState<SpringPage<AtendimentoBuscaItem> | null>(null);
@@ -151,30 +181,43 @@ export function AtendimentoBusca() {
   const quadraOptions = quadras.map((q) => ({ label: `Quadra ${q}`, value: q }));
   const loteOptions = lotes.map((n) => ({ label: `Lote ${n}`, value: n }));
 
-  const load = useCallback(async (p: number, f: AtendimentoBuscaFilters) => {
+  const load = useCallback(async () => {
+    if (!searched) return;
     setLoading(true);
     try {
-      const data = await atendimentoService.buscar(p, PAGE_SIZE, f);
+      const data = await atendimentoService.buscar(page, PAGE_SIZE, applied, {
+        field: sortField,
+        direction: sortOrder === 1 ? "asc" : "desc",
+      });
       setPageData(data);
-      setSearched(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro na consulta.");
       setPageData(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, applied, sortField, sortOrder, searched]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const onSearch = () => {
     setPage(0);
     setApplied(filters);
-    void load(0, filters);
+    setSearched(true);
   };
 
   const onPage = (e: DataTablePageEvent) => {
-    const next = e.page ?? 0;
-    setPage(next);
-    void load(next, applied);
+    setPage(e.page ?? 0);
+  };
+
+  const onSort = (e: DataTableSortEvent) => {
+    const field = e.sortField;
+    if (typeof field !== "string" || !isAtendimentoSortField(field)) return;
+    setSortField(field);
+    setSortOrder(e.sortOrder ?? DEFAULT_SORT_ORDER);
+    setPage(0);
   };
 
   const rows = pageData?.content ?? [];
@@ -391,45 +434,64 @@ export function AtendimentoBusca() {
             rows={PAGE_SIZE}
             totalRecords={totalRecords}
             onPage={onPage}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSort={onSort}
+            sortMode="single"
+            removableSort={false}
             loading={loading}
             emptyMessage="Nenhum contrato encontrado para os filtros informados."
             className={DASHBOARD_DATATABLE_CLASS}
             pt={TABLE_PT}
           >
             <Column
+              field="numeroContrato"
               header="Contrato"
+              sortable
               body={(row: AtendimentoBuscaItem) =>
                 dashboardCellMono(row.numeroContrato ?? String(row.contratoId))
               }
             />
             <Column
+              field="contratanteNome"
               header="Cliente"
+              sortable
               body={(row: AtendimentoBuscaItem) => dashboardCellText(row.contratanteNome)}
             />
             <Column
+              field="cpf"
               header="CPF"
+              sortable
               body={(row: AtendimentoBuscaItem) =>
                 dashboardCellMono(formatCpfDisplay(row.cpf))
               }
             />
             <Column
+              field="empreendimento"
               header="Imóvel"
+              sortable
               body={(row: AtendimentoBuscaItem) => dashboardCellText(imovelLabel(row))}
             />
             <Column
+              field="saldoDevedor"
               header="Saldo"
+              sortable
               body={(row: AtendimentoBuscaItem) =>
                 dashboardCellMono(formatMoney(row.saldoDevedor))
               }
             />
             <Column
+              field="percentualQuitacao"
               header="Quitação"
+              sortable
               body={(row: AtendimentoBuscaItem) =>
                 dashboardCellMono(`${row.percentualQuitacao}%`)
               }
             />
             <Column
+              field="statusFinanceiro"
               header="Situação"
+              sortable
               body={(row: AtendimentoBuscaItem) =>
                 dashboardStatusBadge(row.statusFinanceiro, ATENDIMENTO_STATUS_FINANCEIRO_TONES)
               }

@@ -8,6 +8,7 @@ import {
   getAtendimentoCobrancaPdfUrl,
   getAtendimentoOcorrenciasUrl,
   getAtendimentoPainelUrl,
+  type AtendimentoBuscaSort,
 } from "./api-config";
 import type { SpringPage } from "./spring-page";
 import type { TituloCobranca } from "./fin-service";
@@ -112,6 +113,8 @@ export interface AtendimentoBuscaFilters {
   situacoesFinanceiras?: AtendimentoStatusFinanceiro[];
 }
 
+export type { AtendimentoBuscaSort };
+
 async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { message?: string };
@@ -136,8 +139,9 @@ export const atendimentoService = {
     page = 0,
     size = 20,
     filters: AtendimentoBuscaFilters,
+    sort?: AtendimentoBuscaSort,
   ): Promise<SpringPage<AtendimentoBuscaItem>> {
-    const url = getAtendimentoBuscaUrl(page, size, filters);
+    const url = getAtendimentoBuscaUrl(page, size, filters, sort);
     const res = await apiFetch(url);
     return parseJson(res);
   },

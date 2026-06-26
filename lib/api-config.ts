@@ -1320,6 +1320,11 @@ export function getAtendimentoUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.atendimento);
 }
 
+export type AtendimentoBuscaSort = {
+  field: string;
+  direction: "asc" | "desc";
+};
+
 export function getAtendimentoBuscaUrl(
   page = 0,
   size = 20,
@@ -1333,13 +1338,16 @@ export function getAtendimentoBuscaUrl(
     celular?: string;
     situacoesFinanceiras?: string[];
   },
+  sort?: AtendimentoBuscaSort,
 ): string {
   const base = getAtendimentoUrl();
   if (!base) return "";
+  const sortField = sort?.field?.trim() || "contratoId";
+  const sortDirection = sort?.direction === "asc" ? "asc" : "desc";
   const params = new URLSearchParams({
     page: String(page),
     size: String(size),
-    sort: "contratoId,desc",
+    sort: `${sortField},${sortDirection}`,
   });
   if (filters?.contrato?.trim()) params.set("contrato", filters.contrato.trim());
   for (const emp of filters?.empreendimentos ?? []) {
