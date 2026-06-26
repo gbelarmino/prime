@@ -276,36 +276,23 @@ export function simularParcelasIndice(opts: {
   const tituloPorParcela = new Map(sorted.map((t) => [t.numeroParcela, t]));
   const lookup = buildIndiceLookup(indices);
 
-  const detalhes = calcularVencimentosComPrimeiraParcelaDetalhe(
-    dataPrimeiraParcela,
+  const vencimentosInformados =
+    vencimentoParcelaAlvo != null
+      ? new Map<number, Date>([[parcelaAtual, vencimentoParcelaAlvo]])
+      : undefined;
+
+  const vencimentoPorParcela = buildVencimentoPorParcelaCalculo({
+    titulos,
+    dataPrimeiraParcelaContrato: formatIsoDate(dataPrimeiraParcela),
     diaVencimentoMensal,
-    parcelaAtual,
-  );
+    parcelaMaxima: parcelaAtual,
+    vencimentosInformados,
+  });
 
   const vencimentos = new Map<number, Date>();
   for (let parcela = 1; parcela <= parcelaAtual; parcela++) {
-    if (vencimentoParcelaAlvo && parcela === parcelaAtual) {
-      vencimentos.set(parcela, vencimentoParcelaAlvo);
-      continue;
-    }
-    const emitido = tituloPorParcela.get(parcela);
-    if (emitido) {
-      vencimentos.set(parcela, parseIsoDate(emitido.vencimento));
-    } else {
-      vencimentos.set(parcela, detalhes[parcela - 1]?.vencimento ?? dataPrimeiraParcela);
-    }
+    vencimentos.set(parcela, vencimentoPorParcela(parcela));
   }
-
-  const vencimentoPorParcela = (parcela: number): Date => {
-    if (vencimentoParcelaAlvo && parcela === parcelaAtual) {
-      return vencimentoParcelaAlvo;
-    }
-    return (
-      vencimentos.get(parcela) ??
-      detalhes[parcela - 1]?.vencimento ??
-      dataPrimeiraParcela
-    );
-  };
 
   const marcosCorte = buildMarcadoresCorteIndice({
     parcelaAtual,
@@ -527,6 +514,45 @@ export function condicoesFromContexto(ctx: TituloContextoLote): CondicoesValorNo
   };
 }
 
+/**
+ * Vencimentos efetivos por parcela para cálculo de valor nominal (espelha backend + simulação).
+ * Prioriza vencimento informado na emissão, depois título emitido, depois projeção do contrato.
+ */
+export function buildVencimentoPorParcelaCalculo(opts: {
+  titulos: TituloCobranca[];
+  dataPrimeiraParcelaContrato: string;
+  diaVencimentoMensal: number;
+  parcelaMaxima: number;
+  vencimentosInformados?: Map<number, Date>;
+}): (parcela: number) => Date {
+  const tituloPorParcela = new Map(
+    [...opts.titulos]
+      .sort((a, b) => a.numeroParcela - b.numeroParcela)
+      .map((t) => [t.numeroParcela, t] as const),
+  );
+  const dataPrimeira = parseIsoDate(opts.dataPrimeiraParcelaContrato);
+  const detalhes = calcularVencimentosComPrimeiraParcelaDetalhe(
+    dataPrimeira,
+    opts.diaVencimentoMensal,
+    opts.parcelaMaxima,
+  );
+
+  return (parcela: number) => {
+    const informado = opts.vencimentosInformados?.get(parcela);
+    if (informado) {
+      return informado;
+    }
+    const emitido = tituloPorParcela.get(parcela);
+    if (emitido) {
+      return parseIsoDate(emitido.vencimento);
+    }
+    return (
+      detalhes[parcela - 1]?.vencimento ??
+      vencimentoProjetadoParcela(parcela, dataPrimeira, opts.diaVencimentoMensal)
+    );
+  };
+}
+
 /** Vencimentos do lote (espelha backend + preview TitulosList). */
 export function buildParcelasVencimentosNovoLote(opts: {
   contexto: TituloContextoLote;
@@ -607,6 +633,7 @@ export function buildParcelasVencimentosNovoLote(opts: {
  */
 export async function calcularValoresNominaisNovoLote(
   contexto: TituloContextoLote,
+  titulos: TituloCobranca[],
   parcelasComVencimento: Map<number, Date>,
 ): Promise<Map<number, number>> {
   if (contexto.valorParcela == null || parcelasComVencimento.size === 0) {
@@ -638,18 +665,23 @@ export async function calcularValoresNominaisNovoLote(
     lookup = buildIndiceLookup(indices);
   }
 
+  const vencimentoPorParcela = buildVencimentoPorParcelaCalculo({
+    titulos,
+    dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
+    diaVencimentoMensal: diaVencimento,
+    parcelaMaxima: maxParcela,
+    vencimentosInformados: parcelasComVencimento,
+  });
+
   const resultado = new Map<number, number>();
-  for (const [parcela, vencimentoLote] of parcelasComVencimento) {
+  for (const [parcela] of parcelasComVencimento) {
     const valor = detalheReajusteParcela(
       condicoes,
       parcela,
       dataPrimeiraContrato,
       diaVencimento,
       lookup,
-      (p) =>
-        p === parcela
-          ? vencimentoLote
-          : vencimentoProjetadoParcela(p, dataPrimeiraContrato, diaVencimento),
+      vencimentoPorParcela,
     ).valorNominal;
     resultado.set(parcela, valor);
   }

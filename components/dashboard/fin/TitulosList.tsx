@@ -76,6 +76,7 @@ import {
 import {
   buildParcelasVencimentosNovoLote,
   calcularValoresNominaisNovoLote,
+  listarTitulosDoLote,
 } from "@/lib/fin-indice-simulacao";
 import { springPageDisplayRange, type SpringPage } from "@/lib/spring-page";
 
@@ -289,6 +290,7 @@ export function TitulosList({
   const [selectedLote, setSelectedLote] = useState<number | null>(null);
   const [contexto, setContexto] = useState<TituloContextoLote | null>(null);
   const [contextoLoading, setContextoLoading] = useState(false);
+  const [titulosLote, setTitulosLote] = useState<TituloCobranca[]>([]);
   const [quantidadeParcelas, setQuantidadeParcelas] = useState<number>(1);
   const [dataPrimeiraParcela, setDataPrimeiraParcela] = useState<Date | null>(null);
   const [valoresNominaisPorParcela, setValoresNominaisPorParcela] = useState<
@@ -336,10 +338,12 @@ export function TitulosList({
     setQuadras([]);
     setLotes([]);
     setContexto(null);
+    setTitulosLote([]);
     setQuantidadeParcelas(1);
     setDataPrimeiraParcela(null);
     setValoresNominaisPorParcela(null);
     setValoresNominaisLoading(false);
+    setTitulosLote([]);
     setNovoTituloStep("form");
   }, []);
 
@@ -628,6 +632,28 @@ export function TitulosList({
       .finally(() => setContextoLoading(false));
   }, [showNovo, selectedEmpreendimento, selectedQuadra, selectedLote]);
 
+  useEffect(() => {
+    if (!showNovo || !selectedEmpreendimento || !selectedQuadra || selectedLote == null) {
+      setTitulosLote([]);
+      return;
+    }
+    let cancelled = false;
+    void listarTitulosDoLote(selectedEmpreendimento, selectedQuadra, selectedLote)
+      .then((titulos) => {
+        if (!cancelled) {
+          setTitulosLote(titulos);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTitulosLote([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showNovo, selectedEmpreendimento, selectedQuadra, selectedLote]);
+
   const maxParcelasPermitidas = useMemo(
     () => (contexto ? resolveMaxParcelas(contexto) : 0),
     [contexto],
@@ -673,7 +699,7 @@ export function TitulosList({
 
     let cancelled = false;
     setValoresNominaisLoading(true);
-    void calcularValoresNominaisNovoLote(contexto, parcelasVencimentosPreview)
+    void calcularValoresNominaisNovoLote(contexto, titulosLote, parcelasVencimentosPreview)
       .then((valores) => {
         if (!cancelled) {
           setValoresNominaisPorParcela(valores);
@@ -693,7 +719,7 @@ export function TitulosList({
     return () => {
       cancelled = true;
     };
-  }, [showNovo, contexto, parcelasVencimentosPreview]);
+  }, [showNovo, contexto, parcelasVencimentosPreview, titulosLote]);
 
   const valorNominalExibido = useMemo(() => {
     if (!contexto) return null;
