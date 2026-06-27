@@ -5,6 +5,7 @@ import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { FinIndiceSimulacaoParcelaTable } from "@/components/dashboard/fin/FinIndiceSimulacaoParcelaTable";
 import { resumirAvisoIndiceLinha } from "@/lib/fin-calculo-indice-aviso";
 import {
+  buildVencimentoReferenciaLiderGrupo,
   carregarSimulacaoEvolucaoContrato,
   type SimulacaoEvolucaoContrato,
 } from "@/lib/fin-indice-simulacao";
@@ -90,6 +91,22 @@ export function CobrancaGrupoCalculoDetalheDialog({
     let cancelled = false;
 
     void (async () => {
+      const lider = grupo.membros.find((m) => m.contratoId === grupo.contratoLiderId);
+      let vencimentoReferenciaLider: ((parcela: number) => Date) | undefined;
+      if (lider?.quadra && lider.lote != null) {
+        try {
+          vencimentoReferenciaLider = await buildVencimentoReferenciaLiderGrupo({
+            empreendimento: grupo.empreendimento,
+            quadra: lider.quadra,
+            lote: lider.lote,
+            parcelaAlvo,
+            vencimentoParcelaAlvo: vencimentoEmissao,
+          });
+        } catch {
+          vencimentoReferenciaLider = undefined;
+        }
+      }
+
       const resultados = await Promise.all(
         grupo.membros.map(async (m) => {
           if (!m.quadra || m.lote == null) {
@@ -106,6 +123,7 @@ export function CobrancaGrupoCalculoDetalheDialog({
               lote: m.lote,
               parcelaAlvo,
               vencimentoParcelaAlvo: vencimentoEmissao,
+              vencimentoPorParcelaReferencia: vencimentoReferenciaLider,
             });
             return { contratoId: m.contratoId, erro: null, evolucao };
           } catch (e) {
@@ -177,8 +195,8 @@ export function CobrancaGrupoCalculoDetalheDialog({
         <div className="flex flex-col gap-5">
           <p className="text-sm text-white/50 leading-relaxed">
             Evolução das parcelas até a <strong className="text-white/75">parcela {parcelaAlvo}</strong>{" "}
-            (mesma numeração para todos os lotes do grupo). O valor consolidado usa a soma dos
-            rateios por contrato.
+            (mesma numeração e cronograma de vencimentos do líder). O valor consolidado usa a soma dos
+            rateios por contrato (bases podem diferir).
           </p>
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">

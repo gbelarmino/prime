@@ -268,6 +268,8 @@ export function simularParcelasIndice(opts: {
   dataPrimeiraParcelaContrato?: string | null;
   /** Vencimento informado na emissão/cálculo da parcela alvo (espelha backend). */
   vencimentoParcelaAlvo?: Date | null;
+  /** Cronograma do contrato líder (grupo): datas e corte de índice alinhados ao líder. */
+  vencimentoPorParcelaReferencia?: (parcela: number) => Date;
 }): IndiceSimulacaoParcela[] {
   const {
     titulos,
@@ -277,6 +279,7 @@ export function simularParcelasIndice(opts: {
     condicoes,
     dataPrimeiraParcelaContrato,
     vencimentoParcelaAlvo,
+    vencimentoPorParcelaReferencia,
   } = opts;
   const parcelaLimite = resolverParcelaLimiteSimulacao(titulos);
   if (parcelaLimite < 1) return [];
@@ -298,13 +301,15 @@ export function simularParcelasIndice(opts: {
       ? new Map<number, Date>([[parcelaAtual, vencimentoParcelaAlvo]])
       : undefined;
 
-  const vencimentoPorParcela = buildVencimentoPorParcelaCalculo({
-    titulos: sorted,
-    dataPrimeiraParcelaContrato: formatIsoDate(dataPrimeiraParcela),
-    diaVencimentoMensal,
-    parcelaMaxima: parcelaLimite,
-    vencimentosInformados,
-  });
+  const vencimentoPorParcela =
+    vencimentoPorParcelaReferencia ??
+    buildVencimentoPorParcelaCalculo({
+      titulos: sorted,
+      dataPrimeiraParcelaContrato: formatIsoDate(dataPrimeiraParcela),
+      diaVencimentoMensal,
+      parcelaMaxima: parcelaLimite,
+      vencimentosInformados,
+    });
 
   const vencimentos = new Map<number, Date>();
   for (let parcela = 1; parcela <= parcelaLimite; parcela++) {
@@ -442,8 +447,16 @@ export async function carregarSimulacaoEvolucaoContrato(opts: {
   lote: number;
   parcelaAlvo: number;
   vencimentoParcelaAlvo?: Date | null;
+  vencimentoPorParcelaReferencia?: (parcela: number) => Date;
 }): Promise<SimulacaoEvolucaoContrato> {
-  const { empreendimento, quadra, lote, parcelaAlvo, vencimentoParcelaAlvo } = opts;
+  const {
+    empreendimento,
+    quadra,
+    lote,
+    parcelaAlvo,
+    vencimentoParcelaAlvo,
+    vencimentoPorParcelaReferencia,
+  } = opts;
   const [titulos, contexto] = await Promise.all([
     listarTitulosDoLote(empreendimento, quadra, lote),
     finService.contextoLote(empreendimento, quadra, lote),
@@ -491,6 +504,7 @@ export async function carregarSimulacaoEvolucaoContrato(opts: {
     condicoes,
     dataPrimeiraParcelaContrato: dataPrimeira,
     vencimentoParcelaAlvo,
+    vencimentoPorParcelaReferencia,
   });
 
   const partes = [
@@ -686,6 +700,37 @@ export function buildParcelasVencimentosNovoLote(opts: {
   }
 
   return map;
+}
+
+/** Cronograma de vencimentos do contrato líder para cálculo consolidado do grupo. */
+export async function buildVencimentoReferenciaLiderGrupo(opts: {
+  empreendimento: string;
+  quadra: string;
+  lote: number;
+  parcelaAlvo: number;
+  vencimentoParcelaAlvo?: Date | null;
+}): Promise<(parcela: number) => Date> {
+  const { empreendimento, quadra, lote, parcelaAlvo, vencimentoParcelaAlvo } = opts;
+  const [titulos, contexto] = await Promise.all([
+    listarTitulosDoLote(empreendimento, quadra, lote),
+    finService.contextoLote(empreendimento, quadra, lote),
+  ]);
+  const parcelaLimite = Math.max(
+    parcelaAlvo,
+    resolverParcelaLimiteSimulacao(titulos),
+    1,
+  );
+  const vencimentosInformados =
+    vencimentoParcelaAlvo != null && parcelaAlvo >= 1
+      ? new Map<number, Date>([[parcelaAlvo, vencimentoParcelaAlvo]])
+      : undefined;
+  return buildVencimentoPorParcelaCalculo({
+    titulos,
+    dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
+    diaVencimentoMensal: contexto.diaVencimentoMensal,
+    parcelaMaxima: parcelaLimite,
+    vencimentosInformados,
+  });
 }
 
 /**

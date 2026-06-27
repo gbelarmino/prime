@@ -873,7 +873,7 @@ export function CobrancaGruposWorkspace() {
                       (m) => m.contratoId === grupoSelecionado.contratoLiderId,
                     )?.numeroContrato ?? grupoSelecionado.contratoLiderId}
                     {" · "}
-                    Todos os lotes seguem a parcela do líder.
+                    Todos os lotes seguem a parcela e as datas de vencimento do líder.
                   </p>
                 </div>
 
