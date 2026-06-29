@@ -17,6 +17,7 @@ import {
   Mail,
   MapPin,
   MessageCircle,
+  MessageSquare,
   Receipt,
   Scale,
   ScrollText,
@@ -62,6 +63,7 @@ export type MenuGroupItem = {
 export const ATENDIMENTO_MENU_PREFIX = "/dashboard/atendimento";
 export const WHATSAPP_MENU_PREFIX = "/dashboard/whatsapp";
 export const EMAIL_MENU_PREFIX = "/dashboard/email";
+export const SMS_MENU_PREFIX = "/dashboard/sms";
 export const RENEGOCIACAO_MENU_PREFIX = "/dashboard/contratos/renegociacao";
 
 export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
@@ -251,6 +253,22 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
       { id: "email-teste", href: "/dashboard/email/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
       { id: "email-teste-eventos", href: "/dashboard/email/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
       { id: "email-fila", href: "/dashboard/email/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN", "ADMINISTRATIVO"] },
+    ],
+  },
+  {
+    kind: "group",
+    id: "grupo-sms",
+    label: "SMS",
+    icon: MessageSquare,
+    roles: ["ADMIN", "ADMINISTRATIVO"],
+    prefix: SMS_MENU_PREFIX,
+    children: [
+      { id: "sms-conta", href: "/dashboard/sms/conta", label: "Conta TextBee", icon: MessageSquare, roles: ["ADMIN"] },
+      { id: "sms-modelos", href: "/dashboard/sms/modelos", label: "Modelos", icon: FileText, roles: ["ADMIN"] },
+      { id: "sms-gatilhos", href: "/dashboard/sms/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
+      { id: "sms-teste", href: "/dashboard/sms/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },
+      { id: "sms-teste-eventos", href: "/dashboard/sms/teste-eventos", label: "Teste eventos", icon: FlaskConical, roles: ["ADMIN"] },
+      { id: "sms-fila", href: "/dashboard/sms/fila", label: "Fila", icon: ListOrdered, roles: ["ADMIN", "ADMINISTRATIVO"] },
     ],
   },
 ];

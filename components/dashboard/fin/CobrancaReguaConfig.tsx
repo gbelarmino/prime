@@ -8,6 +8,7 @@ import { InputSwitch } from "primereact/inputswitch";
 import { InputNumber } from "primereact/inputnumber";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
+import { MultiSelect } from "primereact/multiselect";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/dashboard-datatable";
 import {
   cobrancaReguaService,
+  normalizeCobrancaReguaCanais,
   type CobrancaRegua,
   type CobrancaReguaCanal,
   type CobrancaReguaEtapa,
@@ -37,6 +39,8 @@ import {
 } from "@/lib/cobranca-regua-service";
 import { whatsappService, type WhatsAppTemplate } from "@/lib/whatsapp-service";
 import { emailService, type EmailTemplate } from "@/lib/email-service";
+import { smsService, type SmsTemplate } from "@/lib/sms-service";
+import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -61,17 +65,22 @@ const DROPDOWN_PT = {
 const TABLE_PT = dashboardDataTablePt({ paginator: false });
 const EXEC_PT = dashboardDataTablePt({ density: "compact", paginator: true });
 
-const CANAL_OPTIONS: { label: string; value: CobrancaReguaCanal }[] = [
-  { label: "WhatsApp e e-mail", value: "AMBOS" },
-  { label: "Só WhatsApp", value: "WHATSAPP" },
-  { label: "Só e-mail", value: "EMAIL" },
+const CANAL_MULTISELECT_OPTIONS: { label: string; value: CobrancaReguaCanal }[] = [
+  { label: "WhatsApp", value: "WHATSAPP" },
+  { label: "E-mail", value: "EMAIL" },
+  { label: "SMS", value: "SMS" },
 ];
 
 const CANAL_LABELS: Record<CobrancaReguaCanal, string> = {
-  AMBOS: "WhatsApp + e-mail",
   WHATSAPP: "WhatsApp",
   EMAIL: "E-mail",
+  SMS: "SMS",
 };
+
+function formatCanaisLabel(canais: CobrancaReguaCanal[]): string {
+  if (!canais.length) return "—";
+  return canais.map((c) => CANAL_LABELS[c]).join(" + ");
+}
 
 const ATIVO_TONES: Record<string, string> = {
   Ativa: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
@@ -90,9 +99,10 @@ type EtapaForm = {
   codigo: string;
   ordem: number;
   offsetDias: number;
-  canal: CobrancaReguaCanal;
+  canais: CobrancaReguaCanal[];
   templateWhatsAppId: string | null;
   templateEmailId: string | null;
+  templateSmsId: string | null;
   ativa: boolean;
   anexoPdf: boolean;
 };
@@ -103,9 +113,10 @@ function emptyForm(ordem: number): EtapaForm {
     codigo: "",
     ordem,
     offsetDias: 0,
-    canal: "AMBOS",
+    canais: ["WHATSAPP", "EMAIL"],
     templateWhatsAppId: null,
     templateEmailId: null,
+    templateSmsId: null,
     ativa: true,
     anexoPdf: true,
   };
@@ -117,9 +128,10 @@ function etapaToForm(e: CobrancaReguaEtapa): EtapaForm {
     codigo: e.codigo,
     ordem: e.ordem,
     offsetDias: e.offsetDias,
-    canal: e.canal,
+    canais: normalizeCobrancaReguaCanais(e),
     templateWhatsAppId: e.templateWhatsAppId ?? null,
     templateEmailId: e.templateEmailId ?? null,
+    templateSmsId: e.templateSmsId ?? null,
     ativa: e.ativa,
     anexoPdf: e.anexoPdf,
   };
@@ -131,9 +143,10 @@ function formToPayload(form: EtapaForm): CobrancaReguaEtapaSavePayload {
     codigo: form.codigo.trim() || undefined,
     ordem: form.ordem,
     offsetDias: form.offsetDias,
-    canal: form.canal,
+    canais: form.canais,
     templateWhatsAppId: form.templateWhatsAppId,
     templateEmailId: form.templateEmailId,
+    templateSmsId: form.templateSmsId,
     ativa: form.ativa,
     anexoPdf: form.anexoPdf,
   };
@@ -144,6 +157,7 @@ export function CobrancaReguaConfig() {
   const [execucoes, setExecucoes] = useState<CobrancaReguaExecucao[]>([]);
   const [wppTemplates, setWppTemplates] = useState<WhatsAppTemplate[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
+  const [smsTemplates, setSmsTemplates] = useState<SmsTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [savingRegua, setSavingRegua] = useState(false);
   const [runningMotor, setRunningMotor] = useState(false);
@@ -170,19 +184,29 @@ export function CobrancaReguaConfig() {
     [emailTemplates],
   );
 
+  const smsOptions = useMemo(
+    () =>
+      smsTemplates
+        .filter((t) => !t.codigoEventoCatalogo || t.codigoEventoCatalogo === "REGUA_COBRANCA")
+        .map((t) => ({ label: t.nome, value: t.id! })),
+    [smsTemplates],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [r, execPage, wpp, eml] = await Promise.all([
+      const [r, execPage, wpp, eml, sms] = await Promise.all([
         cobrancaReguaService.obterPrincipal(),
         cobrancaReguaService.listarExecucoes(0, 15),
         whatsappService.listTemplates(),
         emailService.listTemplates(),
+        smsService.listTemplates(),
       ]);
       setRegua(r);
       setExecucoes(execPage.content ?? []);
       setWppTemplates(wpp);
       setEmailTemplates(eml);
+      setSmsTemplates(sms);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao carregar régua.");
     } finally {
@@ -261,7 +285,7 @@ export function CobrancaReguaConfig() {
     try {
       const r = await cobrancaReguaService.executarMotor();
       toast.success(
-        `Motor: ${r.enfileiradosWhatsApp} WA, ${r.enfileiradosEmail} e-mail (${r.ignorados} ignorados, ${r.falhas} falhas).`,
+        `Motor: ${r.enfileiradosWhatsApp} WA, ${r.enfileiradosEmail} e-mail, ${r.enfileiradosSms} SMS (${r.ignorados} ignorados, ${r.falhas} falhas).`,
       );
       await load();
     } catch (e) {
@@ -298,8 +322,9 @@ export function CobrancaReguaConfig() {
       menuRef.current?.toggle(e);
     });
 
-  const precisaWa = form.canal === "WHATSAPP" || form.canal === "AMBOS";
-  const precisaEmail = form.canal === "EMAIL" || form.canal === "AMBOS";
+  const precisaWa = form.canais.includes("WHATSAPP");
+  const precisaEmail = form.canais.includes("EMAIL");
+  const precisaSms = form.canais.includes("SMS");
 
   return (
     <div className="space-y-6">
@@ -379,8 +404,10 @@ export function CobrancaReguaConfig() {
             />
             <Column header="Nome" body={(row: CobrancaReguaEtapa) => dashboardCellText(row.nome)} />
             <Column
-              header="Canal"
-              body={(row: CobrancaReguaEtapa) => dashboardCellText(CANAL_LABELS[row.canal])}
+              header="Canais"
+              body={(row: CobrancaReguaEtapa) =>
+                dashboardCellText(formatCanaisLabel(normalizeCobrancaReguaCanais(row)))
+              }
               style={{ width: "10rem" }}
             />
             <Column
@@ -393,6 +420,12 @@ export function CobrancaReguaConfig() {
               header="Modelo e-mail"
               body={(row: CobrancaReguaEtapa) =>
                 dashboardCellText(row.templateEmailNome ?? "—")
+              }
+            />
+            <Column
+              header="Modelo SMS"
+              body={(row: CobrancaReguaEtapa) =>
+                dashboardCellText(row.templateSmsNome ?? "—")
               }
             />
             <Column
@@ -460,7 +493,9 @@ export function CobrancaReguaConfig() {
             <Column
               header="Canal"
               body={(row: CobrancaReguaExecucao) =>
-                dashboardCellText(CANAL_LABELS[row.canal] ?? row.canal)
+                dashboardCellText(
+                  CANAL_LABELS[row.canal as CobrancaReguaCanal] ?? row.canal,
+                )
               }
               style={{ width: "9rem" }}
             />
@@ -560,13 +595,19 @@ export function CobrancaReguaConfig() {
           </div>
 
           <div className="flex flex-col gap-2 sm:col-span-2">
-            <label className={FORM_LABEL_CLASS}>Canal</label>
-            <Dropdown
-              value={form.canal}
-              options={CANAL_OPTIONS}
-              onChange={(e) => setForm((f) => ({ ...f, canal: e.value }))}
+            <label className={FORM_LABEL_CLASS}>Canais</label>
+            <MultiSelect
+              value={form.canais}
+              options={CANAL_MULTISELECT_OPTIONS}
+              optionLabel="label"
+              optionValue="value"
+              onChange={(e) =>
+                setForm((f) => ({ ...f, canais: (e.value as CobrancaReguaCanal[]) ?? [] }))
+              }
+              display="chip"
+              placeholder="Seleccione os canais"
               className="w-full"
-              pt={DROPDOWN_PT}
+              pt={dashboardMultiSelectPt()}
             />
           </div>
 
@@ -592,6 +633,21 @@ export function CobrancaReguaConfig() {
                 value={form.templateEmailId}
                 options={emailOptions}
                 onChange={(e) => setForm((f) => ({ ...f, templateEmailId: e.value }))}
+                className="w-full"
+                placeholder="Seleccione o modelo"
+                filter
+                pt={DROPDOWN_PT}
+              />
+            </div>
+          ) : null}
+
+          {precisaSms ? (
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <label className={FORM_LABEL_CLASS}>Modelo SMS</label>
+              <Dropdown
+                value={form.templateSmsId}
+                options={smsOptions}
+                onChange={(e) => setForm((f) => ({ ...f, templateSmsId: e.value }))}
                 className="w-full"
                 placeholder="Seleccione o modelo"
                 filter

@@ -22,6 +22,7 @@ import {
   FilePenLine,
   Mail,
   MessageCircle,
+  MessageSquare,
   MonitorCog,
   RefreshCw,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/Titulo
 import { TituloPdfLoteDialog } from "@/components/dashboard/fin/TituloPdfLoteDialog";
 import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegistrarLoteDialog";
 import { TituloEmailLoteDialog } from "@/components/dashboard/fin/TituloEmailLoteDialog";
+import { TituloSmsLoteDialog } from "@/components/dashboard/fin/TituloSmsLoteDialog";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import {
   finService,
@@ -52,6 +54,7 @@ import {
   type TituloPdfLoteResult,
   type TituloRegistrarLoteResult,
   type TituloEmailCobrancaLoteResult,
+  type TituloSmsCobrancaLoteResult,
   type TituloWhatsAppCobrancaLoteResult,
 } from "@/lib/fin-service";
 import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
@@ -312,6 +315,9 @@ export function TitulosList({
   const [emailLoteDialogOpen, setEmailLoteDialogOpen] = useState(false);
   const [emailLoteResultado, setEmailLoteResultado] =
     useState<TituloEmailCobrancaLoteResult | null>(null);
+  const [smsLoteDialogOpen, setSmsLoteDialogOpen] = useState(false);
+  const [smsLoteResultado, setSmsLoteResultado] =
+    useState<TituloSmsCobrancaLoteResult | null>(null);
   const [pdfLoteDialogOpen, setPdfLoteDialogOpen] = useState(false);
   const [pdfLoteResultado, setPdfLoteResultado] = useState<TituloPdfLoteResult | null>(null);
   const [selecionandoTodos, setSelecionandoTodos] = useState(false);
@@ -1114,6 +1120,53 @@ export function TitulosList({
     }
   };
 
+  const abrirSmsLote = () => {
+    if (titulosWhatsAppSelecionados.length === 0) {
+      toast.info("Selecione títulos na situação Emitido.");
+      return;
+    }
+    if (titulosWhatsAppSelecionados.length > LOTE_MAX) {
+      toast.error(`Selecione no máximo ${LOTE_MAX} títulos por operação.`);
+      return;
+    }
+    setSmsLoteResultado(null);
+    setSmsLoteDialogOpen(true);
+  };
+
+  const fecharSmsLoteDialog = () => {
+    setSmsLoteDialogOpen(false);
+    setSmsLoteResultado(null);
+    if (smsLoteResultado && smsLoteResultado.smsEnfileirados > 0) {
+      setSelectedTitulos([]);
+    }
+  };
+
+  const confirmarSmsLote = async () => {
+    if (titulosWhatsAppSelecionados.length === 0) return;
+    setActionLoading(true);
+    try {
+      const resultado = await finService.enfileirarSmsCobrancaParcelaEmLote(
+        titulosWhatsAppSelecionados.map((t) => t.id),
+      );
+      setSmsLoteResultado(resultado);
+      if (resultado.smsFalhas === 0) {
+        toast.success(
+          `${resultado.smsEnfileirados} SMS enfileirado(s) na fila de envio.`,
+        );
+      } else if (resultado.smsEnfileirados > 0) {
+        toast.warning(
+          `${resultado.smsEnfileirados} enfileirado(s), ${resultado.smsFalhas} falha(s). Veja o detalhe.`,
+        );
+      } else {
+        toast.error("Nenhum SMS foi enfileirado.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enfileirar SMS em lote.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const abrirPdfLote = () => {
     if (titulosPdfSelecionados.length === 0) {
       toast.info("Selecione títulos com boleto/PDF disponível para download.");
@@ -1731,6 +1784,17 @@ export function TitulosList({
               </button>
               <button
                 type="button"
+                onClick={abrirSmsLote}
+                disabled={
+                  actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-violet-200 transition hover:bg-violet-500/20 disabled:opacity-50"
+              >
+                <MessageSquare size={14} />
+                Enviar SMS
+              </button>
+              <button
+                type="button"
                 onClick={abrirWhatsAppLote}
                 disabled={
                   actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
@@ -1932,6 +1996,15 @@ export function TitulosList({
           titulos={titulosWhatsAppSelecionados}
           resultado={emailLoteResultado}
           onConfirm={() => void confirmarEmailLote()}
+          loading={actionLoading}
+        />
+
+        <TituloSmsLoteDialog
+          visible={smsLoteDialogOpen}
+          onHide={fecharSmsLoteDialog}
+          titulos={titulosWhatsAppSelecionados}
+          resultado={smsLoteResultado}
+          onConfirm={() => void confirmarSmsLote()}
           loading={actionLoading}
         />
 

@@ -22,6 +22,7 @@ const API_PATHS = {
   parametros: "/api/parametros",
   whatsapp: "/api/whatsapp",
   email: "/api/email",
+  sms: "/api/sms",
   finTitulos: "/api/fin/titulos",
   finLancamentos: "/api/fin/lancamentos",
   finPorImovel: "/api/fin/por-imovel",
@@ -883,6 +884,70 @@ export function getEmailFilaCancelarUrl(filaId: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// SMS (TextBee)
+// ---------------------------------------------------------------------------
+
+export function getSmsUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.sms);
+}
+
+export function getSmsConfigUrl(): string {
+  return `${getSmsUrl()}/textbee`;
+}
+
+export function getSmsConfigTesteUrl(): string {
+  return `${getSmsUrl()}/textbee/teste`;
+}
+
+export function getSmsEnvioTesteUrl(): string {
+  return `${getSmsUrl()}/envio-teste`;
+}
+
+export function getSmsTemplatesUrl(): string {
+  return `${getSmsUrl()}/templates`;
+}
+
+export function getSmsGatilhosUrl(): string {
+  return `${getSmsUrl()}/gatilhos`;
+}
+
+export function getSmsEventosCatalogoUrl(): string {
+  return `${getSmsUrl()}/eventos-catalogo`;
+}
+
+export function getSmsEventoPlaceholdersUrl(codigo: string): string {
+  const c = encodeURIComponent(codigo.trim());
+  return `${getSmsUrl()}/eventos-catalogo/${c}/placeholders`;
+}
+
+export function getSmsTesteEventoUrl(evento: string): string {
+  return `${getSmsUrl()}/teste-eventos/${encodeURIComponent(evento.trim())}`;
+}
+
+export function getSmsFilaUrl(page = 0, size = 25, status?: string): string {
+  const base = getSmsUrl();
+  if (!base) return "";
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  if (status?.trim()) params.set("status", status.trim());
+  return `${base}/fila?${params.toString()}`;
+}
+
+export function getSmsFilaReprocessarUrl(filaId: number): string {
+  const base = getSmsUrl();
+  if (!base) return "";
+  return `${base}/fila/${filaId}/reprocessar`;
+}
+
+export function getSmsFilaCancelarUrl(filaId: number): string {
+  const base = getSmsUrl();
+  if (!base) return "";
+  return `${base}/fila/${filaId}/cancelar`;
+}
+
+// ---------------------------------------------------------------------------
 // Financeiro — títulos / boletos (Fase 1)
 // ---------------------------------------------------------------------------
 
@@ -912,6 +977,10 @@ export function getFinTitulosWhatsAppCobrancaParcelaLoteUrl(): string {
 
 export function getFinTitulosEmailCobrancaParcelaLoteUrl(): string {
   return `${getFinTitulosUrl()}/email/cobranca-parcela/lote`;
+}
+
+export function getFinTitulosSmsCobrancaParcelaLoteUrl(): string {
+  return `${getFinTitulosUrl()}/sms/cobranca-parcela/lote`;
 }
 
 export function getFinTitulosIdsElegiveisWhatsAppUrl(opts?: FinTitulosListFilters): string {

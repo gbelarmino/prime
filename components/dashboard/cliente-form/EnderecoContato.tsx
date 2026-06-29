@@ -3,12 +3,14 @@
 import { useFormContext, Controller } from "react-hook-form";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
+import { MultiSelect } from "primereact/multiselect";
 import { FormSection } from "./FormSection";
 import { cn } from "@/lib/utils";
 import { getCepUrl } from "@/lib/api-config";
 import { apiFetch } from "@/lib/api-fetch";
 import { getAuthToken } from "@/lib/auth-storage";
-import type { ContratanteFormValues } from "@/lib/validations/contratante";
+import type { ContratanteCanalPreferido, ContratanteFormValues } from "@/lib/validations/contratante";
+import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
 import { maskPhone } from "@/lib/format-phone";
 import { maskCurrency } from "@/lib/format-currency";
 import { toast } from "sonner";
@@ -16,6 +18,12 @@ import { toast } from "sonner";
 const UFs = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
   "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
+
+const CANAIS_PREFERIDOS_OPTIONS: { label: string; value: ContratanteCanalPreferido }[] = [
+  { label: "WhatsApp", value: "WHATSAPP" },
+  { label: "E-mail", value: "EMAIL" },
+  { label: "SMS", value: "SMS" },
 ];
 
 export function EnderecoContato() {
@@ -234,6 +242,34 @@ export function EnderecoContato() {
           {...register("email")} 
         />
         {errors.email && <p className={errorClass}>{errors.email.message}</p>}
+      </div>
+
+      <div className="md:col-span-2">
+        <label className={labelClass}>Canais preferidos de comunicação</label>
+        <Controller
+          name="canaisPreferidos"
+          control={control}
+          render={({ field }) => (
+            <MultiSelect
+              value={field.value ?? []}
+              options={CANAIS_PREFERIDOS_OPTIONS}
+              optionLabel="label"
+              optionValue="value"
+              onChange={(e) => field.onChange((e.value as ContratanteCanalPreferido[]) ?? [])}
+              display="chip"
+              placeholder="Seleccione os canais"
+              className="w-full"
+              pt={dashboardMultiSelectPt()}
+            />
+          )}
+        />
+        {errors.canaisPreferidos ? (
+          <p className={errorClass}>{errors.canaisPreferidos.message}</p>
+        ) : (
+          <p className="mt-2 text-[10px] text-white/35">
+            Usado pela régua de cobrança e notificações automáticas.
+          </p>
+        )}
       </div>
     </FormSection>
   );

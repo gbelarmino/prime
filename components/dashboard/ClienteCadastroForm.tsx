@@ -74,7 +74,7 @@ export function ClienteCadastroForm({ mode, clientId }: ClienteCadastroFormProps
 
   const allSteps = [
     { id: "pessoais", label: "Dados Pessoais", icon: "pi pi-user", fields: ["nome", "cpf", "rg", "orgaoEmissor", "sexo", "estadoCivil", "dataNascimento", "nacionalidade", "profissao"] },
-    { id: "endereco", label: "Endereço & Contato", icon: "pi pi-map-marker", fields: ["email", "telefoneCelular1", "telefoneCelular2", "cep", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "pontoReferencia", "rendaFamiliar"] },
+    { id: "endereco", label: "Endereço & Contato", icon: "pi pi-map-marker", fields: ["email", "canaisPreferidos", "telefoneCelular1", "telefoneCelular2", "cep", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "pontoReferencia", "rendaFamiliar"] },
     { id: "conjuge", label: "Cônjuge", icon: "pi pi-heart", fields: ["conjuge.nome", "conjuge.cpf", "conjuge.rg", "conjuge.orgaoEmissor", "conjuge.email"] },
     { id: "documentos", label: "Documentos", icon: "pi pi-file", fields: [] },
   ];

@@ -6,9 +6,10 @@ import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
 import { toast } from "sonner";
-import { FlaskConical, Mail, MessageCircle, RefreshCw, Search, Send } from "lucide-react";
+import { FlaskConical, Mail, MessageCircle, MessageSquare, RefreshCw, Search } from "lucide-react";
 import {
   cobrancaReguaService,
+  normalizeCobrancaReguaCanais,
   type CobrancaRegua,
   type CobrancaReguaCanal,
   type CobrancaReguaEtapa,
@@ -118,13 +119,18 @@ export function CobrancaReguaTeste({ regua, onDisparado }: CobrancaReguaTestePro
 
   const podeWhatsApp = (etapa: CobrancaReguaEtapa | null) =>
     etapa != null &&
-    (etapa.canal === "WHATSAPP" || etapa.canal === "AMBOS") &&
+    normalizeCobrancaReguaCanais(etapa).includes("WHATSAPP") &&
     Boolean(etapa.templateWhatsAppId);
 
   const podeEmail = (etapa: CobrancaReguaEtapa | null) =>
     etapa != null &&
-    (etapa.canal === "EMAIL" || etapa.canal === "AMBOS") &&
+    normalizeCobrancaReguaCanais(etapa).includes("EMAIL") &&
     Boolean(etapa.templateEmailId);
+
+  const podeSms = (etapa: CobrancaReguaEtapa | null) =>
+    etapa != null &&
+    normalizeCobrancaReguaCanais(etapa).includes("SMS") &&
+    Boolean(etapa.templateSmsId);
 
   const disparar = async (canal: CobrancaReguaCanal) => {
     if (!selected) {
@@ -147,8 +153,8 @@ export function CobrancaReguaTeste({ regua, onDisparado }: CobrancaReguaTestePro
       toast.error("Esta etapa não envia e-mail ou não tem modelo.");
       return;
     }
-    if (canal === "AMBOS" && !podeWhatsApp(etapaSeleccionada) && !podeEmail(etapaSeleccionada)) {
-      toast.error("Esta etapa não tem canais configurados para teste.");
+    if (canal === "SMS" && !podeSms(etapaSeleccionada)) {
+      toast.error("Esta etapa não envia SMS ou não tem modelo.");
       return;
     }
 
@@ -167,20 +173,26 @@ export function CobrancaReguaTeste({ regua, onDisparado }: CobrancaReguaTestePro
       if (result.enfileiradosEmail > 0) {
         partes.push(`${result.enfileiradosEmail} e-mail`);
       }
+      if (result.enfileiradosSms > 0) {
+        partes.push(`${result.enfileiradosSms} SMS`);
+      }
 
       if (partes.length > 0) {
         toast.success(`Teste ${result.etapaNome}: ${partes.join(", ")} enfileirado(s).`);
       } else {
-        toast.warning("Nenhuma mensagem enfileirada. Verifique telefone, e-mail e SMTP.");
+        toast.warning("Nenhuma mensagem enfileirada. Verifique telefone, e-mail e canais.");
       }
 
       const item = result.itens[0];
       if (item) {
-        if (item.mensagemWhatsApp && !item.whatsAppEnfileirado && canal !== "EMAIL") {
+        if (item.mensagemWhatsApp && !item.whatsAppEnfileirado && canal === "WHATSAPP") {
           toast.info(`WhatsApp: ${item.mensagemWhatsApp}`, { duration: 7000 });
         }
-        if (item.mensagemEmail && !item.emailEnfileirado && canal !== "WHATSAPP") {
+        if (item.mensagemEmail && !item.emailEnfileirado && canal === "EMAIL") {
           toast.info(`E-mail: ${item.mensagemEmail}`, { duration: 7000 });
+        }
+        if (item.mensagemSms && !item.smsEnfileirado && canal === "SMS") {
+          toast.info(`SMS: ${item.mensagemSms}`, { duration: 7000 });
         }
       }
 
@@ -375,13 +387,13 @@ export function CobrancaReguaTeste({ regua, onDisparado }: CobrancaReguaTestePro
                   !etapaId ||
                   !temTituloExemplo ||
                   disparando !== null ||
-                  (!podeWhatsApp(etapaSeleccionada) && !podeEmail(etapaSeleccionada))
+                  !podeSms(etapaSeleccionada)
                 }
-                onClick={() => void disparar("AMBOS")}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-amber-900/30 transition hover:bg-amber-500 disabled:opacity-40 sm:w-auto sm:flex-[1.2]"
+                onClick={() => void disparar("SMS")}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-xs font-bold uppercase tracking-widest text-violet-200 transition hover:bg-violet-500/15 disabled:opacity-40 min-w-[140px]"
               >
-                <Send className="h-4 w-4" />
-                {disparando === "AMBOS" ? "A enviar…" : "WhatsApp + e-mail"}
+                <MessageSquare className="h-4 w-4" />
+                {disparando === "SMS" ? "A enviar…" : "SMS"}
               </button>
             </div>
           </div>

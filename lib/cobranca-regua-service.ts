@@ -21,7 +21,19 @@ async function parseJson<T>(res: Response): Promise<T> {
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
-export type CobrancaReguaCanal = "WHATSAPP" | "EMAIL" | "AMBOS";
+export type CobrancaReguaCanal = "WHATSAPP" | "EMAIL" | "SMS";
+
+/** Normaliza legado `canal` único (incl. AMBOS) para array de canais. */
+export function normalizeCobrancaReguaCanais(etapa: {
+  canais?: CobrancaReguaCanal[] | null;
+  canal?: string | null;
+}): CobrancaReguaCanal[] {
+  if (etapa.canais?.length) return etapa.canais;
+  const legacy = etapa.canal?.trim().toUpperCase();
+  if (legacy === "AMBOS") return ["WHATSAPP", "EMAIL"];
+  if (legacy === "WHATSAPP" || legacy === "EMAIL" || legacy === "SMS") return [legacy];
+  return [];
+}
 
 export interface CobrancaReguaEtapa {
   id: string;
@@ -30,11 +42,15 @@ export interface CobrancaReguaEtapa {
   ordem: number;
   offsetDias: number;
   offsetLabel: string;
-  canal: CobrancaReguaCanal;
+  /** @deprecated legado — preferir `canais` */
+  canal?: string | null;
+  canais: CobrancaReguaCanal[];
   templateWhatsAppId?: string | null;
   templateWhatsAppNome?: string | null;
   templateEmailId?: string | null;
   templateEmailNome?: string | null;
+  templateSmsId?: string | null;
+  templateSmsNome?: string | null;
   ativa: boolean;
   anexoPdf: boolean;
 }
@@ -52,9 +68,10 @@ export interface CobrancaReguaEtapaSavePayload {
   codigo?: string;
   ordem: number;
   offsetDias: number;
-  canal: CobrancaReguaCanal;
+  canais: CobrancaReguaCanal[];
   templateWhatsAppId?: string | null;
   templateEmailId?: string | null;
+  templateSmsId?: string | null;
   ativa?: boolean;
   anexoPdf?: boolean;
 }
@@ -64,6 +81,7 @@ export interface CobrancaReguaMotorResult {
   titulosElegiveis: number;
   enfileiradosWhatsApp: number;
   enfileiradosEmail: number;
+  enfileiradosSms: number;
   ignorados: number;
   falhas: number;
 }
@@ -84,6 +102,9 @@ export interface CobrancaReguaTesteItem {
   emailEnfileirado: boolean;
   filaEmailId?: number | null;
   mensagemEmail?: string | null;
+  smsEnfileirado: boolean;
+  filaSmsId?: number | null;
+  mensagemSms?: string | null;
 }
 
 export interface CobrancaReguaTesteResult {
@@ -91,6 +112,7 @@ export interface CobrancaReguaTesteResult {
   etapaCodigo: string;
   enfileiradosWhatsApp: number;
   enfileiradosEmail: number;
+  enfileiradosSms: number;
   ignorados: number;
   itens: CobrancaReguaTesteItem[];
 }
@@ -101,10 +123,11 @@ export interface CobrancaReguaExecucao {
   etapaId: string;
   etapaNome: string;
   etapaCodigo: string;
-  canal: CobrancaReguaCanal;
+  canal: string;
   status: string;
   filaWhatsAppId?: number | null;
   filaEmailId?: number | null;
+  filaSmsId?: number | null;
   erro?: string | null;
   referenciaVencimento: string;
   executadoEm?: string | null;

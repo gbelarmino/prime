@@ -93,14 +93,18 @@ export interface FunilGatilhoCondicao {
   etapasDestinoIds?: number[] | null;
 }
 
+export type FunilGatilhoCanal = "WHATSAPP" | "SMS";
+
 export interface FunilGatilhoDto {
   id: number | null;
   eventoCodigo: FunilEventoCodigo;
   eventoNome: string;
-  canal: string;
+  canal: FunilGatilhoCanal;
   destinatario: FunilGatilhoDestinatario | null;
   templateId: string | null;
   templateNome: string | null;
+  templateSmsId: string | null;
+  templateSmsNome: string | null;
   linhaId: string | null;
   linhaNome: string | null;
   ativo: boolean;
@@ -109,8 +113,10 @@ export interface FunilGatilhoDto {
 
 export interface FunilGatilhoSavePayload {
   eventoCodigo: FunilEventoCodigo;
+  canal: FunilGatilhoCanal;
   destinatario: FunilGatilhoDestinatario;
   templateId: string | null;
+  templateSmsId?: string | null;
   linhaId?: string | null;
   ativo: boolean;
   condicao?: FunilGatilhoCondicao | null;

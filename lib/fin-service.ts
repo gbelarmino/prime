@@ -50,6 +50,7 @@ import {
   getFinTitulosIdsElegiveisWhatsAppUrl,
   getFinTitulosWhatsAppCobrancaParcelaLoteUrl,
   getFinTitulosEmailCobrancaParcelaLoteUrl,
+  getFinTitulosSmsCobrancaParcelaLoteUrl,
   getFinTitulosListUrl,
   getFinTitulosLoteUrl,
   getFinTitulosIdsElegiveisRegistroUrl,
@@ -189,6 +190,22 @@ export interface TituloEmailCobrancaLoteResult {
   emailsEnfileirados: number;
   emailsFalhas: number;
   grupos: TituloEmailCobrancaLoteGrupo[];
+}
+
+export interface TituloSmsCobrancaLoteGrupo {
+  contratoId: number;
+  quantidadeTitulos: number;
+  enfileirado: boolean;
+  filaId?: number | null;
+  mensagem?: string | null;
+}
+
+export interface TituloSmsCobrancaLoteResult {
+  totalTitulos: number;
+  titulosIgnorados: number;
+  smsEnfileirados: number;
+  smsFalhas: number;
+  grupos: TituloSmsCobrancaLoteGrupo[];
 }
 
 export interface TituloPdfLoteItem {
@@ -1099,6 +1116,17 @@ export const finService = {
     tituloIds: string[],
   ): Promise<TituloEmailCobrancaLoteResult> {
     const res = await apiFetch(getFinTitulosEmailCobrancaParcelaLoteUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tituloIds }),
+    });
+    return parseJson(res);
+  },
+
+  async enfileirarSmsCobrancaParcelaEmLote(
+    tituloIds: string[],
+  ): Promise<TituloSmsCobrancaLoteResult> {
+    const res = await apiFetch(getFinTitulosSmsCobrancaParcelaLoteUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tituloIds }),

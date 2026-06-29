@@ -71,6 +71,12 @@ export const conjugeFormSchema = z
     }
   });
 
+export type ContratanteCanalPreferido = "WHATSAPP" | "EMAIL" | "SMS";
+
+export const contratanteCanaisPreferidosEnum = z.array(
+  z.enum(["WHATSAPP", "EMAIL", "SMS"]),
+);
+
 export type ContratanteFormSchemaOptions = {
   /** Quando true, exige data de nascimento preenchida. */
   requireDataNascimento?: boolean;
@@ -116,6 +122,7 @@ export function getContratanteFormSchema(options: ContratanteFormSchemaOptions =
   ddi2: z.string(),
   rendaFamiliar: z.string(),
   email: z.string().email("E-mail inválido.").min(1, "E-mail é obrigatório.").max(150),
+  canaisPreferidos: contratanteCanaisPreferidosEnum,
   conjuge: conjugeFormSchema,
 }).superRefine((data, ctx) => {
   const ec = data.estadoCivil as string;
@@ -170,6 +177,7 @@ export type ContratanteApiResponse = {
   telefoneCelular2: string | null;
   rendaFamiliar: number | null;
   email: string | null;
+  canaisPreferidos?: ContratanteCanalPreferido[] | null;
   conjuge: {
     nome: string | null;
     cpf: string | null;
@@ -204,6 +212,7 @@ export function emptyContratanteFormValues(): ContratanteFormValues {
     ddi2: "+55",
     rendaFamiliar: "",
     email: "",
+    canaisPreferidos: ["WHATSAPP", "EMAIL"] as ContratanteCanalPreferido[],
     conjuge: {
       nome: "",
       cpf: "",
@@ -250,6 +259,9 @@ export function contratanteResponseToFormValues(data: ContratanteApiResponse): C
     ddi2: data.telefoneCelular2?.startsWith("+") ? data.telefoneCelular2.slice(0, 3) : "+55",
     rendaFamiliar: data.rendaFamiliar ? maskCurrency(data.rendaFamiliar.toString()) : "",
     email: data.email ?? "",
+    canaisPreferidos: (data.canaisPreferidos?.length
+      ? data.canaisPreferidos
+      : ["WHATSAPP", "EMAIL"]) as ContratanteCanalPreferido[],
     conjuge: {
       nome: cg?.nome ?? "",
       cpf: cg?.cpf ? maskCpf(cg.cpf) : "",
@@ -309,6 +321,7 @@ export function contratanteToApiPayload(values: ContratanteFormValues): Record<s
     telefoneCelular2: values.telefoneCelular2 ? cleanPhone((values.ddi2 || "+55") + values.telefoneCelular2) : undefined,
     rendaFamiliar: values.rendaFamiliar ? currencyToNumber(values.rendaFamiliar).toString() : undefined,
     email: emptyToUndef(values.email),
+    canaisPreferidos: values.canaisPreferidos?.length ? values.canaisPreferidos : undefined,
     ...(conjuge ? { conjuge } : {}),
   };
 }
