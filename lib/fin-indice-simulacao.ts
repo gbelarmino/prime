@@ -296,11 +296,8 @@ export function simularParcelasIndice(opts: {
   const tituloPorParcela = new Map(sorted.map((t) => [t.numeroParcela, t]));
   const lookup = buildIndiceLookup(indices);
 
-  const vencimentosInformados =
-    vencimentoParcelaAlvo != null && parcelaAtual >= 1
-      ? new Map<number, Date>([[parcelaAtual, vencimentoParcelaAlvo]])
-      : undefined;
-
+  // Índice de reajuste: cronograma contratual (emitidos + projeção). Vencimento de emissão com atraso
+  // não altera o mês de corte do IGP-M/IPCA (espelha TituloValorNominalService no backend).
   const vencimentoPorParcela =
     vencimentoPorParcelaReferencia ??
     buildVencimentoPorParcelaCalculo({
@@ -308,7 +305,6 @@ export function simularParcelasIndice(opts: {
       dataPrimeiraParcelaContrato: formatIsoDate(dataPrimeiraParcela),
       diaVencimentoMensal,
       parcelaMaxima: parcelaLimite,
-      vencimentosInformados,
     });
 
   const vencimentos = new Map<number, Date>();
@@ -720,16 +716,11 @@ export async function buildVencimentoReferenciaLiderGrupo(opts: {
     resolverParcelaLimiteSimulacao(titulos),
     1,
   );
-  const vencimentosInformados =
-    vencimentoParcelaAlvo != null && parcelaAlvo >= 1
-      ? new Map<number, Date>([[parcelaAlvo, vencimentoParcelaAlvo]])
-      : undefined;
   return buildVencimentoPorParcelaCalculo({
     titulos,
     dataPrimeiraParcelaContrato: contexto.dataPrimeiraParcelaContrato,
     diaVencimentoMensal: contexto.diaVencimentoMensal,
     parcelaMaxima: parcelaLimite,
-    vencimentosInformados,
   });
 }
 
