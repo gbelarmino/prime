@@ -30,6 +30,8 @@ import { formatBusinessDateTimeWithSeconds } from "@/lib/format-datetime";
 import type { SpringPage } from "@/lib/spring-page";
 import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { cn } from "@/lib/utils";
+import { applySmsFilaRealtime } from "@/lib/sms-fila-realtime";
+import { useSmsFilaRealtime } from "@/hooks/use-sms-fila-realtime";
 
 const STATUS_OPTIONS = [
   { label: "Todos os estados", value: "" },
@@ -88,6 +90,35 @@ export function SmsFila() {
   const [pageData, setPageData] = useState<SpringPage<SmsFilaItem> | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [cancelConfirmRow, setCancelConfirmRow] = useState<SmsFilaItem | null>(null);
+  const statusFilterRef = useRef(statusFilter);
+  const pageRef = useRef(page);
+
+  useEffect(() => {
+    statusFilterRef.current = statusFilter;
+  }, [statusFilter]);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  const applyUpdate = useCallback((updated: SmsFilaItem) => {
+    setPageData((prev) =>
+      prev
+        ? applySmsFilaRealtime(
+            prev,
+            {
+              type: "SMS_FILA_UPDATED",
+              item: updated as Parameters<typeof applySmsFilaRealtime>[1]["item"],
+            },
+            {
+              statusFilter: statusFilterRef.current,
+              page: pageRef.current,
+              pageSize: PAGE_SIZE,
+            },
+          )
+        : prev,
+    );
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,6 +141,21 @@ export function SmsFila() {
     setPage(0);
   }, [statusFilter]);
 
+  const onRealtimeEvent = useCallback(
+    (event: Parameters<typeof applySmsFilaRealtime>[1]) => {
+      setPageData((prev) =>
+        applySmsFilaRealtime(prev, event, {
+          statusFilter: statusFilterRef.current,
+          page: pageRef.current,
+          pageSize: PAGE_SIZE,
+        }),
+      );
+    },
+    [],
+  );
+
+  useSmsFilaRealtime(onRealtimeEvent);
+
   const onPageChange = (event: DataTablePageEvent) => {
     setPage(event.page ?? 0);
   };
@@ -117,9 +163,9 @@ export function SmsFila() {
   const handleReprocessar = async (row: SmsFilaItem) => {
     setActionLoading(true);
     try {
-      await smsService.reprocessarFila(row.id);
+      const updated = await smsService.reprocessarFila(row.id);
       toast.success("SMS reenfileirado para envio.");
-      void load();
+      applyUpdate(updated);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao reprocessar.");
     } finally {
@@ -131,10 +177,10 @@ export function SmsFila() {
     if (!cancelConfirmRow) return;
     setActionLoading(true);
     try {
-      await smsService.cancelarFila(cancelConfirmRow.id);
+      const updated = await smsService.cancelarFila(cancelConfirmRow.id);
       toast.success("Envio cancelado.");
       setCancelConfirmRow(null);
-      void load();
+      applyUpdate(updated);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao cancelar.");
     } finally {
