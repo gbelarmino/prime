@@ -108,6 +108,7 @@ export interface TituloCobranca {
   id: string;
   contratoId: number;
   numeroContrato?: string | null;
+  nomeCliente?: string | null;
   numeroParcela: number;
   tipoParcela?: TituloTipoParcela | null;
   numeroBalao?: number | null;

@@ -2024,8 +2024,13 @@ export function TitulosList({
               field="nossoNumero"
               header="Nosso nº"
               sortable
-              body={(row: TituloCobranca) => dashboardCellMono(row.nossoNumero)}
-              style={{ width: "7.5rem", maxWidth: "7.5rem" }}
+              body={(row: TituloCobranca) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  {dashboardCellMono(row.nossoNumero)}
+                  {dashboardCellText(row.nomeCliente, { title: row.nomeCliente ?? undefined })}
+                </div>
+              )}
+              style={{ width: "9rem", maxWidth: "9rem" }}
             />
             <Column
               field="cadastroEm"
