@@ -132,6 +132,7 @@ export interface TituloCobranca {
   alteradoEm: string;
   usuarioNome?: string | null;
   legado?: boolean;
+  smsNotificacoesEnviadas?: number;
 }
 
 export interface TituloHistoricoItem {

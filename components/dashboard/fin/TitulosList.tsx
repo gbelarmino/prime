@@ -109,6 +109,34 @@ const STATUS_TONES: Record<string, string> = {
   ERRO_REGISTRO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
 };
 
+function tituloStatusBody(row: TituloCobranca) {
+  const smsCount = row.smsNotificacoesEnviadas ?? 0;
+  if (!tituloEstaVencido(row)) {
+    return dashboardStatusBadge(row.status, STATUS_TONES);
+  }
+  const smsTitle =
+    smsCount === 1
+      ? "1 notificação SMS enviada com sucesso"
+      : `${smsCount} notificações SMS enviadas com sucesso`;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      {dashboardStatusBadge(row.status, STATUS_TONES)}
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider tabular-nums",
+          smsCount > 0
+            ? "border-sky-500/25 bg-sky-500/15 text-sky-300"
+            : "border-white/10 bg-white/5 text-white/35",
+        )}
+        title={smsTitle}
+      >
+        <MessageSquare size={11} aria-hidden />
+        {smsCount}
+      </span>
+    </span>
+  );
+}
+
 const PAGE_SIZE = 12;
 const LOTE_MAX = 50;
 
@@ -2011,8 +2039,8 @@ export function TitulosList({
               field="status"
               header="Status"
               sortable
-              body={(row: TituloCobranca) => dashboardStatusBadge(row.status, STATUS_TONES)}
-              style={{ width: "7.5rem", maxWidth: "7.5rem" }}
+              body={tituloStatusBody}
+              style={{ width: "9rem", maxWidth: "9rem" }}
             />
             <Column
               header="Ações"
