@@ -171,7 +171,8 @@ export function TituloSmsReguaDialog({
                   {preview.mensagem}
                 </pre>
                 <p className="mt-2 text-xs text-white/35">
-                  O envio entra na fila SMS com agendamento anti-ban (intervalo e horário comercial).
+                  Envio manual: usa o modelo SMS da régua conforme os dias de atraso, mesmo com a régua
+                  automática desactivada. O SMS entra na fila com agendamento anti-ban.
                 </p>
               </div>
             </>
