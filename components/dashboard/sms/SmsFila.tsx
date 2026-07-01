@@ -142,6 +142,17 @@ export function SmsFila() {
     void load();
   }, [load]);
 
+  /** Fallback se WebSocket não entregar (rede/proxy). */
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void smsService.listFila(pageRef.current, PAGE_SIZE, statusFilterRef.current || undefined).then(
+        (data) => setPageData(data),
+        () => {},
+      );
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     setPage(0);
   }, [statusFilter]);
