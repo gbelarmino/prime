@@ -16,7 +16,6 @@ import { Ban, ChevronDown, RefreshCw, RotateCcw } from "lucide-react";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import {
   DASHBOARD_DATATABLE_CLASS,
-  WHATSAPP_FILA_STATUS_TONES,
   dashboardActionMenuItem,
   dashboardActionMenuSeparator,
   dashboardActionsMenuPt,
@@ -34,16 +33,15 @@ import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmD
 import { cn } from "@/lib/utils";
 import { applySmsFilaRealtime } from "@/lib/sms-fila-realtime";
 import { useSmsFilaRealtime } from "@/hooks/use-sms-fila-realtime";
+import {
+  SMS_FILA_STATUS_OPTIONS,
+  SMS_FILA_STATUS_TONES,
+  canCancelarSmsFila,
+  canReprocessarSmsFila,
+  smsFilaStatusLabel,
+} from "@/lib/sms-fila-status";
 
-const STATUS_OPTIONS = [
-  { label: "Todos", value: "" },
-  { label: "Pendente", value: "PENDENTE" },
-  { label: "Enviando", value: "ENVIANDO" },
-  { label: "Enviado", value: "ENVIADO" },
-  { label: "Sucesso", value: "SUCESSO" },
-  { label: "Erro", value: "ERRO" },
-  { label: "Cancelado", value: "CANCELADO" },
-];
+const STATUS_OPTIONS = SMS_FILA_STATUS_OPTIONS;
 
 const PAGE_SIZE = 25;
 
@@ -79,11 +77,11 @@ function smsFilaDataTablePt() {
 }
 
 function canReprocessar(row: SmsFilaItem) {
-  return row.status === "ERRO" || row.status === "PENDENTE" || row.status === "ENVIADO";
+  return canReprocessarSmsFila(row.status);
 }
 
 function canCancelar(row: SmsFilaItem) {
-  return row.status === "ERRO" || row.status === "PENDENTE" || row.status === "ENVIADO";
+  return canCancelarSmsFila(row.status);
 }
 
 export function SmsFila() {
@@ -240,7 +238,7 @@ export function SmsFila() {
 
   const statusBody = (row: SmsFilaItem) => (
     <div className="flex flex-col items-start gap-0.5">
-      {dashboardStatusBadge(row.status, WHATSAPP_FILA_STATUS_TONES)}
+      {dashboardStatusBadge(smsFilaStatusLabel(row.status), SMS_FILA_STATUS_TONES, row.status)}
       {row.erro?.trim() && expandedId !== row.id ? (
         <span className="text-[9px] font-medium text-rose-300/55">Expandir para ver o erro</span>
       ) : null}
