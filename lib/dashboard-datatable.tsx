@@ -272,6 +272,7 @@ export function dashboardStatusBadge(
 export const WHATSAPP_FILA_STATUS_TONES: Record<string, string> = {
   PENDENTE: "border-amber-500/25 bg-amber-500/15 text-amber-300",
   ENVIANDO: "border-blue-500/25 bg-blue-500/15 text-blue-300",
+  ENVIADO: "border-sky-500/25 bg-sky-500/15 text-sky-300",
   SUCESSO: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
   ERRO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
   CANCELADO: "border-white/15 bg-white/10 text-white/45",

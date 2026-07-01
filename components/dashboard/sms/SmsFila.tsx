@@ -39,6 +39,7 @@ const STATUS_OPTIONS = [
   { label: "Todos", value: "" },
   { label: "Pendente", value: "PENDENTE" },
   { label: "Enviando", value: "ENVIANDO" },
+  { label: "Enviado", value: "ENVIADO" },
   { label: "Sucesso", value: "SUCESSO" },
   { label: "Erro", value: "ERRO" },
   { label: "Cancelado", value: "CANCELADO" },
@@ -78,11 +79,11 @@ function smsFilaDataTablePt() {
 }
 
 function canReprocessar(row: SmsFilaItem) {
-  return row.status === "ERRO" || row.status === "PENDENTE";
+  return row.status === "ERRO" || row.status === "PENDENTE" || row.status === "ENVIADO";
 }
 
 function canCancelar(row: SmsFilaItem) {
-  return row.status === "ERRO" || row.status === "PENDENTE";
+  return row.status === "ERRO" || row.status === "PENDENTE" || row.status === "ENVIADO";
 }
 
 export function SmsFila() {
