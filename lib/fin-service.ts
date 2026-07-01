@@ -59,6 +59,9 @@ import {
   getFinTitulosRegistrarLoteUrl,
   getFinTitulosUrl,
   getFinTituloAvulsoUrl,
+  getFinTituloBalaoUrl,
+  getFinTituloBalaoPendentesUrl,
+  getFinTituloBalaoSimularUrl,
   getFinTituloContextoLoteUrl,
   getFinTituloLegadoManualQuadrasUrl,
   getFinTituloLegadoManualLotesUrl,
@@ -95,11 +98,15 @@ export type TituloCobrancaStatus =
   | "ERRO_REGISTRO"
   | "EM_CONCILIACAO";
 
+export type TituloTipoParcela = "MENSAL" | "FRACIONADA" | "BALAO";
+
 export interface TituloCobranca {
   id: string;
   contratoId: number;
   numeroContrato?: string | null;
   numeroParcela: number;
+  tipoParcela?: TituloTipoParcela | null;
+  numeroBalao?: number | null;
   convenioId: string;
   convenioNome: string;
   nossoNumero: string;
@@ -360,6 +367,18 @@ export function formatContratoRef(
   return "—";
 }
 
+/** Rótulo de parcela na listagem: B1, B2… ou número da parcela mensal. */
+export function formatTituloParcelaLabel(t: {
+  tipoParcela?: TituloTipoParcela | null;
+  numeroBalao?: number | null;
+  numeroParcela: number;
+}): string {
+  if (t.tipoParcela === "BALAO" && t.numeroBalao != null) {
+    return `B${t.numeroBalao}`;
+  }
+  return String(t.numeroParcela);
+}
+
 export interface ImovelLoteOption {
   id: number;
   quadra: string | null;
@@ -380,6 +399,30 @@ export interface TituloAvulsoEmitir {
   convenioId: string;
   valorNominal: number;
   vencimento: string;
+}
+
+export interface ContratoBalaoPendenteItem {
+  numeroBalao: number;
+  valorNominal: number;
+  parcelaReferencia: number;
+  vencimento: string;
+  jaEmitido: boolean;
+}
+
+export interface TituloBalaoEmissaoPreview {
+  numeroBalao: number;
+  valorNominal: number;
+  parcelaReferencia: number;
+  vencimento: string;
+  jaEmitido: boolean;
+  tituloExistenteId?: string | null;
+}
+
+export interface TituloBalaoEmitir {
+  contratoId: number;
+  numeroBalao: number;
+  convenioId: string;
+  vencimento?: string | null;
 }
 
 export interface CobrancaGrupoMembro {
@@ -956,6 +999,33 @@ export const finService = {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
     const res = await apiFetch(getFinTituloAvulsoUrl(), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async listBaloesPendentes(contratoId: number): Promise<ContratoBalaoPendenteItem[]> {
+    const res = await apiFetch(getFinTituloBalaoPendentesUrl(contratoId));
+    return parseJson(res);
+  },
+
+  async simularTituloBalao(
+    contratoId: number,
+    numeroBalao: number,
+  ): Promise<TituloBalaoEmissaoPreview> {
+    const res = await apiFetch(getFinTituloBalaoSimularUrl(contratoId, numeroBalao));
+    return parseJson(res);
+  },
+
+  async emitirTituloBalao(
+    body: TituloBalaoEmitir,
+    idempotencyKey?: string,
+  ): Promise<TituloCobranca> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+    const res = await apiFetch(getFinTituloBalaoUrl(), {
       method: "POST",
       headers,
       body: JSON.stringify(body),

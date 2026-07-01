@@ -1129,6 +1129,28 @@ export function getFinTituloAvulsoUrl(): string {
   return `${base}/avulso`;
 }
 
+export function getFinTituloBalaoUrl(): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  return `${base}/balao`;
+}
+
+export function getFinTituloBalaoPendentesUrl(contratoId: number): string {
+  const base = getFinTituloBalaoUrl();
+  if (!base) return "";
+  return `${base}/pendentes?contratoId=${encodeURIComponent(String(contratoId))}`;
+}
+
+export function getFinTituloBalaoSimularUrl(contratoId: number, numeroBalao: number): string {
+  const base = getFinTituloBalaoUrl();
+  if (!base) return "";
+  const params = new URLSearchParams({
+    contratoId: String(contratoId),
+    numeroBalao: String(numeroBalao),
+  });
+  return `${base}/simular?${params.toString()}`;
+}
+
 export function getFinCobrancaGruposUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finCobrancaGrupos);
 }

@@ -49,6 +49,7 @@ import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhats
 import {
   finService,
   formatContratoRef,
+  formatTituloParcelaLabel,
   type TituloCobranca,
   type TituloContextoLote,
   type TituloPdfLoteResult,
@@ -1873,6 +1874,9 @@ export function TitulosList({
               field="numeroParcela"
               header="Parc."
               sortable
+              body={(row: TituloCobranca) =>
+                dashboardCellMono(formatTituloParcelaLabel(row))
+              }
               style={{ width: "3.5rem", maxWidth: "3.5rem" }}
             />
             <Column

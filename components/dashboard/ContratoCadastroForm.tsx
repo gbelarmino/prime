@@ -54,6 +54,7 @@ import {
 } from "@/lib/validations/contrato-honorarios";
 import { numberToBrlInputValue } from "@/lib/currency-brl";
 import { BrlMoneyInput } from "@/components/dashboard/BrlMoneyInput";
+import { ContratoBaloesEditor } from "@/components/dashboard/ContratoBaloesEditor";
 import { formatCpfDisplay } from "@/lib/format-cpf";
 import {
   fetchContratanteOption,
@@ -146,6 +147,9 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
   const imobiliariaId = watch("imobiliariaId");
   const imovelId = watch("imovelId");
   const dataAssinatura = watch("dataAssinatura");
+  const numParcelasMensais = watch("numParcelasMensais");
+  const dataPrimeiraParcela = watch("dataPrimeiraParcela");
+  const diaVencimento = watch("diaVencimento");
 
   const ensureClienteSelectedInOptions = useCallback(async (id: string) => {
     if (!id) return;
@@ -1201,6 +1205,36 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
               {errors.diaVencimento && <small className="p-error">{errors.diaVencimento.message}</small>}
             </div>
           </div>
+        </section>
+
+        {/* Balões */}
+        <section className="flex flex-col gap-4 border-l-4 border-amber-500 pl-6 py-2">
+          <h2 className="text-xl font-semibold text-amber-400 flex items-center gap-2">
+            <i className="pi pi-chart-line"></i> Balões
+          </h2>
+          {!canEditValoresFinanceiros && (
+            <Message
+              severity="info"
+              text="A lista de balões só pode ser editada pela equipe administrativa."
+              className="w-full"
+            />
+          )}
+          <Divider className="mt-0 opacity-20" />
+          <Controller
+            name="baloes"
+            control={control}
+            render={({ field }) => (
+              <ContratoBaloesEditor
+                baloes={field.value ?? []}
+                onChange={field.onChange}
+                numParcelasMensais={numParcelasMensais}
+                dataPrimeiraParcela={dataPrimeiraParcela}
+                diaVencimento={diaVencimento}
+                disabled={!canEditValoresFinanceiros}
+                errorMessage={errors.baloes?.message}
+              />
+            )}
+          />
         </section>
 
         {/* Seção Oculta Temporariamente: Fracionamento e Leilão 

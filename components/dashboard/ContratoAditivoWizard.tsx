@@ -53,6 +53,7 @@ import {
   type ContratoHonorariosApiResponse,
   type ContratoHonorariosFormValues,
 } from "@/lib/validations/contrato-honorarios";
+import { ContratoBaloesEditor } from "@/components/dashboard/ContratoBaloesEditor";
 
 type Props = {
   contratoId: number;
@@ -192,6 +193,17 @@ function CondicoesFields({
           onChange={(e) => onChange({ observacoes: e.target.value })}
           rows={2}
           className={cn(ADITIVO_INPUT_CLASS, "resize-none")}
+        />
+      </div>
+      <div className="md:col-span-2 lg:col-span-3">
+        <label className={ADITIVO_LABEL_CLASS}>Balões</label>
+        <ContratoBaloesEditor
+          baloes={values.baloes ?? []}
+          onChange={(baloes) => onChange({ baloes })}
+          numParcelasMensais={values.numParcelasMensais}
+          dataPrimeiraParcela={values.dataPrimeiraParcela}
+          diaVencimento={values.diaVencimento}
+          compact
         />
       </div>
     </div>

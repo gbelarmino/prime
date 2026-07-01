@@ -1,8 +1,23 @@
 import { z } from "zod";
 import { numberToBrlInputValue as numberToBrlField, parseMoneyBrl } from "@/lib/currency-brl";
+import { baloesApiToForm, baloesFormToApi, validarBaloesForm } from "@/lib/contrato-baloes";
 
 /** Status exibido no select (1=Proposta, 2=Revisão, 3=Aprovado, 4=Reprovado, 5=Proposta Enviada). */
 export const statusContratoEnum = z.enum(["1", "2", "3", "4", "5"]);
+
+export type BalaoContratoFormRow = {
+  ordem: number;
+  valor: string;
+  parcelaReferencia: string;
+  reajusteIndice?: "" | "sim" | "nao";
+};
+
+const balaoFormRowSchema = z.object({
+  ordem: z.number(),
+  valor: z.string(),
+  parcelaReferencia: z.string(),
+  reajusteIndice: z.enum(["", "sim", "nao"]).optional(),
+});
 
 function optionalMoney(s: string | undefined): number | null {
   return parseMoneyBrl(s);
@@ -51,6 +66,12 @@ export const contratoHonorariosFormSchema = z.object({
   limiteReajusteAnual: z.string().min(1, "Limite reajuste é obrigatório."),
   valorBaseLeilao: z.string().optional().or(z.literal("")),
   observacoes: z.string().max(500).optional().or(z.literal("")),
+  baloes: z.array(balaoFormRowSchema),
+}).superRefine((data, ctx) => {
+  const erroBaloes = validarBaloesForm(data.baloes, data.numParcelasMensais);
+  if (erroBaloes) {
+    ctx.addIssue({ code: "custom", message: erroBaloes, path: ["baloes"] });
+  }
 });
 
 export type ContratoHonorariosFormValues = z.infer<typeof contratoHonorariosFormSchema>;
@@ -87,6 +108,12 @@ export type ContratoHonorariosApiResponse = {
     limiteReajusteAnual: number | null;
     valorBaseLeilao: number | null;
     observacoes: string | null;
+    baloes?: {
+      ordem: number;
+      valor: number;
+      parcelaReferencia: number;
+      reajusteIndice?: boolean | null;
+    }[];
   };
   cidadeAssinatura: string | null;
   ufAssinatura: string | null;
@@ -148,6 +175,7 @@ export function emptyContratoHonorariosFormValues(): ContratoHonorariosFormValue
     limiteReajusteAnual: "",
     valorBaseLeilao: "",
     observacoes: "",
+    baloes: [],
   };
 }
 
@@ -188,6 +216,7 @@ export function contratoResponseToFormValues(r: ContratoHonorariosApiResponse): 
     limiteReajusteAnual: num(c.limiteReajusteAnual),
     valorBaseLeilao: numberToBrlField(c.valorBaseLeilao),
     observacoes: c.observacoes ?? "",
+    baloes: baloesApiToForm(c.baloes),
   };
 }
 
@@ -228,6 +257,7 @@ export function contratoToApiPayload(values: ContratoHonorariosFormValues): Reco
     limiteReajusteAnual: optionalMoney(values.limiteReajusteAnual),
     valorBaseLeilao: optionalMoney(values.valorBaseLeilao),
     observacoes: values.observacoes?.trim() || null,
+    baloes: baloesFormToApi(values.baloes ?? []),
   };
 
   return {
