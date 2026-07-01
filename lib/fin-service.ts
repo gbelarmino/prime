@@ -47,6 +47,8 @@ import {
   getFinTituloPdfUrl,
   getFinTituloRegistrarUrl,
   getFinTituloWhatsAppCobrancaParcelaUrl,
+  getFinTituloSmsReguaPreviewUrl,
+  getFinTituloSmsReguaUrl,
   getFinTitulosIdsElegiveisWhatsAppUrl,
   getFinTitulosWhatsAppCobrancaParcelaLoteUrl,
   getFinTitulosEmailCobrancaParcelaLoteUrl,
@@ -82,6 +84,7 @@ import {
   getImoveisQuadrasUrl,
 } from "./api-config";
 import type { SpringPage } from "./spring-page";
+import { inicioDoDiaHoje, parseIsoDate } from "./fin-vencimento";
 
 /** Situação 3 — Vendido (sc_grl.tbl_dmn ST_IMV). */
 const SITUACAO_VENDIDO = 3;
@@ -162,6 +165,34 @@ export interface TituloIdsElegiveisRegistro {
 }
 
 export interface TituloWhatsAppCobrancaResult {
+  enfileirado: boolean;
+  filaId?: number | null;
+  mensagem?: string | null;
+}
+
+export interface TituloSmsReguaPreview {
+  tituloId: string;
+  etapaId: string;
+  etapaNome: string;
+  etapaCodigo: string;
+  offsetEtapaDias: number;
+  diasAtraso: number;
+  offsetExato: boolean;
+  telefone: string;
+  nomeCliente?: string | null;
+  empreendimento?: string | null;
+  quadra?: string | null;
+  lote?: number | null;
+  numeroContrato?: string | null;
+  numeroParcela: number;
+  valorNominal: number;
+  vencimento: string;
+  mensagem: string;
+  smsPendenteFila: boolean;
+  aviso?: string | null;
+}
+
+export interface TituloSmsCobrancaResult {
   enfileirado: boolean;
   filaId?: number | null;
   mensagem?: string | null;
@@ -377,6 +408,16 @@ export function formatTituloParcelaLabel(t: {
     return `B${t.numeroBalao}`;
   }
   return String(t.numeroParcela);
+}
+
+/** Título com vencimento anterior a hoje (ou status VENCIDO). */
+export function tituloEstaVencido(t: Pick<TituloCobranca, "status" | "vencimento">): boolean {
+  if (t.status === "VENCIDO") return true;
+  if (t.status === "PAGO" || t.status === "CANCELADO") return false;
+  const venc = parseIsoDate(t.vencimento);
+  if (!venc) return false;
+  const hoje = inicioDoDiaHoje();
+  return venc.getTime() < hoje.getTime();
 }
 
 export interface ImovelLoteOption {
@@ -1125,6 +1166,16 @@ export const finService = {
 
   async enfileirarWhatsAppCobrancaParcela(id: string): Promise<TituloWhatsAppCobrancaResult> {
     const res = await apiFetch(getFinTituloWhatsAppCobrancaParcelaUrl(id), { method: "POST" });
+    return parseJson(res);
+  },
+
+  async previewSmsReguaCobranca(id: string): Promise<TituloSmsReguaPreview> {
+    const res = await apiFetch(getFinTituloSmsReguaPreviewUrl(id));
+    return parseJson(res);
+  },
+
+  async enfileirarSmsReguaCobranca(id: string): Promise<TituloSmsCobrancaResult> {
+    const res = await apiFetch(getFinTituloSmsReguaUrl(id), { method: "POST" });
     return parseJson(res);
   },
 

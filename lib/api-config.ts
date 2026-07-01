@@ -1203,6 +1203,14 @@ export function getFinTituloWhatsAppCobrancaParcelaUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/whatsapp/cobranca-parcela`;
 }
 
+export function getFinTituloSmsReguaPreviewUrl(id: string): string {
+  return `${getFinTituloByIdUrl(id)}/sms/regua/preview`;
+}
+
+export function getFinTituloSmsReguaUrl(id: string): string {
+  return `${getFinTituloByIdUrl(id)}/sms/regua`;
+}
+
 export function getFinTituloCancelarUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/cancelar`;
 }

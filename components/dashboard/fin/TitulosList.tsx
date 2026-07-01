@@ -45,12 +45,15 @@ import { TituloPdfLoteDialog } from "@/components/dashboard/fin/TituloPdfLoteDia
 import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegistrarLoteDialog";
 import { TituloEmailLoteDialog } from "@/components/dashboard/fin/TituloEmailLoteDialog";
 import { TituloSmsLoteDialog } from "@/components/dashboard/fin/TituloSmsLoteDialog";
+import { TituloSmsReguaDialog } from "@/components/dashboard/fin/TituloSmsReguaDialog";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import {
   finService,
   formatContratoRef,
   formatTituloParcelaLabel,
+  tituloEstaVencido,
   type TituloCobranca,
+  type TituloSmsReguaPreview,
   type TituloContextoLote,
   type TituloPdfLoteResult,
   type TituloRegistrarLoteResult,
@@ -319,6 +322,11 @@ export function TitulosList({
   const [smsLoteDialogOpen, setSmsLoteDialogOpen] = useState(false);
   const [smsLoteResultado, setSmsLoteResultado] =
     useState<TituloSmsCobrancaLoteResult | null>(null);
+  const [smsReguaDialogOpen, setSmsReguaDialogOpen] = useState(false);
+  const [tituloSmsRegua, setTituloSmsRegua] = useState<TituloCobranca | null>(null);
+  const [smsReguaPreview, setSmsReguaPreview] = useState<TituloSmsReguaPreview | null>(null);
+  const [smsReguaPreviewLoading, setSmsReguaPreviewLoading] = useState(false);
+  const [smsReguaPreviewError, setSmsReguaPreviewError] = useState<string | null>(null);
   const [pdfLoteDialogOpen, setPdfLoteDialogOpen] = useState(false);
   const [pdfLoteResultado, setPdfLoteResultado] = useState<TituloPdfLoteResult | null>(null);
   const [selecionandoTodos, setSelecionandoTodos] = useState(false);
@@ -1168,6 +1176,48 @@ export function TitulosList({
     }
   };
 
+  const fecharSmsReguaDialog = () => {
+    setSmsReguaDialogOpen(false);
+    setTituloSmsRegua(null);
+    setSmsReguaPreview(null);
+    setSmsReguaPreviewError(null);
+    setSmsReguaPreviewLoading(false);
+  };
+
+  const abrirSmsRegua = async (row: TituloCobranca) => {
+    setTituloSmsRegua(row);
+    setSmsReguaPreview(null);
+    setSmsReguaPreviewError(null);
+    setSmsReguaPreviewLoading(true);
+    setSmsReguaDialogOpen(true);
+    try {
+      const preview = await finService.previewSmsReguaCobranca(row.id);
+      setSmsReguaPreview(preview);
+    } catch (e) {
+      setSmsReguaPreviewError(e instanceof Error ? e.message : "Falha ao gerar prévia do SMS.");
+    } finally {
+      setSmsReguaPreviewLoading(false);
+    }
+  };
+
+  const confirmarSmsRegua = async () => {
+    if (!tituloSmsRegua || !smsReguaPreview || smsReguaPreview.smsPendenteFila) return;
+    setActionLoading(true);
+    try {
+      const resultado = await finService.enfileirarSmsReguaCobranca(tituloSmsRegua.id);
+      if (resultado.enfileirado) {
+        toast.success("SMS enfileirado na fila de envio (régua de cobrança).");
+        fecharSmsReguaDialog();
+      } else {
+        toast.warning(resultado.mensagem ?? "Não foi possível enfileirar o SMS.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enfileirar SMS.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const abrirPdfLote = () => {
     if (titulosPdfSelecionados.length === 0) {
       toast.info("Selecione títulos com boleto/PDF disponível para download.");
@@ -1301,6 +1351,22 @@ export function TitulosList({
             />
           ),
           onClick: () => void enviarWhatsApp(row),
+          disabled: actionLoading,
+        }),
+      );
+    }
+
+    if (tituloEstaVencido(row)) {
+      items.push(
+        dashboardActionMenuItem({
+          label: "Notificar por SMS (régua)",
+          icon: (
+            <MessageSquare
+              size={16}
+              className="text-sky-400 transition-transform group-hover:scale-110"
+            />
+          ),
+          onClick: () => void abrirSmsRegua(row),
           disabled: actionLoading,
         }),
       );
@@ -2009,6 +2075,17 @@ export function TitulosList({
           titulos={titulosWhatsAppSelecionados}
           resultado={smsLoteResultado}
           onConfirm={() => void confirmarSmsLote()}
+          loading={actionLoading}
+        />
+
+        <TituloSmsReguaDialog
+          visible={smsReguaDialogOpen}
+          onHide={fecharSmsReguaDialog}
+          titulo={tituloSmsRegua}
+          preview={smsReguaPreview}
+          previewLoading={smsReguaPreviewLoading}
+          previewError={smsReguaPreviewError}
+          onConfirm={() => void confirmarSmsRegua()}
           loading={actionLoading}
         />
 
