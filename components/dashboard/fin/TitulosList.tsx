@@ -2024,12 +2024,25 @@ export function TitulosList({
               field="nossoNumero"
               header="Nosso nº"
               sortable
-              body={(row: TituloCobranca) => (
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  {dashboardCellMono(row.nossoNumero)}
-                  {dashboardCellText(row.nomeCliente, { title: row.nomeCliente ?? undefined })}
-                </div>
-              )}
+              body={(row: TituloCobranca) => {
+                const nomeCliente = row.nomeCliente?.trim();
+                const nossoNumero = row.nossoNumero?.trim();
+                return (
+                  <div
+                    className="flex min-w-0 flex-col gap-0.5"
+                    title={nomeCliente || undefined}
+                  >
+                    {nossoNumero ? (
+                      <span className="block whitespace-nowrap font-mono text-[12px] tabular-nums tracking-tight text-white/70">
+                        {nossoNumero}
+                      </span>
+                    ) : (
+                      <span className="text-white/30">—</span>
+                    )}
+                    {dashboardCellText(nomeCliente)}
+                  </div>
+                );
+              }}
               style={{ width: "9rem", maxWidth: "9rem" }}
             />
             <Column
