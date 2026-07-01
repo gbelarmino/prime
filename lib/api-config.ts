@@ -1211,6 +1211,10 @@ export function getFinTituloSmsReguaUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/sms/regua`;
 }
 
+export function getFinTituloSmsNotificacoesUrl(id: string): string {
+  return `${getFinTituloByIdUrl(id)}/sms/notificacoes`;
+}
+
 export function getFinTituloCancelarUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/cancelar`;
 }

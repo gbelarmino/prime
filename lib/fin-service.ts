@@ -49,6 +49,7 @@ import {
   getFinTituloWhatsAppCobrancaParcelaUrl,
   getFinTituloSmsReguaPreviewUrl,
   getFinTituloSmsReguaUrl,
+  getFinTituloSmsNotificacoesUrl,
   getFinTitulosIdsElegiveisWhatsAppUrl,
   getFinTitulosWhatsAppCobrancaParcelaLoteUrl,
   getFinTitulosEmailCobrancaParcelaLoteUrl,
@@ -134,6 +135,9 @@ export interface TituloCobranca {
   legado?: boolean;
   smsNotificacoesEnviadas?: number;
 }
+
+/** Item da fila SMS vinculado a um título (detalhe na listagem de títulos). */
+export type TituloSmsNotificacao = import("@/lib/sms-service").SmsFilaItem;
 
 export interface TituloHistoricoItem {
   id: string;
@@ -1177,6 +1181,11 @@ export const finService = {
 
   async enfileirarSmsReguaCobranca(id: string): Promise<TituloSmsCobrancaResult> {
     const res = await apiFetch(getFinTituloSmsReguaUrl(id), { method: "POST" });
+    return parseJson(res);
+  },
+
+  async listTituloSmsNotificacoes(id: string): Promise<TituloSmsNotificacao[]> {
+    const res = await apiFetch(getFinTituloSmsNotificacoesUrl(id));
     return parseJson(res);
   },
 

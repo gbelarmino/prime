@@ -46,6 +46,7 @@ import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegi
 import { TituloEmailLoteDialog } from "@/components/dashboard/fin/TituloEmailLoteDialog";
 import { TituloSmsLoteDialog } from "@/components/dashboard/fin/TituloSmsLoteDialog";
 import { TituloSmsReguaDialog } from "@/components/dashboard/fin/TituloSmsReguaDialog";
+import { TituloSmsNotificacoesDialog } from "@/components/dashboard/fin/TituloSmsNotificacoesDialog";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import {
   finService,
@@ -54,6 +55,7 @@ import {
   tituloEstaVencido,
   type TituloCobranca,
   type TituloSmsReguaPreview,
+  type TituloSmsNotificacao,
   type TituloContextoLote,
   type TituloPdfLoteResult,
   type TituloRegistrarLoteResult,
@@ -108,34 +110,6 @@ const STATUS_TONES: Record<string, string> = {
   BAIXA_SOLICITADA: "border-amber-500/25 bg-amber-500/15 text-amber-300",
   ERRO_REGISTRO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
 };
-
-function tituloStatusBody(row: TituloCobranca) {
-  const smsCount = row.smsNotificacoesEnviadas ?? 0;
-  if (!tituloEstaVencido(row)) {
-    return dashboardStatusBadge(row.status, STATUS_TONES);
-  }
-  const smsTitle =
-    smsCount === 1
-      ? "1 notificação SMS enviada com sucesso"
-      : `${smsCount} notificações SMS enviadas com sucesso`;
-  return (
-    <span className="inline-flex flex-wrap items-center gap-1.5">
-      {dashboardStatusBadge(row.status, STATUS_TONES)}
-      <span
-        className={cn(
-          "inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider tabular-nums",
-          smsCount > 0
-            ? "border-sky-500/25 bg-sky-500/15 text-sky-300"
-            : "border-white/10 bg-white/5 text-white/35",
-        )}
-        title={smsTitle}
-      >
-        <MessageSquare size={11} aria-hidden />
-        {smsCount}
-      </span>
-    </span>
-  );
-}
 
 const PAGE_SIZE = 12;
 const LOTE_MAX = 50;
@@ -355,6 +329,11 @@ export function TitulosList({
   const [smsReguaPreview, setSmsReguaPreview] = useState<TituloSmsReguaPreview | null>(null);
   const [smsReguaPreviewLoading, setSmsReguaPreviewLoading] = useState(false);
   const [smsReguaPreviewError, setSmsReguaPreviewError] = useState<string | null>(null);
+  const [smsNotificacoesDialogOpen, setSmsNotificacoesDialogOpen] = useState(false);
+  const [tituloSmsNotificacoes, setTituloSmsNotificacoes] = useState<TituloCobranca | null>(null);
+  const [smsNotificacoes, setSmsNotificacoes] = useState<TituloSmsNotificacao[]>([]);
+  const [smsNotificacoesLoading, setSmsNotificacoesLoading] = useState(false);
+  const [smsNotificacoesError, setSmsNotificacoesError] = useState<string | null>(null);
   const [pdfLoteDialogOpen, setPdfLoteDialogOpen] = useState(false);
   const [pdfLoteResultado, setPdfLoteResultado] = useState<TituloPdfLoteResult | null>(null);
   const [selecionandoTodos, setSelecionandoTodos] = useState(false);
@@ -1212,6 +1191,65 @@ export function TitulosList({
     setSmsReguaPreviewLoading(false);
   };
 
+  const fecharSmsNotificacoesDialog = () => {
+    setSmsNotificacoesDialogOpen(false);
+    setTituloSmsNotificacoes(null);
+    setSmsNotificacoes([]);
+    setSmsNotificacoesError(null);
+    setSmsNotificacoesLoading(false);
+  };
+
+  const abrirSmsNotificacoes = async (row: TituloCobranca) => {
+    setTituloSmsNotificacoes(row);
+    setSmsNotificacoes([]);
+    setSmsNotificacoesError(null);
+    setSmsNotificacoesLoading(true);
+    setSmsNotificacoesDialogOpen(true);
+    try {
+      const items = await finService.listTituloSmsNotificacoes(row.id);
+      setSmsNotificacoes(items);
+    } catch (e) {
+      setSmsNotificacoesError(
+        e instanceof Error ? e.message : "Falha ao carregar notificações SMS.",
+      );
+    } finally {
+      setSmsNotificacoesLoading(false);
+    }
+  };
+
+  const renderTituloStatusBody = (row: TituloCobranca) => {
+      const smsCount = row.smsNotificacoesEnviadas ?? 0;
+      if (!tituloEstaVencido(row)) {
+        return dashboardStatusBadge(row.status, STATUS_TONES);
+      }
+      const smsTitle =
+        smsCount === 1
+          ? "1 notificação SMS enviada com sucesso"
+          : `${smsCount} notificações SMS enviadas com sucesso`;
+      return (
+        <span className="inline-flex flex-wrap items-center gap-1.5">
+          {dashboardStatusBadge(row.status, STATUS_TONES)}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void abrirSmsNotificacoes(row);
+            }}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider tabular-nums transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40",
+              smsCount > 0
+                ? "border-sky-500/25 bg-sky-500/15 text-sky-300"
+                : "border-white/10 bg-white/5 text-white/35",
+            )}
+            title={`${smsTitle}. Clique para ver detalhes.`}
+          >
+            <MessageSquare size={11} aria-hidden />
+            {smsCount}
+          </button>
+        </span>
+      );
+  };
+
   const abrirSmsRegua = async (row: TituloCobranca) => {
     setTituloSmsRegua(row);
     setSmsReguaPreview(null);
@@ -2039,7 +2077,7 @@ export function TitulosList({
               field="status"
               header="Status"
               sortable
-              body={tituloStatusBody}
+              body={renderTituloStatusBody}
               style={{ width: "9rem", maxWidth: "9rem" }}
             />
             <Column
@@ -2115,6 +2153,15 @@ export function TitulosList({
           previewError={smsReguaPreviewError}
           onConfirm={() => void confirmarSmsRegua()}
           loading={actionLoading}
+        />
+
+        <TituloSmsNotificacoesDialog
+          visible={smsNotificacoesDialogOpen}
+          onHide={fecharSmsNotificacoesDialog}
+          titulo={tituloSmsNotificacoes}
+          notificacoes={smsNotificacoes}
+          loading={smsNotificacoesLoading}
+          error={smsNotificacoesError}
         />
 
         <TituloWhatsAppLoteDialog
