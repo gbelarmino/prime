@@ -1,6 +1,8 @@
 import type { SmsFilaItem } from "@/lib/sms-service";
 import type { SpringPage } from "@/lib/spring-page";
 
+export type { SmsFilaItem };
+
 export type SmsFilaWsEventType = "SMS_FILA_CREATED" | "SMS_FILA_UPDATED";
 
 type SmsFilaWsItemRaw = {
@@ -26,14 +28,15 @@ export type SmsFilaWsEvent = {
 export function normalizeSmsFilaItem(raw: SmsFilaWsItemRaw): SmsFilaItem {
   return {
     id: raw.id,
-    destinatario: raw.destinatario ?? raw.telefone ?? "",
-    corpo: raw.corpo ?? raw.mensagem ?? "",
+    telefone: raw.telefone ?? raw.destinatario ?? "",
+    mensagem: raw.mensagem ?? raw.corpo ?? "",
     status: raw.status,
     tentativas: raw.tentativas ?? 0,
     dataAgendada: raw.dataAgendada ?? "",
     dataEnvio: raw.dataEnvio ?? null,
     dataCriacao: raw.dataCriacao ?? "",
     erro: raw.erro ?? null,
+    externalId: raw.externalId ?? null,
   };
 }
 

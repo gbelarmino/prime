@@ -66,14 +66,35 @@ export interface EventoPlaceholderCatalogo {
 
 export interface SmsFilaItem {
   id: number;
-  destinatario: string;
-  corpo: string;
+  telefone: string;
+  mensagem: string;
   status: string;
   tentativas: number;
   dataAgendada: string;
   dataEnvio?: string | null;
   dataCriacao: string;
   erro?: string | null;
+  externalId?: string | null;
+}
+
+type SmsFilaItemRaw = Partial<SmsFilaItem> & {
+  destinatario?: string;
+  corpo?: string;
+};
+
+function normalizeSmsFilaItem(raw: SmsFilaItemRaw): SmsFilaItem {
+  return {
+    id: raw.id ?? 0,
+    telefone: raw.telefone ?? raw.destinatario ?? "",
+    mensagem: raw.mensagem ?? raw.corpo ?? "",
+    status: raw.status ?? "",
+    tentativas: raw.tentativas ?? 0,
+    dataAgendada: raw.dataAgendada ?? "",
+    dataEnvio: raw.dataEnvio ?? null,
+    dataCriacao: raw.dataCriacao ?? "",
+    erro: raw.erro ?? null,
+    externalId: raw.externalId ?? null,
+  };
 }
 
 export interface ContratanteListItem {
@@ -274,7 +295,11 @@ export const smsService = {
   async listFila(page = 0, size = 25, status?: string): Promise<SpringPage<SmsFilaItem>> {
     const res = await apiFetch(getSmsFilaUrl(page, size, status));
     if (!res.ok) throw new Error("Erro ao listar fila");
-    return res.json();
+    const data = (await res.json()) as SpringPage<SmsFilaItemRaw>;
+    return {
+      ...data,
+      content: data.content.map(normalizeSmsFilaItem),
+    };
   },
 
   async reprocessarFila(filaId: number): Promise<SmsFilaItem> {
@@ -289,7 +314,7 @@ export const smsService = {
       }
       throw new Error(msg);
     }
-    return res.json();
+    return normalizeSmsFilaItem((await res.json()) as SmsFilaItemRaw);
   },
 
   async cancelarFila(filaId: number): Promise<SmsFilaItem> {
@@ -304,6 +329,6 @@ export const smsService = {
       }
       throw new Error(msg);
     }
-    return res.json();
+    return normalizeSmsFilaItem((await res.json()) as SmsFilaItemRaw);
   },
 };
