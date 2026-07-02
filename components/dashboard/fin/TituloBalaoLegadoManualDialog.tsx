@@ -265,7 +265,7 @@ export function TituloBalaoLegadoManualDialog({
       .contextoLote(selectedEmpreendimento ?? "", selectedQuadra, selectedLote)
       .then((ctx) => {
         setContratoId(ctx.contratoId);
-        setNumeroContrato(ctx.numeroContrato);
+        setNumeroContrato(ctx.numeroContrato ?? null);
         if (ctx.avisoConvenio) {
           toast.warning(ctx.avisoConvenio);
         }
