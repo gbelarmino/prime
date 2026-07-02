@@ -20,6 +20,7 @@ import {
   dashboardCellMono,
   dashboardCellText,
 } from "@/lib/dashboard-datatable";
+import { TituloBalaoCorrecaoDetalhe } from "@/components/dashboard/fin/TituloBalaoCorrecaoDetalhe";
 import {
   inicioDoDiaHoje,
   isVencimentoFuturo,
@@ -427,6 +428,9 @@ export function TituloBalaoEmitirWorkspace() {
                 <div className="col-span-2 text-amber-200/90">
                   Já existe título ativo para este balão.
                 </div>
+              ) : null}
+              {preview.correcao ? (
+                <TituloBalaoCorrecaoDetalhe correcao={preview.correcao} />
               ) : null}
             </dl>
           ) : null}

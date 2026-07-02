@@ -456,6 +456,27 @@ export interface ContratoBalaoPendenteItem {
   jaEmitido: boolean;
 }
 
+export interface BalaoCorrecaoCicloDetalhe {
+  parcelaReajuste: number;
+  vencimentoReajuste: string;
+  mesCorteIndice: string;
+  indiceAcumuladoPercent: number | null;
+  percentualFixoPercent: number;
+  percentualAplicadoPercent: number | null;
+  valorAntes: number;
+  valorDepois: number;
+  indiceDisponivel: boolean;
+}
+
+export interface BalaoValorNominalCalculoDetalhe {
+  valorBase: number;
+  tipoIndice: string;
+  ciclos: BalaoCorrecaoCicloDetalhe[];
+  valorNominal: number;
+  valorContratualFixo: boolean;
+  avisoIndice?: string | null;
+}
+
 export interface TituloBalaoEmissaoPreview {
   numeroBalao: number;
   valorNominal: number;
@@ -463,6 +484,7 @@ export interface TituloBalaoEmissaoPreview {
   vencimento: string;
   jaEmitido: boolean;
   tituloExistenteId?: string | null;
+  correcao?: BalaoValorNominalCalculoDetalhe | null;
 }
 
 export interface TituloBalaoEmitir {
