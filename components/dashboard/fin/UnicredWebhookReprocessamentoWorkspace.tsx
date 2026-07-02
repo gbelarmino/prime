@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AlertTriangle, FlaskConical, Play, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import {
   DASHBOARD_DATATABLE_CLASS,
   dashboardCellMono,
@@ -76,16 +77,10 @@ export function UnicredWebhookReprocessamentoWorkspace() {
   const [running, setRunning] = useState<"simular" | "executar" | null>(null);
   const [historico, setHistorico] = useState<ExecucaoLog[]>([]);
   const [selecionado, setSelecionado] = useState<ExecucaoLog | null>(null);
+  const [executarConfirmOpen, setExecutarConfirmOpen] = useState(false);
 
   const executar = useCallback(async (dryRun: boolean) => {
     const limiteEfetivo = Math.min(Math.max(limite || 200, 1), 500);
-    if (!dryRun) {
-      const ok = window.confirm(
-        `Executar reprocessamento de até ${limiteEfetivo} webhooks com falha de autenticação? ` +
-          "Títulos elegíveis serão liquidados automaticamente.",
-      );
-      if (!ok) return;
-    }
 
     setRunning(dryRun ? "simular" : "executar");
     try {
@@ -151,7 +146,7 @@ export function UnicredWebhookReprocessamentoWorkspace() {
               type="button"
               className={BTN_SECONDARY}
               disabled={running !== null}
-              onClick={() => executar(true)}
+              onClick={() => void executar(true)}
             >
               <FlaskConical size={14} />
               {running === "simular" ? "Simulando…" : "Simular"}
@@ -160,7 +155,7 @@ export function UnicredWebhookReprocessamentoWorkspace() {
               type="button"
               className={BTN_PRIMARY}
               disabled={running !== null}
-              onClick={() => executar(false)}
+              onClick={() => setExecutarConfirmOpen(true)}
             >
               <Play size={14} />
               {running === "executar" ? "Executando…" : "Executar"}
@@ -318,6 +313,28 @@ export function UnicredWebhookReprocessamentoWorkspace() {
           </div>
         </section>
       ) : null}
+
+      <DashboardConfirmDialog
+        visible={executarConfirmOpen}
+        onHide={() => setExecutarConfirmOpen(false)}
+        onConfirm={async () => {
+          setExecutarConfirmOpen(false);
+          await executar(false);
+        }}
+        header="Reprocessar webhooks"
+        tone="warning"
+        confirmLabel="Executar"
+        loading={running === "executar"}
+        message={
+          <p>
+            Executar reprocessamento de até{" "}
+            <span className="font-semibold text-white">
+              {Math.min(Math.max(limite || 200, 1), 500)}
+            </span>{" "}
+            webhooks com falha de autenticação? Títulos elegíveis serão liquidados automaticamente.
+          </p>
+        }
+      />
     </div>
   );
 }

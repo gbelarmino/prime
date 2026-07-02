@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DataTable, type DataTablePageEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
+import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputNumber } from "primereact/inputnumber";
 import { InputText } from "primereact/inputtext";
@@ -142,6 +143,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
   const [contextoLote, setContextoLote] = useState<TituloContextoLote | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [syncConfirmOpen, setSyncConfirmOpen] = useState(false);
 
   const carregarLista = useCallback(async () => {
     setLoading(true);
@@ -320,15 +322,8 @@ export function UnicredWebhookConciliacaoWorkspace() {
     }
   };
 
-  const executarSincronizar = async () => {
+  const confirmarSincronizar = async () => {
     const limite = Math.min(Math.max(pendentes || 200, 1), 500);
-    const ok = window.confirm(
-      `Sincronizar até ${limite} webhook(s) pendente(s)?\n\n` +
-        "O sistema tentará localizar títulos por UUID Unicred, seu número ou nosso número " +
-        "(útil quando o nosso número foi atualizado em título legado após o webhook).",
-    );
-    if (!ok) return;
-
     setSyncLoading(true);
     try {
       const resposta = await finService.sincronizarUnicredWebhookPendentes(
@@ -342,6 +337,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
       );
       notifyUnicredWebhookPendentesChanged();
       await carregarLista();
+      setSyncConfirmOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao sincronizar pendentes");
     } finally {
@@ -447,7 +443,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
           <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
             <button
               type="button"
-              onClick={() => void executarSincronizar()}
+              onClick={() => setSyncConfirmOpen(true)}
               disabled={syncLoading || loading || pendentes === 0}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
             >
@@ -909,6 +905,31 @@ export function UnicredWebhookConciliacaoWorkspace() {
           </div>
         )}
       </DashboardDialog>
+
+      <DashboardConfirmDialog
+        visible={syncConfirmOpen}
+        onHide={() => setSyncConfirmOpen(false)}
+        onConfirm={() => void confirmarSincronizar()}
+        header="Sincronizar webhooks pendentes"
+        tone="warning"
+        confirmLabel="Sincronizar"
+        loading={syncLoading}
+        message={
+          <div className="space-y-3 text-left">
+            <p>
+              Sincronizar até{" "}
+              <span className="font-semibold text-white">
+                {Math.min(Math.max(pendentes || 200, 1), 500)}
+              </span>{" "}
+              webhook(s) pendente(s)?
+            </p>
+            <p className="text-white/50">
+              O sistema tentará localizar títulos por UUID Unicred, seu número ou nosso número
+              (útil quando o nosso número foi atualizado em título legado após o webhook).
+            </p>
+          </div>
+        }
+      />
     </div>
   );
 }
