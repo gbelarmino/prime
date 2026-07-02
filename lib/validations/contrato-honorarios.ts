@@ -110,7 +110,7 @@ export type ContratoHonorariosApiResponse = {
     observacoes: string | null;
     baloes?: {
       ordem: number;
-      valor: number;
+      valor: number | null;
       parcelaReferencia: number;
       reajusteIndice?: boolean | null;
     }[];

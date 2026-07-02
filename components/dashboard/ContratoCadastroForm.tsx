@@ -150,6 +150,7 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
   const numParcelasMensais = watch("numParcelasMensais");
   const dataPrimeiraParcela = watch("dataPrimeiraParcela");
   const diaVencimento = watch("diaVencimento");
+  const tipoCorrecaoAnual = watch("tipoCorrecaoAnual");
 
   const ensureClienteSelectedInOptions = useCallback(async (id: string) => {
     if (!id) return;
@@ -1230,6 +1231,9 @@ export function ContratoCadastroForm({ mode, entityId }: ContratoCadastroFormPro
                 numParcelasMensais={numParcelasMensais}
                 dataPrimeiraParcela={dataPrimeiraParcela}
                 diaVencimento={diaVencimento}
+                tipoCorrecaoAnual={tipoCorrecaoAnual}
+                onTipoCorrecaoAnualChange={(v) => setValue("tipoCorrecaoAnual", v, { shouldValidate: true })}
+                tipoCorrecaoError={errors.tipoCorrecaoAnual?.message}
                 disabled={!canEditValoresFinanceiros}
                 errorMessage={errors.baloes?.message}
               />

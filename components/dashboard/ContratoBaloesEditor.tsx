@@ -20,15 +20,10 @@ import {
   emptyBalaoRow,
   previewBaloesContrato,
   reindexBaloes,
+  TIPO_CORRECAO_INDICE_OPTIONS,
 } from "@/lib/contrato-baloes";
 import { cn } from "@/lib/utils";
 import type { BalaoContratoFormRow } from "@/lib/validations/contrato-honorarios";
-
-const REAJUSTE_OPTIONS = [
-  { label: "A definir", value: "" },
-  { label: "Sim", value: "sim" },
-  { label: "Não", value: "nao" },
-];
 
 const TABLE_PT = dashboardDataTablePt({ density: "compact", paginator: false });
 
@@ -38,14 +33,13 @@ type Props = {
   numParcelasMensais: string;
   dataPrimeiraParcela: string;
   diaVencimento: string;
+  tipoCorrecaoAnual?: string;
+  onTipoCorrecaoAnualChange?: (value: string) => void;
+  tipoCorrecaoError?: string;
   disabled?: boolean;
   errorMessage?: string;
   compact?: boolean;
 };
-
-function formatBrl(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 export function ContratoBaloesEditor({
   baloes,
@@ -53,6 +47,9 @@ export function ContratoBaloesEditor({
   numParcelasMensais,
   dataPrimeiraParcela,
   diaVencimento,
+  tipoCorrecaoAnual = "",
+  onTipoCorrecaoAnualChange,
+  tipoCorrecaoError,
   disabled = false,
   errorMessage,
   compact = false,
@@ -64,8 +61,9 @@ export function ContratoBaloesEditor({
         numParcelasMensais,
         dataPrimeiraParcela,
         diaVencimento,
+        tipoCorrecaoAnual,
       }),
-    [baloes, numParcelasMensais, dataPrimeiraParcela, diaVencimento],
+    [baloes, numParcelasMensais, dataPrimeiraParcela, diaVencimento, tipoCorrecaoAnual],
   );
 
   const updateRow = (ordem: number, patch: Partial<BalaoContratoFormRow>) => {
@@ -88,7 +86,8 @@ export function ContratoBaloesEditor({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-white/55">
-          Série paralela às parcelas mensais. O vencimento coincide com a parcela de referência.
+          Série paralela às parcelas mensais. Informe o valor apenas do B1; os demais serão calculados
+          nas correções com o índice de referência.
         </p>
         {!disabled && (
           <Button
@@ -102,6 +101,29 @@ export function ContratoBaloesEditor({
           />
         )}
       </div>
+
+      {onTipoCorrecaoAnualChange ? (
+        <div className={cn("flex flex-col gap-2", compact ? "max-w-xs" : "max-w-sm")}>
+          <label className="text-sm font-medium text-white/90">
+            Índice de referência <span className="text-rose-400">*</span>
+          </label>
+          <Dropdown
+            value={tipoCorrecaoAnual}
+            options={[...TIPO_CORRECAO_INDICE_OPTIONS]}
+            onChange={(e) => onTipoCorrecaoAnualChange(e.value)}
+            disabled={disabled}
+            placeholder="Selecione o índice"
+            className={cn("w-full", { "p-invalid": tipoCorrecaoError })}
+          />
+          {tipoCorrecaoError ? (
+            <small className="p-error">{tipoCorrecaoError}</small>
+          ) : (
+            <small className="text-white/45">
+              Usado para calcular o valor dos balões B2, B3… a partir do B1.
+            </small>
+          )}
+        </div>
+      ) : null}
 
       {errorMessage ? (
         <Message severity="error" text={errorMessage} className="w-full" />
@@ -127,14 +149,18 @@ export function ContratoBaloesEditor({
             />
             <Column
               header="Valor (R$)"
-              body={(row: BalaoContratoFormRow) => (
-                <BrlMoneyInput
-                  value={row.valor}
-                  onChange={(v) => updateRow(row.ordem, { valor: v })}
-                  disabled={disabled}
-                  className="w-full min-w-[8rem]"
-                />
-              )}
+              body={(row: BalaoContratoFormRow) =>
+                row.ordem === 1 ? (
+                  <BrlMoneyInput
+                    value={row.valor}
+                    onChange={(v) => updateRow(row.ordem, { valor: v })}
+                    disabled={disabled}
+                    className="w-full min-w-[8rem]"
+                  />
+                ) : (
+                  <span className="text-sm italic text-white/40">Calculado na correção</span>
+                )
+              }
             />
             <Column
               header="Vence com parcela"
@@ -150,19 +176,6 @@ export function ContratoBaloesEditor({
                 />
               )}
               style={{ width: "9rem" }}
-            />
-            <Column
-              header="Reajuste"
-              body={(row: BalaoContratoFormRow) => (
-                <Dropdown
-                  value={row.reajusteIndice ?? ""}
-                  options={REAJUSTE_OPTIONS}
-                  onChange={(e) => updateRow(row.ordem, { reajusteIndice: e.value })}
-                  disabled={disabled}
-                  className="w-full min-w-[8rem]"
-                />
-              )}
-              style={{ width: "10rem" }}
             />
             {!disabled ? (
               <Column
@@ -202,7 +215,7 @@ export function ContratoBaloesEditor({
               />
               <Column
                 header="Valor"
-                body={(row) => dashboardCellMono(formatBrl(row.valor))}
+                body={(row) => dashboardCellText(row.valorLabel)}
               />
               <Column
                 header="Ref."
@@ -214,8 +227,8 @@ export function ContratoBaloesEditor({
                 body={(row) => dashboardCellText(row.vencimentoLabel)}
               />
               <Column
-                header="Reajuste"
-                body={(row) => dashboardCellText(row.reajusteLabel)}
+                header="Índice"
+                body={(row) => dashboardCellText(row.indiceLabel)}
                 style={{ width: "7rem" }}
               />
             </DataTable>

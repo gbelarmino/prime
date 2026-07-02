@@ -8,19 +8,32 @@ import type { BalaoContratoFormRow } from "@/lib/validations/contrato-honorarios
 
 export type BalaoContratoApiItem = {
   ordem: number;
-  valor: number;
+  valor: number | null;
   parcelaReferencia: number;
   reajusteIndice?: boolean | null;
 };
 
 export type BalaoContratoPreviewRow = {
   ordem: number;
-  valor: number;
+  valor: number | null;
+  valorLabel: string;
   parcelaReferencia: number;
   vencimento: string | null;
   vencimentoLabel: string;
-  reajusteLabel: string;
+  indiceLabel: string;
 };
+
+export const TIPO_CORRECAO_INDICE_OPTIONS = [
+  { label: "IGPM", value: "IGPM" },
+  { label: "IPCA", value: "IPCA" },
+  { label: "INPC", value: "INPC" },
+  { label: "Nenhum", value: "NENHUM" },
+] as const;
+
+export function labelIndiceReferencia(tipoCorrecaoAnual: string | undefined | null): string {
+  const opt = TIPO_CORRECAO_INDICE_OPTIONS.find((o) => o.value === tipoCorrecaoAnual);
+  return opt?.label ?? "—";
+}
 
 function optionalInt(s: string | undefined): number | null {
   const t = (s ?? "").trim();
@@ -45,31 +58,33 @@ export function baloesApiToForm(
     .sort((a, b) => a.ordem - b.ordem)
     .map((b) => ({
       ordem: b.ordem,
-      valor: b.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      valor:
+        b.ordem === 1 && b.valor != null && b.valor > 0
+          ? b.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : "",
       parcelaReferencia: String(b.parcelaReferencia),
-      reajusteIndice:
-        b.reajusteIndice === true ? "sim" : b.reajusteIndice === false ? "nao" : "",
+      reajusteIndice: "",
     }));
 }
 
 export function baloesFormToApi(rows: BalaoContratoFormRow[]): BalaoContratoApiItem[] {
   const out: BalaoContratoApiItem[] = [];
   for (const r of rows) {
-    const valor = parseMoneyBrl(r.valor);
     const parcelaReferencia = optionalInt(r.parcelaReferencia);
-    if (valor == null || valor <= 0 || parcelaReferencia == null || parcelaReferencia < 1) {
+    if (parcelaReferencia == null || parcelaReferencia < 1) {
       continue;
     }
-    const reajusteIndice =
-      r.reajusteIndice === "sim" ? true : r.reajusteIndice === "nao" ? false : null;
-    out.push({
-      ordem: r.ordem,
-      valor,
-      parcelaReferencia,
-      reajusteIndice,
-    });
+    if (r.ordem === 1) {
+      const valor = parseMoneyBrl(r.valor);
+      if (valor == null || valor <= 0) {
+        continue;
+      }
+      out.push({ ordem: 1, valor, parcelaReferencia, reajusteIndice: null });
+      continue;
+    }
+    out.push({ ordem: r.ordem, valor: null, parcelaReferencia, reajusteIndice: null });
   }
-  return out;
+  return out.sort((a, b) => a.ordem - b.ordem);
 }
 
 /** Espelha {@code BaloesContratoValidator} no backend. */
@@ -79,7 +94,7 @@ export function validarBaloesForm(
 ): string | null {
   const numMax = optionalInt(numParcelasMensais);
   const ativos = rows.filter(
-    (r) => r.valor.trim() || r.parcelaReferencia.trim(),
+    (r) => r.parcelaReferencia.trim() || (r.ordem === 1 && r.valor.trim()),
   );
   if (ativos.length === 0) return null;
 
@@ -91,9 +106,11 @@ export function validarBaloesForm(
     if (row.ordem !== expectedOrdem) {
       return "Balões: ordem deve ser sequencial (1, 2, 3…) sem lacunas.";
     }
-    const valor = parseMoneyBrl(row.valor);
-    if (valor == null || valor <= 0) {
-      return `Balão ${row.ordem}: valor deve ser maior que zero.`;
+    if (row.ordem === 1) {
+      const valor = parseMoneyBrl(row.valor);
+      if (valor == null || valor <= 0) {
+        return "Balão 1: valor deve ser maior que zero.";
+      }
     }
     const ref = optionalInt(row.parcelaReferencia);
     if (ref == null || ref < 1) {
@@ -116,9 +133,13 @@ export function previewBaloesContrato(opts: {
   numParcelasMensais: string;
   dataPrimeiraParcela: string;
   diaVencimento: string;
+  tipoCorrecaoAnual?: string;
 }): BalaoContratoPreviewRow[] {
   const api = baloesFormToApi(opts.baloes);
   if (api.length === 0) return [];
+
+  const indiceLabel = labelIndiceReferencia(opts.tipoCorrecaoAnual);
+  const valorB1 = api.find((b) => b.ordem === 1)?.valor ?? null;
 
   const dia = optionalInt(opts.diaVencimento);
   const numMax = optionalInt(opts.numParcelasMensais);
@@ -126,12 +147,12 @@ export function previewBaloesContrato(opts: {
   if (dia == null || dia < 1 || !dataPrimeira || numMax == null || numMax < 1) {
     return api.map((b) => ({
       ordem: b.ordem,
-      valor: b.valor,
+      valor: b.ordem === 1 ? b.valor : null,
+      valorLabel: b.ordem === 1 && b.valor != null ? formatBrl(b.valor) : "Calculado na correção",
       parcelaReferencia: b.parcelaReferencia,
       vencimento: null,
       vencimentoLabel: "Informe 1ª parcela e dia de vencimento",
-      reajusteLabel:
-        b.reajusteIndice === true ? "Sim" : b.reajusteIndice === false ? "Não" : "A definir",
+      indiceLabel,
     }));
   }
 
@@ -147,16 +168,26 @@ export function previewBaloesContrato(opts: {
   return api.map((b) => {
     const det = cronograma[b.parcelaReferencia - 1];
     const venc = det?.vencimento ?? null;
+    const valor = b.ordem === 1 ? b.valor : null;
     return {
       ordem: b.ordem,
-      valor: b.valor,
+      valor,
+      valorLabel:
+        b.ordem === 1 && valor != null
+          ? formatBrl(valor)
+          : valorB1 != null
+            ? `Calculado (${formatBrl(valorB1)} + ${indiceLabel})`
+            : "Calculado na correção",
       parcelaReferencia: b.parcelaReferencia,
       vencimento: venc ? formatIsoDate(venc) : null,
       vencimentoLabel: venc
         ? venc.toLocaleDateString("pt-BR")
         : "Parcela fora do cronograma",
-      reajusteLabel:
-        b.reajusteIndice === true ? "Sim" : b.reajusteIndice === false ? "Não" : "A definir",
+      indiceLabel,
     };
   });
+}
+
+function formatBrl(n: number) {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }

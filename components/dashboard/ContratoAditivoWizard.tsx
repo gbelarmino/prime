@@ -203,6 +203,8 @@ function CondicoesFields({
           numParcelasMensais={values.numParcelasMensais}
           dataPrimeiraParcela={values.dataPrimeiraParcela}
           diaVencimento={values.diaVencimento}
+          tipoCorrecaoAnual={values.tipoCorrecaoAnual}
+          onTipoCorrecaoAnualChange={(tipoCorrecaoAnual) => onChange({ tipoCorrecaoAnual })}
           compact
         />
       </div>
