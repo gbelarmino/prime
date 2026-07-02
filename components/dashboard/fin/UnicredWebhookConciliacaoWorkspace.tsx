@@ -40,6 +40,7 @@ import {
 import type { SpringPage } from "@/lib/spring-page";
 import { springPageDisplayRange } from "@/lib/spring-page";
 import { notifyUnicredWebhookPendentesChanged } from "@/hooks/use-unicred-webhook-pendentes";
+import { parseIsoDate } from "@/lib/fin-vencimento";
 
 const STATUS_OPTIONS: { label: string; value: UnicredWebhookConciliacaoStatus | "" }[] = [
   { label: "Pendentes", value: "PENDENTE" },
@@ -110,6 +111,22 @@ function formatDateTime(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+function formatVencimento(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return parseIsoDate(iso.slice(0, 10)).toLocaleDateString("pt-BR");
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
+
+function rotuloParcelaTitulo(t: TituloCobranca): string {
+  if (t.tipoParcela === "BALAO" && t.numeroBalao != null) {
+    return `B${t.numeroBalao}`;
+  }
+  return `P${t.numeroParcela}`;
 }
 
 export function UnicredWebhookConciliacaoWorkspace() {
@@ -735,14 +752,20 @@ export function UnicredWebhookConciliacaoWorkspace() {
                                     : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
                                 )}
                               >
-                                <span className="font-mono text-white/85">{t.numeroContrato}</span>
-                                <span className="text-white/45"> · P{t.numeroParcela}</span>
-                                <span className="ml-2 tabular-nums text-white/75">
-                                  {formatMoney(t.valorNominal)}
-                                </span>
-                                <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-white/35">
-                                  {t.status}
-                                </span>
+                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <span className="font-mono text-white/85">{t.numeroContrato}</span>
+                                  <span className="text-white/45"> · {rotuloParcelaTitulo(t)}</span>
+                                  <span className="tabular-nums text-white/75">
+                                    {formatMoney(t.valorNominal)}
+                                  </span>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
+                                    {t.status}
+                                  </span>
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-white/40">
+                                  <span className="font-mono">Nº {t.nossoNumero || "—"}</span>
+                                  <span>Venc. {formatVencimento(t.vencimento)}</span>
+                                </div>
                               </button>
                             ))}
                           </div>
