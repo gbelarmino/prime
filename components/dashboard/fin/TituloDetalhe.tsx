@@ -23,6 +23,7 @@ import { formatDataPagamentoExibicao } from "@/lib/fin-vencimento";
 import { dashboardCellText, dashboardStatusBadge } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloLegadoManualDialog } from "@/components/dashboard/fin/TituloLegadoManualDialog";
+import { TituloBalaoLegadoManualDialog } from "@/components/dashboard/fin/TituloBalaoLegadoManualDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
 import { labelAcaoBoletoPdf, podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import { atendimentoService } from "@/lib/atendimento-service";
@@ -586,8 +587,20 @@ export function TituloDetalhe({
           />
 
           <TituloLegadoManualDialog
-            visible={editLegadoOpen}
-            tituloId={tituloId}
+            visible={editLegadoOpen && titulo.tipoParcela !== "BALAO"}
+            tituloId={titulo.tipoParcela !== "BALAO" ? tituloId : null}
+            onHide={() => setEditLegadoOpen(false)}
+            onCreated={(atualizado) => {
+              setEditLegadoOpen(false);
+              if (atualizado) {
+                setTitulo(atualizado);
+              }
+              void load();
+            }}
+          />
+          <TituloBalaoLegadoManualDialog
+            visible={editLegadoOpen && titulo.tipoParcela === "BALAO"}
+            tituloId={titulo.tipoParcela === "BALAO" ? tituloId : null}
             onHide={() => setEditLegadoOpen(false)}
             onCreated={(atualizado) => {
               setEditLegadoOpen(false);

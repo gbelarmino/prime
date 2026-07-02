@@ -65,6 +65,8 @@ import {
   getFinTituloBalaoUrl,
   getFinTituloBalaoPendentesUrl,
   getFinTituloBalaoSimularUrl,
+  getFinTituloBalaoLegadoManualUrl,
+  getFinTituloBalaoLegadoManualByIdUrl,
   getFinTituloContextoLoteUrl,
   getFinTituloLegadoManualQuadrasUrl,
   getFinTituloLegadoManualLotesUrl,
@@ -655,6 +657,28 @@ export interface TituloLegadoManualCreate {
 
 export type TituloLegadoManualUpdate = Omit<TituloLegadoManualCreate, "contratoId" | "convenioId">;
 
+export interface TituloBalaoLegadoManualCreate {
+  contratoId: number;
+  numeroBalao: number;
+  valorNominal: number;
+  vencimento: string;
+  statusFinal: TituloLegadoManualStatus;
+  nossoNumero?: string;
+  linhaDigitavel?: string;
+  codigoBarras?: string;
+  idExternoBanco?: string;
+  urlBoleto?: string;
+  valorPago?: number;
+  dataPagamento?: string;
+  valorJuros?: number;
+  valorMulta?: number;
+  valorDesconto?: number;
+  valorTarifa?: number;
+  observacao?: string;
+}
+
+export type TituloBalaoLegadoManualUpdate = Omit<TituloBalaoLegadoManualCreate, "contratoId" | "numeroBalao">;
+
 export interface TituloLiquidarPayload {
   valorPago: number;
   dataPagamento: string;
@@ -1054,6 +1078,27 @@ export const finService = {
     body: TituloLegadoManualUpdate,
   ): Promise<TituloCobranca> {
     const res = await apiFetch(getFinTituloLegadoManualByIdUrl(id), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async criarTituloBalaoLegadoManual(body: TituloBalaoLegadoManualCreate): Promise<TituloCobranca> {
+    const res = await apiFetch(getFinTituloBalaoLegadoManualUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async atualizarTituloBalaoLegadoManual(
+    id: string,
+    body: TituloBalaoLegadoManualUpdate,
+  ): Promise<TituloCobranca> {
+    const res = await apiFetch(getFinTituloBalaoLegadoManualByIdUrl(id), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

@@ -1151,6 +1151,18 @@ export function getFinTituloBalaoSimularUrl(contratoId: number, numeroBalao: num
   return `${base}/simular?${params.toString()}`;
 }
 
+export function getFinTituloBalaoLegadoManualUrl(): string {
+  const base = getFinTituloBalaoUrl();
+  if (!base) return "";
+  return `${base}/legado-manual`;
+}
+
+export function getFinTituloBalaoLegadoManualByIdUrl(id: string): string {
+  const base = getFinTituloByIdUrl(id);
+  if (!base) return "";
+  return `${base}/balao/legado-manual`;
+}
+
 export function getFinCobrancaGruposUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finCobrancaGrupos);
 }
