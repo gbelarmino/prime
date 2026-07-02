@@ -1629,6 +1629,11 @@ export function getFinUnicredWebhookReprocessarFalhasAuthUrl(): string {
   return base ? `${base}/reprocessar-falhas-auth` : "";
 }
 
+export function getFinUnicredWebhookSincronizarPendentesUrl(): string {
+  const base = getFinUnicredWebhookConciliacaoUrl();
+  return base ? `${base}/sincronizar-pendentes` : "";
+}
+
 export type AuditoriaAtividadesQuery = {
   q?: string;
   modulo?: string;

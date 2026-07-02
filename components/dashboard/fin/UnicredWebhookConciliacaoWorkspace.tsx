@@ -11,7 +11,7 @@ import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
 import { TabPanel, TabView } from "primereact/tabview";
 import { toast } from "sonner";
-import { Link2, PlusCircle, RefreshCw, Search } from "lucide-react";
+import { Link2, PlusCircle, RefreshCw, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import {
@@ -141,6 +141,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
   const [lote, setLote] = useState<number | null>(null);
   const [contextoLote, setContextoLote] = useState<TituloContextoLote | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
 
   const carregarLista = useCallback(async () => {
     setLoading(true);
@@ -319,6 +320,35 @@ export function UnicredWebhookConciliacaoWorkspace() {
     }
   };
 
+  const executarSincronizar = async () => {
+    const limite = Math.min(Math.max(pendentes || 200, 1), 500);
+    const ok = window.confirm(
+      `Sincronizar até ${limite} webhook(s) pendente(s)?\n\n` +
+        "O sistema tentará localizar títulos por UUID Unicred, seu número ou nosso número " +
+        "(útil quando o nosso número foi atualizado em título legado após o webhook).",
+    );
+    if (!ok) return;
+
+    setSyncLoading(true);
+    try {
+      const resposta = await finService.sincronizarUnicredWebhookPendentes(
+        { limite },
+        { skipLoading: true },
+      );
+      toast.success(
+        `Sincronização concluída: ${resposta.sincronizados} vinculado(s), ` +
+          `${resposta.aindaPendentes} ainda pendente(s)` +
+          (resposta.falhas > 0 ? `, ${resposta.falhas} falha(s)` : ""),
+      );
+      notifyUnicredWebhookPendentesChanged();
+      await carregarLista();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao sincronizar pendentes");
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
   const statusBody = (row: UnicredWebhookConciliacaoResumo) =>
     dashboardStatusBadge(
       STATUS_LABELS[row.statusConciliacao ?? "PENDENTE"] ?? row.statusConciliacao ?? "—",
@@ -414,15 +444,26 @@ export function UnicredWebhookConciliacaoWorkspace() {
               <span className="font-mono font-semibold tabular-nums">{pendentes}</span> pendente(s)
             </span>
           </p>
-          <button
-            type="button"
-            onClick={() => void carregarLista()}
-            disabled={loading}
-            className="inline-flex h-10 items-center gap-2 self-start rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-white hover:bg-white/10 md:self-auto"
-          >
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-            Atualizar
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => void executarSincronizar()}
+              disabled={syncLoading || loading || pendentes === 0}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
+            >
+              <Sparkles className={cn("h-4 w-4", syncLoading && "animate-pulse")} />
+              {syncLoading ? "A sincronizar…" : "Sincronizar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void carregarLista()}
+              disabled={loading}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-white hover:bg-white/10"
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              Atualizar
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-end gap-3">

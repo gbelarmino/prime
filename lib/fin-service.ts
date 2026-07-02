@@ -36,6 +36,7 @@ import {
   getFinUnicredWebhookConciliacaoPendentesUrl,
   getFinUnicredWebhookConciliacaoReprocessarUrl,
   getFinUnicredWebhookReprocessarFalhasAuthUrl,
+  getFinUnicredWebhookSincronizarPendentesUrl,
   getFinUnicredWebhookConciliacaoVincularUrl,
   getFinPorImovelByIdUrl,
   getFinPorImovelListUrl,
@@ -901,6 +902,34 @@ export interface UnicredWebhookReprocessamentoLoteResponse {
   itens: UnicredWebhookReprocessamentoLoteItem[];
 }
 
+export interface UnicredWebhookSincronizacaoPendentesRequest {
+  limite?: number;
+  dryRun?: boolean;
+}
+
+export type UnicredWebhookSincronizacaoSituacao =
+  | "SINCRONIZADO"
+  | "ENCONTRADO"
+  | "AINDA_PENDENTE"
+  | "FALHA"
+  | "IGNORADO";
+
+export interface UnicredWebhookSincronizacaoPendentesItem {
+  logId: string;
+  situacao: UnicredWebhookSincronizacaoSituacao | string;
+  mensagem?: string | null;
+  tituloId?: string | null;
+}
+
+export interface UnicredWebhookSincronizacaoPendentesResponse {
+  candidatos: number;
+  sincronizados: number;
+  aindaPendentes: number;
+  falhas: number;
+  dryRun: boolean;
+  itens: UnicredWebhookSincronizacaoPendentesItem[];
+}
+
 async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { message?: string };
@@ -1661,6 +1690,19 @@ export const finService = {
     options?: FinFetchOptions,
   ): Promise<UnicredWebhookReprocessamentoLoteResponse> {
     const res = await apiFetch(getFinUnicredWebhookReprocessarFalhasAuthUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload ?? {}),
+      skipLoading: options?.skipLoading,
+    });
+    return parseJson(res);
+  },
+
+  async sincronizarUnicredWebhookPendentes(
+    payload?: UnicredWebhookSincronizacaoPendentesRequest,
+    options?: FinFetchOptions,
+  ): Promise<UnicredWebhookSincronizacaoPendentesResponse> {
+    const res = await apiFetch(getFinUnicredWebhookSincronizarPendentesUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload ?? {}),
