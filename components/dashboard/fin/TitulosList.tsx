@@ -49,6 +49,15 @@ import { TituloSmsReguaDialog } from "@/components/dashboard/fin/TituloSmsReguaD
 import { TituloSmsNotificacoesDialog } from "@/components/dashboard/fin/TituloSmsNotificacoesDialog";
 import { TituloSmsNotificacoesBadge } from "@/components/dashboard/fin/TituloSmsNotificacoesBadge";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
+import { useSmsFilaRealtime } from "@/hooks/use-sms-fila-realtime";
+import { normalizeSmsFilaItem, type SmsFilaWsEvent } from "@/lib/sms-fila-realtime";
+import {
+  applyTitulosSmsFromEnqueue,
+  applyTitulosSmsFromLoteGrupos,
+  applyTitulosSmsFromWsEvent,
+  mergeTituloSmsNotificacaoList,
+  tituloIdsAsStrings,
+} from "@/lib/titulo-sms-realtime";
 import {
   finService,
   formatContratoRef,
@@ -445,6 +454,27 @@ export function TitulosList({
   useEffect(() => {
     void load(hasLoadedRef.current);
   }, [load]);
+
+  const tituloSmsNotificacoesDialogId = tituloSmsNotificacoes?.id ?? null;
+
+  const onSmsFilaRealtime = useCallback(
+    (event: SmsFilaWsEvent) => {
+      const item = normalizeSmsFilaItem(event.item);
+      setPageData((prev) => applyTitulosSmsFromWsEvent(prev, event));
+      if (!tituloSmsNotificacoesDialogId) return;
+      setSmsNotificacoes((prev) => {
+        const merged = mergeTituloSmsNotificacaoList(
+          prev,
+          item,
+          tituloSmsNotificacoesDialogId,
+        );
+        return merged ?? prev;
+      });
+    },
+    [tituloSmsNotificacoesDialogId],
+  );
+
+  useSmsFilaRealtime(onSmsFilaRealtime);
 
   useEffect(() => {
     setPage(0);
@@ -1166,6 +1196,9 @@ export function TitulosList({
         titulosWhatsAppSelecionados.map((t) => t.id),
       );
       setSmsLoteResultado(resultado);
+      if (resultado.smsEnfileirados > 0) {
+        setPageData((prev) => applyTitulosSmsFromLoteGrupos(prev, resultado.grupos));
+      }
       if (resultado.smsFalhas === 0) {
         toast.success(
           `${resultado.smsEnfileirados} SMS enfileirado(s) na fila de envio.`,
@@ -1255,6 +1288,12 @@ export function TitulosList({
     try {
       const resultado = await finService.enfileirarSmsReguaCobranca(tituloSmsRegua.id);
       if (resultado.enfileirado) {
+        const tituloIds = tituloIdsAsStrings(
+          resultado.tituloIds?.length ? resultado.tituloIds : [tituloSmsRegua.id],
+        );
+        setPageData((prev) =>
+          applyTitulosSmsFromEnqueue(prev, tituloIds, resultado.smsNotificacao),
+        );
         toast.success("SMS enfileirado na fila de envio (régua de cobrança).");
         fecharSmsReguaDialog();
       } else {

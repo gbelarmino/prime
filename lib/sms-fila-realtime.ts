@@ -18,6 +18,9 @@ type SmsFilaWsItemRaw = {
   dataCriacao?: string | null;
   erro?: string | null;
   externalId?: string | null;
+  externalSmsId?: string | null;
+  tituloCobrancaId?: string | null;
+  tituloIds?: string[] | null;
 };
 
 export type SmsFilaWsEvent = {
@@ -37,6 +40,9 @@ export function normalizeSmsFilaItem(raw: SmsFilaWsItemRaw): SmsFilaItem {
     dataCriacao: raw.dataCriacao ?? "",
     erro: raw.erro ?? null,
     externalId: raw.externalId ?? null,
+    externalSmsId: raw.externalSmsId ?? null,
+    tituloCobrancaId: raw.tituloCobrancaId ?? null,
+    tituloIds: raw.tituloIds ?? null,
   };
 }
 

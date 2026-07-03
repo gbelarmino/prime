@@ -76,6 +76,8 @@ export interface SmsFilaItem {
   erro?: string | null;
   externalId?: string | null;
   externalSmsId?: string | null;
+  tituloCobrancaId?: string | null;
+  tituloIds?: string[] | null;
 }
 
 type SmsFilaItemRaw = Partial<SmsFilaItem> & {
@@ -96,6 +98,8 @@ function normalizeSmsFilaItem(raw: SmsFilaItemRaw): SmsFilaItem {
     erro: raw.erro ?? null,
     externalId: raw.externalId ?? null,
     externalSmsId: raw.externalSmsId ?? null,
+    tituloCobrancaId: raw.tituloCobrancaId ?? null,
+    tituloIds: raw.tituloIds ?? null,
   };
 }
 

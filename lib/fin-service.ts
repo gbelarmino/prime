@@ -213,6 +213,8 @@ export interface TituloSmsCobrancaResult {
   enfileirado: boolean;
   filaId?: number | null;
   mensagem?: string | null;
+  tituloIds?: string[];
+  smsNotificacao?: TituloSmsNotificacaoResumo | null;
 }
 
 export interface TituloWhatsAppCobrancaLoteGrupo {
@@ -253,6 +255,8 @@ export interface TituloSmsCobrancaLoteGrupo {
   enfileirado: boolean;
   filaId?: number | null;
   mensagem?: string | null;
+  tituloIds?: string[];
+  smsNotificacao?: TituloSmsNotificacaoResumo | null;
 }
 
 export interface TituloSmsCobrancaLoteResult {
