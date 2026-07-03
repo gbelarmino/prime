@@ -10,7 +10,7 @@ import {
 } from "@/lib/fin-service";
 import { formatBusinessDateTimeWithSeconds } from "@/lib/format-datetime";
 import { formatPhoneDisplay } from "@/lib/format-phone";
-import { SMS_FILA_STATUS_TONES, smsFilaStatusLabel } from "@/lib/sms-fila-status";
+import { SMS_FILA_STATUS_TONES, smsFilaStatusBadgeLabel } from "@/lib/sms-fila-status";
 import { cn } from "@/lib/utils";
 
 const DIALOG_PT = {
@@ -49,7 +49,11 @@ function NotificacaoCard({ item }: { item: TituloSmsNotificacao }) {
     <article className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          {dashboardStatusBadge(smsFilaStatusLabel(item.status), SMS_FILA_STATUS_TONES, item.status)}
+          {dashboardStatusBadge(
+            smsFilaStatusBadgeLabel(item.status, item.dataAgendada),
+            SMS_FILA_STATUS_TONES,
+            item.status,
+          )}
           <span className="font-mono text-[11px] tabular-nums text-white/45">#{item.id}</span>
         </div>
         <span className="text-[11px] text-white/50">

@@ -137,7 +137,15 @@ export interface TituloCobranca {
   alteradoEm: string;
   usuarioNome?: string | null;
   legado?: boolean;
+  smsNotificacoes?: TituloSmsNotificacaoResumo[];
   smsNotificacoesEnviadas?: number;
+}
+
+export interface TituloSmsNotificacaoResumo {
+  id: number;
+  status: string;
+  dataAgendada: string;
+  dataEnvio?: string | null;
 }
 
 /** Item da fila SMS vinculado a um título (detalhe na listagem de títulos). */

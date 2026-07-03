@@ -47,6 +47,7 @@ import { TituloEmailLoteDialog } from "@/components/dashboard/fin/TituloEmailLot
 import { TituloSmsLoteDialog } from "@/components/dashboard/fin/TituloSmsLoteDialog";
 import { TituloSmsReguaDialog } from "@/components/dashboard/fin/TituloSmsReguaDialog";
 import { TituloSmsNotificacoesDialog } from "@/components/dashboard/fin/TituloSmsNotificacoesDialog";
+import { TituloSmsNotificacoesBadge } from "@/components/dashboard/fin/TituloSmsNotificacoesBadge";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import {
   finService,
@@ -1218,34 +1219,16 @@ export function TitulosList({
   };
 
   const renderTituloStatusBody = (row: TituloCobranca) => {
-      const smsCount = row.smsNotificacoesEnviadas ?? 0;
       if (!tituloEstaVencido(row)) {
         return dashboardStatusBadge(row.status, STATUS_TONES);
       }
-      const smsTitle =
-        smsCount === 1
-          ? "1 notificação SMS enviada com sucesso"
-          : `${smsCount} notificações SMS enviadas com sucesso`;
       return (
         <span className="inline-flex flex-wrap items-center gap-1.5">
           {dashboardStatusBadge(row.status, STATUS_TONES)}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              void abrirSmsNotificacoes(row);
-            }}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider tabular-nums transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40",
-              smsCount > 0
-                ? "border-sky-500/25 bg-sky-500/15 text-sky-300"
-                : "border-white/10 bg-white/5 text-white/35",
-            )}
-            title={`${smsTitle}. Clique para ver detalhes.`}
-          >
-            <MessageSquare size={11} aria-hidden />
-            {smsCount}
-          </button>
+          <TituloSmsNotificacoesBadge
+            notificacoes={row.smsNotificacoes ?? []}
+            onClick={() => void abrirSmsNotificacoes(row)}
+          />
         </span>
       );
   };

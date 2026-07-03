@@ -30,17 +30,33 @@ export const SMS_FILA_STATUS_OPTIONS: { label: string; value: string }[] = [
 export const SMS_FILA_STATUS_LABELS: Record<string, string> = {
   PENDENTE: "Pendente",
   ENVIANDO: "Enviando",
-  pending: "Pending",
-  dispatched: "Dispatched",
-  sent: "Sent",
-  delivered: "Delivered",
-  failed: "Failed",
-  unknown: "Unknown",
+  pending: "Na fila (TextBee)",
+  dispatched: "Despachado",
+  sent: "Enviado",
+  delivered: "Entregue",
+  failed: "Falhou",
+  unknown: "Incerto",
   CANCELADO: "Cancelado",
   // legado (pré-migração)
-  ENVIADO: "Sent",
-  SUCESSO: "Delivered",
-  ERRO: "Failed",
+  ENVIADO: "Enviado",
+  SUCESSO: "Entregue",
+  ERRO: "Falhou",
+};
+
+/** Rótulo curto para badges compactos na listagem de títulos. */
+export const SMS_FILA_STATUS_BADGE_LABELS: Record<string, string> = {
+  PENDENTE: "Pendente",
+  ENVIANDO: "Enviando",
+  pending: "Fila TB",
+  dispatched: "Despachado",
+  sent: "Enviado",
+  delivered: "Entregue",
+  failed: "Falhou",
+  unknown: "Incerto",
+  CANCELADO: "Cancelado",
+  ENVIADO: "Enviado",
+  SUCESSO: "Entregue",
+  ERRO: "Falhou",
 };
 
 export const SMS_FILA_STATUS_TONES: Record<string, string> = {
@@ -60,6 +76,29 @@ export const SMS_FILA_STATUS_TONES: Record<string, string> = {
 
 export function smsFilaStatusLabel(status: string): string {
   return SMS_FILA_STATUS_LABELS[status] ?? status;
+}
+
+  /** Rótulo do badge; distingue agendamento futuro de pendente na fila. */
+export function smsFilaStatusBadgeLabel(status: string, dataAgendada?: string | null): string {
+  if (
+    status === SMS_FILA_STATUS.PENDENTE &&
+    dataAgendada &&
+    new Date(dataAgendada).getTime() > Date.now()
+  ) {
+    return "Agendado";
+  }
+  return SMS_FILA_STATUS_BADGE_LABELS[status] ?? smsFilaStatusLabel(status);
+}
+
+export function smsFilaStatusTone(status: string, dataAgendada?: string | null): string {
+  if (
+    status === SMS_FILA_STATUS.PENDENTE &&
+    dataAgendada &&
+    new Date(dataAgendada).getTime() > Date.now()
+  ) {
+    return "border-violet-500/25 bg-violet-500/15 text-violet-300";
+  }
+  return SMS_FILA_STATUS_TONES[status] ?? "border-white/10 bg-white/10 text-white/50";
 }
 
 export function canReprocessarSmsFila(status: string): boolean {
