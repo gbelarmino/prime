@@ -51,21 +51,18 @@ export function TituloSmsNotificacoesBadge({
       <MessageSquare size={11} aria-hidden className="shrink-0" />
       {hasItems ? (
         <span className="inline-flex min-w-0 flex-wrap items-center gap-0.5">
-          {items.map((item) => {
-            const label = smsFilaStatusBadgeLabel(item.status, item.dataAgendada);
-            return (
-              <span
-                key={item.id}
-                title={statusTooltip(item)}
-                className={cn(
-                  "inline-flex shrink-0 rounded border px-1 py-px text-[9px] font-bold uppercase tracking-wide",
-                  smsFilaStatusTone(item.status, item.dataAgendada),
-                )}
-              >
-                {label}
-              </span>
-            );
-          })}
+          {items.map((item, index) => (
+            <span
+              key={item.id}
+              title={statusTooltip(item)}
+              className={cn(
+                "inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded border px-0.5 text-[9px] font-bold tabular-nums",
+                smsFilaStatusTone(item.status, item.dataAgendada),
+              )}
+            >
+              {index + 1}
+            </span>
+          ))}
         </span>
       ) : (
         <span className="tabular-nums">0</span>
