@@ -91,6 +91,7 @@ export function SmsFila() {
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
   const [pageData, setPageData] = useState<SpringPage<SmsFilaItem> | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [cancelConfirmRow, setCancelConfirmRow] = useState<SmsFilaItem | null>(null);
@@ -138,6 +139,23 @@ export function SmsFila() {
     }
   }, [page, statusFilter]);
 
+  const refreshSilently = useCallback(async () => {
+    setBackgroundRefreshing(true);
+    try {
+      const data = await smsService.listFila(
+        pageRef.current,
+        PAGE_SIZE,
+        statusFilterRef.current || undefined,
+        { skipLoading: true },
+      );
+      setPageData(data);
+    } catch {
+      /* polling silencioso */
+    } finally {
+      setBackgroundRefreshing(false);
+    }
+  }, []);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -145,13 +163,10 @@ export function SmsFila() {
   /** Fallback se WebSocket não entregar (rede/proxy). */
   useEffect(() => {
     const timer = window.setInterval(() => {
-      void smsService.listFila(pageRef.current, PAGE_SIZE, statusFilterRef.current || undefined).then(
-        (data) => setPageData(data),
-        () => {},
-      );
+      void refreshSilently();
     }, 30_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [refreshSilently]);
 
   useEffect(() => {
     setPage(0);
@@ -377,7 +392,10 @@ export function SmsFila() {
             onClick={() => void load()}
             className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white disabled:opacity-50"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            <RefreshCw
+              size={14}
+              className={loading || backgroundRefreshing ? "animate-spin" : ""}
+            />
             Atualizar
           </button>
         </div>

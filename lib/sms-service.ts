@@ -294,8 +294,15 @@ export const smsService = {
     return res.json();
   },
 
-  async listFila(page = 0, size = 25, status?: string): Promise<SpringPage<SmsFilaItem>> {
-    const res = await apiFetch(getSmsFilaUrl(page, size, status));
+  async listFila(
+    page = 0,
+    size = 25,
+    status?: string,
+    options?: { skipLoading?: boolean },
+  ): Promise<SpringPage<SmsFilaItem>> {
+    const res = await apiFetch(getSmsFilaUrl(page, size, status), {
+      skipLoading: options?.skipLoading,
+    });
     if (!res.ok) throw new Error("Erro ao listar fila");
     const data = (await res.json()) as SpringPage<SmsFilaItemRaw>;
     return {
