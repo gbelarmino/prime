@@ -42,6 +42,7 @@ import {
   criarRenegociacao,
   obterRenegociacao,
   obterRenegociacaoAtivaEmAndamento,
+  obterSimulacaoRenegociacao,
   efetivarRenegociacao,
   listarOperacoesEfetivacao,
   gerarDocumentosRenegociacao,
@@ -78,6 +79,7 @@ import {
   type ModalidadeRenegociacao,
   type RenegociacaoSimulacaoResponse,
   type EfetivarRenegociacaoResultado,
+  type StatusRenegociacao,
 } from "@/lib/renegociacao-types";
 import {
   condicoesToApiPayload,
@@ -172,6 +174,10 @@ export function RenegociacaoWizard({
   const [efetivacaoResultado, setEfetivacaoResultado] = useState<EfetivarRenegociacaoResultado | null>(
     null,
   );
+  const [statusProcesso, setStatusProcesso] = useState<StatusRenegociacao | null>(null);
+
+  const processoJaEfetivado =
+    statusProcesso === "EFETIVADO" || efetivacaoResultado?.concluida === true;
 
   useEffect(() => {
     fetchBoletoEncargosConfig()
@@ -284,22 +290,60 @@ export function RenegociacaoWizard({
         if (det.dataAcordo) {
           setDataAcordo(det.dataAcordo.slice(0, 10));
         }
+        setStatusProcesso(det.status);
+        if (det.propostaAtualId) {
+          setPropostaId(det.propostaAtualId);
+          setWorkflowOk(true);
+        }
+        if (
+          det.status === "EFETIVADO" ||
+          det.status === "EFETIVACAO_PARCIAL" ||
+          det.status === "ASSINADO" ||
+          det.status === "AGUARDANDO_ASSINATURA"
+        ) {
+          setDocumentosOk(true);
+        }
+        if (det.ultimaSimulacaoId) {
+          obterSimulacaoRenegociacao(contratoId, id, det.ultimaSimulacaoId)
+            .then((sim) => {
+              if (cancelled) return;
+              setSimulacao(sim);
+            })
+            .catch(() => {
+              /* simulação indisponível */
+            });
+        }
         if (det.status === "EFETIVACAO_PARCIAL" || det.status === "EFETIVADO") {
           setStep(6);
-          if (det.status === "EFETIVACAO_PARCIAL") {
-            listarOperacoesEfetivacao(contratoId, id)
-              .then((operacoes) => {
-                if (cancelled) return;
-                setEfetivacaoResultado({
-                  renegociacaoId: id,
-                  status: det.status,
-                  concluida: false,
-                  mensagemResumo: "Efetivação parcial — retome para concluir as operações pendentes.",
-                  operacoes,
-                });
-              })
-              .catch(() => {});
-          }
+          listarOperacoesEfetivacao(contratoId, id)
+            .then((operacoes) => {
+              if (cancelled) return;
+              setEfetivacaoResultado({
+                renegociacaoId: id,
+                versaoPublicadaId: det.versaoPublicadaId ?? null,
+                status: det.status,
+                concluida: det.status === "EFETIVADO",
+                mensagemResumo:
+                  det.status === "EFETIVADO"
+                    ? "Renegociação efetivada com sucesso."
+                    : "Efetivação parcial — retome para concluir as operações pendentes.",
+                operacoes,
+              });
+            })
+            .catch(() => {
+              if (cancelled) return;
+              setEfetivacaoResultado({
+                renegociacaoId: id,
+                versaoPublicadaId: det.versaoPublicadaId ?? null,
+                status: det.status,
+                concluida: det.status === "EFETIVADO",
+                mensagemResumo:
+                  det.status === "EFETIVADO"
+                    ? "Renegociação efetivada com sucesso."
+                    : "Efetivação parcial — retome para concluir as operações pendentes.",
+                operacoes: [],
+              });
+            });
         }
       })
       .catch(() => {
@@ -632,6 +676,7 @@ export function RenegociacaoWizard({
         key,
       );
       setEfetivacaoResultado(res);
+      setStatusProcesso(res.status);
       setStep(6);
       if (res.concluida && res.status === "EFETIVADO") {
         toast.success(
@@ -1178,7 +1223,7 @@ export function RenegociacaoWizard({
                 {modalidadeEfetivaNoWizard(modalidade) &&
                 renegociacaoId != null &&
                 renegociacaoId > 0 &&
-                (!efetivacaoResultado?.concluida) ? (
+                !processoJaEfetivado ? (
                   <Button
                     type="button"
                     loading={loading}

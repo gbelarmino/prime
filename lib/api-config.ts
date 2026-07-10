@@ -462,6 +462,15 @@ export function getRenegociacaoSimularUrl(contratoId: number, renegociacaoId: nu
   return b ? `${b}/${renegociacaoId}/simular` : "";
 }
 
+export function getRenegociacaoSimulacaoUrl(
+  contratoId: number,
+  renegociacaoId: number,
+  simulacaoId: number,
+): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/simulacoes/${simulacaoId}` : "";
+}
+
 export function getRenegociacaoPropostaPdfUrl(
   contratoId: number,
   renegociacaoId: number,

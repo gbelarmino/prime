@@ -12,6 +12,7 @@ import {
   getRenegociacaoPropostaPdfUrl,
   getRenegociacaoPropostaUrl,
   getRenegociacaoSimularUrl,
+  getRenegociacaoSimulacaoUrl,
   getRenegociacaoSubmeterAprovacaoUrl,
 } from "./api-config";
 import type {
@@ -110,6 +111,18 @@ export async function obterRenegociacao(
   const base = getRenegociacaoBaseUrl(contratoId);
   if (!base) throw new Error("API não configurada");
   const res = await apiFetch(`${base}/${renegociacaoId}`);
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function obterSimulacaoRenegociacao(
+  contratoId: number,
+  renegociacaoId: number,
+  simulacaoId: number,
+): Promise<RenegociacaoSimulacaoResponse> {
+  const url = getRenegociacaoSimulacaoUrl(contratoId, renegociacaoId, simulacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
