@@ -509,6 +509,14 @@ export function getRenegociacaoEfetivarUrl(contratoId: number, renegociacaoId: n
   return b ? `${b}/${renegociacaoId}/efetivar` : "";
 }
 
+export function getRenegociacaoEfetivacaoOperacoesUrl(
+  contratoId: number,
+  renegociacaoId: number,
+): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/efetivacao/operacoes` : "";
+}
+
 export function getRenegociacaoAuditoriaUrl(contratoId: number, renegociacaoId: number): string {
   const b = getRenegociacaoBaseUrl(contratoId);
   return b ? `${b}/${renegociacaoId}/auditoria` : "";

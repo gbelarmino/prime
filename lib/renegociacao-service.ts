@@ -7,6 +7,7 @@ import {
   getRenegociacoesConsultaUrl,
   getRenegociacaoCancelarUrl,
   getRenegociacaoEfetivarUrl,
+  getRenegociacaoEfetivacaoOperacoesUrl,
   getRenegociacaoGerarDocumentosUrl,
   getRenegociacaoPropostaPdfUrl,
   getRenegociacaoPropostaUrl,
@@ -15,6 +16,8 @@ import {
 } from "./api-config";
 import type {
   CriarRenegociacaoRequest,
+  EfetivacaoOperacao,
+  EfetivarRenegociacaoResultado,
   ModalidadeRenegociacao,
   RenegociacaoDetalhe,
   RenegociacaoConsultaItem,
@@ -398,7 +401,7 @@ export async function efetivarRenegociacao(
   renegociacaoId: number,
   body: { confirmarCancelamentoTitulos: boolean; titulosCancelarIds: string[] },
   idempotencyKey: string,
-): Promise<{ renegociacaoId: number; versaoPublicadaId?: number | null; status: string }> {
+): Promise<EfetivarRenegociacaoResultado> {
   const url = getRenegociacaoEfetivarUrl(contratoId, renegociacaoId);
   if (!url) throw new Error("API não configurada");
   const res = await apiFetch(url, {
@@ -410,7 +413,52 @@ export async function efetivarRenegociacao(
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await parseError(res));
-  return res.json();
+  const raw = (await res.json()) as Record<string, unknown>;
+  return normalizarEfetivacaoResultado(raw);
+}
+
+export async function listarOperacoesEfetivacao(
+  contratoId: number,
+  renegociacaoId: number,
+): Promise<EfetivacaoOperacao[]> {
+  const url = getRenegociacaoEfetivacaoOperacoesUrl(contratoId, renegociacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url, { skipLoading: true });
+  if (!res.ok) throw new Error(await parseError(res));
+  const raw = (await res.json()) as Record<string, unknown>[];
+  return raw.map(normalizarOperacao);
+}
+
+function normalizarOperacao(raw: Record<string, unknown>): EfetivacaoOperacao {
+  return {
+    id: Number(raw.id),
+    sequencia: Number(raw.sequencia),
+    tipo: String(raw.tipo ?? ""),
+    numeroParcela: raw.numeroParcela != null ? Number(raw.numeroParcela) : null,
+    tituloOrigemId: raw.tituloOrigemId != null ? String(raw.tituloOrigemId) : null,
+    tituloDestinoId: raw.tituloDestinoId != null ? String(raw.tituloDestinoId) : null,
+    statusOperacao: String(raw.statusOperacao ?? "PENDENTE"),
+    mensagemErro: raw.mensagemErro != null ? String(raw.mensagemErro) : null,
+    codigoInstrucaoBaixa:
+      raw.codigoInstrucaoBaixa != null ? String(raw.codigoInstrucaoBaixa) : null,
+    statusTituloResultado:
+      raw.statusTituloResultado != null ? String(raw.statusTituloResultado) : null,
+    executadoEm: raw.executadoEm != null ? String(raw.executadoEm) : null,
+  };
+}
+
+function normalizarEfetivacaoResultado(raw: Record<string, unknown>): EfetivarRenegociacaoResultado {
+  const operacoes = Array.isArray(raw.operacoes)
+    ? (raw.operacoes as Record<string, unknown>[]).map(normalizarOperacao)
+    : [];
+  return {
+    renegociacaoId: Number(raw.renegociacaoId),
+    versaoPublicadaId: raw.versaoPublicadaId != null ? Number(raw.versaoPublicadaId) : null,
+    status: String(raw.status ?? "RASCUNHO") as EfetivarRenegociacaoResultado["status"],
+    concluida: Boolean(raw.concluida),
+    mensagemResumo: String(raw.mensagemResumo ?? ""),
+    operacoes,
+  };
 }
 
 export async function listarAuditoriaRenegociacao(

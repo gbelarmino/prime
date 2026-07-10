@@ -17,6 +17,7 @@ export type StatusRenegociacao =
   | "AGUARDANDO_DOCUMENTOS"
   | "AGUARDANDO_ASSINATURA"
   | "ASSINADO"
+  | "EFETIVACAO_PARCIAL"
   | "EFETIVADO"
   | "CANCELADO"
   | "REVERTIDO";
@@ -234,6 +235,7 @@ export const STATUS_RENEGOCIACAO_LABEL: Record<StatusRenegociacao, string> = {
   AGUARDANDO_DOCUMENTOS: "Aguardando documentos",
   AGUARDANDO_ASSINATURA: "Aguardando assinatura",
   ASSINADO: "Assinado",
+  EFETIVACAO_PARCIAL: "Efetivação parcial",
   EFETIVADO: "Efetivado",
   CANCELADO: "Cancelado",
   REVERTIDO: "Revertido",
@@ -249,6 +251,7 @@ export const STATUS_RENEGOCIACAO_TONES: Record<StatusRenegociacao, string> = {
   AGUARDANDO_DOCUMENTOS: "border-violet-500/30 bg-violet-500/15 text-violet-200",
   AGUARDANDO_ASSINATURA: "border-cyan-500/30 bg-cyan-500/15 text-cyan-200",
   ASSINADO: "border-teal-500/30 bg-teal-500/15 text-teal-200",
+  EFETIVACAO_PARCIAL: "border-amber-500/35 bg-amber-600/20 text-amber-100",
   EFETIVADO: "border-emerald-500/35 bg-emerald-600/20 text-emerald-100",
   CANCELADO: "border-white/15 bg-white/10 text-white/40",
   REVERTIDO: "border-orange-500/25 bg-orange-500/10 text-orange-200/90",
@@ -257,3 +260,26 @@ export const STATUS_RENEGOCIACAO_TONES: Record<StatusRenegociacao, string> = {
 export function renegociacaoStatusLabel(status: StatusRenegociacao): string {
   return STATUS_RENEGOCIACAO_LABEL[status] ?? status;
 }
+
+export type EfetivacaoOperacao = {
+  id: number;
+  sequencia: number;
+  tipo: string;
+  numeroParcela?: number | null;
+  tituloOrigemId?: string | null;
+  tituloDestinoId?: string | null;
+  statusOperacao: "PENDENTE" | "SUCESSO" | "FALHA" | "PULADO" | string;
+  mensagemErro?: string | null;
+  codigoInstrucaoBaixa?: string | null;
+  statusTituloResultado?: string | null;
+  executadoEm?: string | null;
+};
+
+export type EfetivarRenegociacaoResultado = {
+  renegociacaoId: number;
+  versaoPublicadaId?: number | null;
+  status: StatusRenegociacao;
+  concluida: boolean;
+  mensagemResumo: string;
+  operacoes: EfetivacaoOperacao[];
+};

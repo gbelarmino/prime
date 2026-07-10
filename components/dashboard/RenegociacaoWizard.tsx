@@ -43,6 +43,7 @@ import {
   obterRenegociacao,
   obterRenegociacaoAtivaEmAndamento,
   efetivarRenegociacao,
+  listarOperacoesEfetivacao,
   gerarDocumentosRenegociacao,
   gerarPropostaRenegociacao,
   modalidadeEfetivaNoWizard,
@@ -70,11 +71,13 @@ import { InadimplenciaPresenteCard } from "@/components/dashboard/renegociacao-f
 import { QuitacaoLiquidacaoMemoriaCard } from "@/components/dashboard/renegociacao-form/QuitacaoLiquidacaoMemoriaCard";
 import { T1AcordoDetalheCard } from "@/components/dashboard/renegociacao-form/T1AcordoDetalheCard";
 import { RenegociacaoEfetivacaoResumo } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResumo";
+import { RenegociacaoEfetivacaoResultado } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResultado";
 import {
   MODALIDADE_OPTIONS,
   STATUS_RENEGOCIACAO_LABEL,
   type ModalidadeRenegociacao,
   type RenegociacaoSimulacaoResponse,
+  type EfetivarRenegociacaoResultado,
 } from "@/lib/renegociacao-types";
 import {
   condicoesToApiPayload,
@@ -166,6 +169,9 @@ export function RenegociacaoWizard({
   const [processoRetomado, setProcessoRetomado] = useState(false);
   const [encargos, setEncargos] = useState<BoletoEncargosConfig | null>(null);
   const [baixandoProposta, setBaixandoProposta] = useState(false);
+  const [efetivacaoResultado, setEfetivacaoResultado] = useState<EfetivarRenegociacaoResultado | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchBoletoEncargosConfig()
@@ -277,6 +283,23 @@ export function RenegociacaoWizard({
         }
         if (det.dataAcordo) {
           setDataAcordo(det.dataAcordo.slice(0, 10));
+        }
+        if (det.status === "EFETIVACAO_PARCIAL" || det.status === "EFETIVADO") {
+          setStep(6);
+          if (det.status === "EFETIVACAO_PARCIAL") {
+            listarOperacoesEfetivacao(contratoId, id)
+              .then((operacoes) => {
+                if (cancelled) return;
+                setEfetivacaoResultado({
+                  renegociacaoId: id,
+                  status: det.status,
+                  concluida: false,
+                  mensagemResumo: "Efetivação parcial — retome para concluir as operações pendentes.",
+                  operacoes,
+                });
+              })
+              .catch(() => {});
+          }
         }
       })
       .catch(() => {
@@ -608,12 +631,16 @@ export function RenegociacaoWizard({
         { confirmarCancelamentoTitulos: true, titulosCancelarIds },
         key,
       );
-      const msg =
-        modalidade === "T1_PARCELAS_VENCIDAS"
-          ? "Renegociação T1 efetivada — títulos cancelados e reemitidos."
-          : `Renegociação efetivada. Versão #${res.versaoPublicadaId ?? "—"}.`;
-      toast.success(msg);
-      router.push(`/dashboard/contratos?highlight=${contratoId}`);
+      setEfetivacaoResultado(res);
+      if (res.concluida && res.status === "EFETIVADO") {
+        toast.success(
+          modalidade === "T1_PARCELAS_VENCIDAS"
+            ? "Renegociação T1 efetivada — todas as operações concluídas."
+            : `Renegociação efetivada. Versão #${res.versaoPublicadaId ?? "—"}.`,
+        );
+      } else {
+        toast.warning(res.mensagemResumo || "Efetivação parcial — retome para concluir.");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha na efetivação");
     } finally {
@@ -1130,13 +1157,27 @@ export function RenegociacaoWizard({
                 propostaId={propostaId}
                 contratoId={contratoId}
               />
+              {efetivacaoResultado ? (
+                <RenegociacaoEfetivacaoResultado
+                  resultado={efetivacaoResultado}
+                  contratoId={contratoId}
+                  loading={loading}
+                  onRetentar={
+                    efetivacaoResultado.status === "EFETIVACAO_PARCIAL" ||
+                    !efetivacaoResultado.concluida
+                      ? processarEfetivacao
+                      : undefined
+                  }
+                />
+              ) : null}
               {modalidade === "T1_PARCELAS_VENCIDAS" && simulacao && (
                 <T1AcordoDetalheCard simulacao={simulacao} />
               )}
               <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-end">
                 {modalidadeEfetivaNoWizard(modalidade) &&
                 renegociacaoId != null &&
-                renegociacaoId > 0 ? (
+                renegociacaoId > 0 &&
+                (!efetivacaoResultado?.concluida) ? (
                   <Button
                     type="button"
                     loading={loading}
