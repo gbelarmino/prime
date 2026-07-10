@@ -6,7 +6,7 @@ export function referenciaEfetivaParaEmissao(referencia: Date): Date {
   return ref.getTime() > hoje.getTime() ? ref : hoje;
 }
 
-/** Próxima data de vencimento no dia do mês do contrato, estritamente após `referencia`. */
+/** Próxima data no dia do contrato, na referência ou depois (dia 10 com ref. dia 10 → aceita; ref. dia 11 → mês seguinte). */
 export function calcularProximoVencimentoBruto(diaVencimento: number, referencia: Date): Date {
   const ref = new Date(referencia.getFullYear(), referencia.getMonth(), referencia.getDate());
   let year = ref.getFullYear();
@@ -16,7 +16,7 @@ export function calcularProximoVencimentoBruto(diaVencimento: number, referencia
     const lastDay = new Date(year, month + 1, 0).getDate();
     const day = Math.min(diaVencimento, lastDay);
     const candidate = new Date(year, month, day);
-    if (candidate.getTime() > ref.getTime()) {
+    if (candidate.getTime() >= ref.getTime()) {
       return candidate;
     }
     month += 1;
@@ -62,7 +62,7 @@ export function calcularVencimentosParcelasDetalhe(
       vencimentoBruto: bruto,
       ajustadoPorDiaUtil: formatIsoDate(bruto) !== formatIsoDate(venc),
     });
-    cursor = venc;
+    cursor = new Date(venc.getFullYear(), venc.getMonth(), venc.getDate() + 1);
   }
   return vencimentos;
 }
@@ -86,7 +86,11 @@ export function calcularVencimentosComPrimeiraParcelaDetalhe(
     vencimentoBruto: brutoPrimeira,
     ajustadoPorDiaUtil: formatIsoDate(brutoPrimeira) !== formatIsoDate(vencPrimeira),
   });
-  let cursor = vencPrimeira;
+  let cursor = new Date(
+    vencPrimeira.getFullYear(),
+    vencPrimeira.getMonth(),
+    vencPrimeira.getDate() + 1,
+  );
   for (let i = 1; i < quantidade; i++) {
     const bruto = calcularProximoVencimentoBruto(diaVencimento, cursor);
     const venc = ajustarParaProximoDiaUtil(bruto);
@@ -95,7 +99,7 @@ export function calcularVencimentosComPrimeiraParcelaDetalhe(
       vencimentoBruto: bruto,
       ajustadoPorDiaUtil: formatIsoDate(bruto) !== formatIsoDate(venc),
     });
-    cursor = venc;
+    cursor = new Date(venc.getFullYear(), venc.getMonth(), venc.getDate() + 1);
   }
   return vencimentos;
 }
