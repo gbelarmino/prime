@@ -1,5 +1,13 @@
 /** Reajuste anual IPCA/IGP-M nas parcelas 13, 25, 37, … (12k+1). */
 
+/** Rótulo do índice de reajuste do contrato para exibição na UI. */
+export function labelIndiceReajusteContrato(tipoCorrecaoAnual?: string | null): string {
+  if (tipoCorrecaoAnual === "IPCA") return "IPCA";
+  if (tipoCorrecaoAnual === "INPC") return "INPC";
+  if (tipoCorrecaoAnual === "NENHUM") return "sem índice";
+  return "IGP-M";
+}
+
 export function proximaParcelaComReajuste(parcelaAtual: number): number {
   if (parcelaAtual <= 12) return 13;
   return Math.ceil((parcelaAtual - 1) / 12) * 12 + 1;

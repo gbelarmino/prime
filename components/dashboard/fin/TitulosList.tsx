@@ -77,6 +77,7 @@ import { whatsappService } from "@/lib/whatsapp-service";
 import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import {
   isParcelaReajuste,
+  labelIndiceReajusteContrato,
   maxParcelasAteProximoReajuste,
   proximaParcelaComReajuste,
   ultimaParcelaEmitivelEmLote,
@@ -739,6 +740,11 @@ export function TitulosList({
 
   const ultimaParcelaEmitivel = useMemo(
     () => (contexto ? resolveUltimaParcelaEmitivel(contexto) : 12),
+    [contexto],
+  );
+
+  const labelIndiceContrato = useMemo(
+    () => (contexto ? labelIndiceReajusteContrato(contexto.tipoCorrecaoAnual) : "IGP-M"),
     [contexto],
   );
 
@@ -2472,7 +2478,7 @@ export function TitulosList({
                   {isParcelaReajuste(contexto.numeroParcela) ? (
                     <>
                       {" "}
-                      Parcela de reajuste — valor calculado automaticamente (6% + índice do contrato).
+                      Parcela de reajuste — valor calculado automaticamente (6% + {labelIndiceContrato}).
                     </>
                   ) : maxParcelasPermitidas > 0 ? (
                     <>
@@ -2594,7 +2600,7 @@ export function TitulosList({
                             {item.excedente ? (
                               <span className="ml-2 text-[10px] font-medium text-violet-300/90">
                                 {item.parcelaReajuste
-                                  ? "Reajuste IPCA — não será gerada"
+                                  ? `Reajuste ${labelIndiceContrato} — não será gerada`
                                   : "Fora deste lote — não será gerada"}
                               </span>
                             ) : null}
@@ -2644,14 +2650,23 @@ export function TitulosList({
                   {previewLote.itensExcedentes.length} parcela(s) em destaque violeta não entram neste
                   lote
                   {previewLote.itensExcedentes.some((i) => i.parcelaReajuste)
-                    ? ` (a ${previewLote.parcelaReajusteLimite}ª exige reajuste IPCA antes da emissão)`
+                    ? ` (a ${previewLote.parcelaReajusteLimite}ª exige reajuste ${labelIndiceContrato} antes da emissão)`
                     : ""}
                   .
                 </p>
               ) : null}
               <p className="text-xs text-white/35">
-                Emissão em lote até a parcela {previewLote.ultimaParcelaEmitivel}. A parcela{" "}
-                {previewLote.parcelaReajusteLimite} só pode ser gerada após reajuste IPCA.
+                {isParcelaReajuste(previewLote.parcelaInicial) ? (
+                  <>
+                    Parcela de reajuste com 6% + {labelIndiceContrato} calculado automaticamente.
+                  </>
+                ) : (
+                  <>
+                    Emissão em lote até a parcela {previewLote.ultimaParcelaEmitivel}. A parcela{" "}
+                    {previewLote.parcelaReajusteLimite} é de reajuste e só pode ser emitida sozinha (6% +{" "}
+                    {labelIndiceContrato}).
+                  </>
+                )}
               </p>
               <p className="text-xs text-white/35">
                 {previewLote.quantidade} título(s) serão criados com status{" "}
