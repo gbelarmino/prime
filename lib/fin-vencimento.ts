@@ -195,6 +195,17 @@ export function formatIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Dias civis entre duas datas ISO (início exclusivo, fim inclusivo como ChronoUnit.DAYS.between).
+ * Usa UTC para não depender do fuso/DST do navegador — alinhado a TituloMemorialCalculo.java.
+ */
+export function diasEntreDatasIso(de: string, ate: string): number {
+  const [y1, m1, d1] = de.slice(0, 10).split("-").map(Number);
+  const [y2, m2, d2] = ate.slice(0, 10).split("-").map(Number);
+  const diff = Math.floor((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86_400_000);
+  return Math.max(0, diff);
+}
+
 /** Data de pagamento (Instant ISO da API) como dia civil — evita deslocamento de fuso na exibição. */
 export function formatDataPagamentoExibicao(iso: string | null | undefined): string {
   if (!iso) return "—";

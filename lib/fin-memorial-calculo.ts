@@ -2,6 +2,7 @@ import { apiFetch } from "./api-fetch";
 import { getParametroByNomeUrl } from "./api-config";
 
 import { hojeNegocioIso } from "./app-business-date";
+import { diasEntreDatasIso } from "./fin-vencimento";
 
 export const PARAM_MULTA = "FIN_BOLETO_MULTA_PERCENTUAL";
 export const PARAM_JUROS_MENSAL = "FIN_BOLETO_JUROS_MENSAL";
@@ -39,20 +40,12 @@ function parsePercentParam(raw: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
-function parseIsoDateLocal(iso: string): Date {
-  const base = iso.length >= 10 ? iso.slice(0, 10) : iso;
-  return new Date(`${base}T12:00:00`);
-}
-
 function todayIso(): string {
   return hojeNegocioIso();
 }
 
 function diasAtraso(vencimento: string, dataCalculo: string): number {
-  const venc = parseIsoDateLocal(vencimento).getTime();
-  const calc = parseIsoDateLocal(dataCalculo).getTime();
-  const diff = Math.floor((calc - venc) / (1000 * 60 * 60 * 24));
-  return Math.max(0, diff);
+  return diasEntreDatasIso(vencimento, dataCalculo);
 }
 
 function roundMoney(v: number): number {
