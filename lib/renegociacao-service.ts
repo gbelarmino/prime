@@ -30,6 +30,7 @@ import {
   parseIsoDate,
 } from "./fin-vencimento";
 import type { BoletoEncargosConfig } from "./fin-memorial-calculo";
+import { addDiasIso, hojeNegocioIso } from "./app-business-date";
 import {
   aplicarDescontoQuitacao,
   montarBaseQuitacaoLocal,
@@ -231,13 +232,7 @@ export function simularQuitacaoLocal(
         : 0;
   const qtd = Math.max(1, params.quantidadeParcelas);
   const parcelaValor = Math.round((totalNovo / qtd) * 100) / 100;
-  const v0Iso =
-    params.primeiroVencimento ??
-    (() => {
-      const d = new Date();
-      d.setDate(d.getDate() + 15);
-      return d.toISOString().slice(0, 10);
-    })();
+  const v0Iso = params.primeiroVencimento ?? addDiasIso(hojeNegocioIso(), 15);
   const diaVenc =
     params.diaVencimentoContrato != null &&
     params.diaVencimentoContrato >= 1 &&

@@ -1,6 +1,7 @@
 "use client";
 
 import type { InadimplenciaPresenteAgregado } from "@/lib/renegociacao-inadimplencia-presente";
+import { hojeNegocioIso } from "@/lib/app-business-date";
 import { cn } from "@/lib/utils";
 
 function formatBrl(n: number) {
@@ -42,7 +43,7 @@ export function InadimplenciaPresenteCard({ agregado, nominalPainel, className }
   }
 
   const enc = agregado.itens[0];
-  const dataReferencia = agregado.itens[0]?.dataCalculo ?? new Date().toISOString().slice(0, 10);
+  const dataReferencia = agregado.itens[0]?.dataCalculo ?? hojeNegocioIso();
 
   return (
     <div

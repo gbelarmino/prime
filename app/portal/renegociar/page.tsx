@@ -8,6 +8,7 @@ import { Dropdown } from "primereact/dropdown";
 import { portalFetch } from "@/lib/portal-fetch";
 import { getApiBaseUrl } from "@/lib/api-config";
 import { portalListarContratos, type PortalContrato } from "@/lib/portal-service";
+import { formatIsoDate } from "@/lib/fin-vencimento";
 import {
   PortalAlert,
   PortalField,
@@ -49,7 +50,7 @@ export default function PortalRenegociarPage() {
       modo,
       valorTotal,
       quantidadeParcelas: modo === "PARCELADO" ? qtdParcelas : null,
-      primeiroVencimento: vencimento.toISOString().slice(0, 10),
+      primeiroVencimento: formatIsoDate(vencimento),
       titulosOrigemIds: [],
     };
     const res = await portalFetch(`${getApiBaseUrl()}/api/portal/renegociacao/simular`, {
@@ -74,7 +75,7 @@ export default function PortalRenegociarPage() {
       modo,
       valorTotal,
       quantidadeParcelas: modo === "PARCELADO" ? qtdParcelas : null,
-      primeiroVencimento: vencimento.toISOString().slice(0, 10),
+      primeiroVencimento: formatIsoDate(vencimento),
       titulosOrigemIds: [],
     };
     const res = await portalFetch(`${getApiBaseUrl()}/api/portal/renegociacao/confirmar`, {

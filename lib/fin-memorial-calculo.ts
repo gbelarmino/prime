@@ -1,6 +1,8 @@
 import { apiFetch } from "./api-fetch";
 import { getParametroByNomeUrl } from "./api-config";
 
+import { hojeNegocioIso } from "./app-business-date";
+
 export const PARAM_MULTA = "FIN_BOLETO_MULTA_PERCENTUAL";
 export const PARAM_JUROS_MENSAL = "FIN_BOLETO_JUROS_MENSAL";
 
@@ -43,11 +45,7 @@ function parseIsoDateLocal(iso: string): Date {
 }
 
 function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return hojeNegocioIso();
 }
 
 function diasAtraso(vencimento: string, dataCalculo: string): number {

@@ -1,5 +1,6 @@
 import type { AtendimentoTituloResumo } from "@/lib/atendimento-service";
 import type { BoletoEncargosConfig } from "@/lib/fin-memorial-calculo";
+import { hojeNegocioIso } from "@/lib/app-business-date";
 import {
   agregarInadimplenciaPresente,
   titulosVencidosDoPainel,
@@ -64,7 +65,7 @@ export function previewT1Acordo(options: {
   vlDesconto?: number | null;
   dataAcordo?: string;
 }): T1PreviewResultado {
-  const hoje = options.dataAcordo ?? new Date().toISOString().slice(0, 10);
+  const hoje = options.dataAcordo ?? hojeNegocioIso();
   const filtro = options.parcelaInicial ?? 1;
   const n = Math.max(1, options.quantidadeParcelas ?? 1);
 

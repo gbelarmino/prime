@@ -1,5 +1,6 @@
 import type { AtendimentoResumoFinanceiro } from "./atendimento-service";
 import type { BoletoEncargosConfig } from "./fin-memorial-calculo";
+import { hojeNegocioIso } from "./app-business-date";
 import {
   agregarInadimplenciaPresente,
   titulosVencidosDoPainel,
@@ -16,10 +17,10 @@ export type BaseQuitacaoLocal = {
   avisos: string[];
 };
 
-function isVencido(vencimento: string, status: string): boolean {
+function isVencido(vencimento: string, status: string, dataReferencia?: string): boolean {
   if (status === "VENCIDO") return true;
-  const hoje = new Date().toISOString().slice(0, 10);
-  return vencimento < hoje && status !== "PAGO" && status !== "CANCELADO";
+  const ref = dataReferencia ?? hojeNegocioIso();
+  return vencimento < ref && status !== "PAGO" && status !== "CANCELADO";
 }
 
 /** Espelha {@code RenegociacaoQuitacaoCalculo} no cliente para fallback local. */

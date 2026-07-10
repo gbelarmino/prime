@@ -83,6 +83,7 @@ import {
   type ContratoHonorariosFormValues,
 } from "@/lib/validations/contrato-honorarios";
 import { cn } from "@/lib/utils";
+import { addDiasIso, hojeNegocioIso } from "@/lib/app-business-date";
 import { DashboardCalendar } from "@/lib/dashboard-calendar";
 import { formatIsoDate, normalizarDataCalendario, parseIsoDate } from "@/lib/fin-vencimento";
 import { previewT1Acordo } from "@/lib/renegociacao-t1-calculo";
@@ -542,11 +543,7 @@ export function RenegociacaoWizard({
     }
   };
 
-  const dtValidadeProposta = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 15);
-    return d.toISOString().slice(0, 10);
-  }, []);
+  const dtValidadeProposta = useMemo(() => addDiasIso(hojeNegocioIso(), 15), []);
 
   const processarPropostaAprovacao = async () => {
     const procId = renegociacaoId;

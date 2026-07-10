@@ -1,8 +1,8 @@
 import type { ModalidadeRenegociacao } from "./renegociacao-types";
-import { formatIsoDate } from "./fin-vencimento";
+import { hojeNegocioIso } from "./app-business-date";
 
 export function dataAcordoPadrao(): string {
-  return formatIsoDate(new Date());
+  return hojeNegocioIso();
 }
 
 export type ParametrosWizardRenegociacao = {

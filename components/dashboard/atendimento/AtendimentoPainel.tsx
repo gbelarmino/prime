@@ -62,6 +62,7 @@ import { TituloVencidoMemorialModal } from "@/components/dashboard/atendimento/T
 import { formatCpfDisplay } from "@/lib/format-cpf";
 import { formatBusinessDateTime } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
+import { addDiasIso, hojeNegocioIso } from "@/lib/app-business-date";
 
 function formatMoney(v: number | null | undefined): string {
   if (v == null) return "—";
@@ -239,9 +240,7 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
     setQuantidadeParcelas(2);
     setValorEntrada(null);
     setObservacao("");
-    const hoje = new Date();
-    hoje.setDate(hoje.getDate() + 7);
-    setPrimeiroVencimento(hoje.toISOString().slice(0, 10));
+    setPrimeiroVencimento(addDiasIso(hojeNegocioIso(), 7));
     setCobrancaOpen(true);
   };
 

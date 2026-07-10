@@ -5,6 +5,7 @@ import {
   type BoletoEncargosConfig,
   type MemorialCalculoResult,
 } from "@/lib/fin-memorial-calculo";
+import { hojeNegocioIso } from "@/lib/app-business-date";
 import type { MemoriaCalculoItem } from "@/lib/renegociacao-types";
 
 export type InadimplenciaPresenteAgregado = {
@@ -18,7 +19,7 @@ export type InadimplenciaPresenteAgregado = {
 
 function isVencido(t: AtendimentoTituloResumo, dataReferencia?: string): boolean {
   if (t.status === "VENCIDO") return true;
-  const ref = dataReferencia ?? new Date().toISOString().slice(0, 10);
+  const ref = dataReferencia ?? hojeNegocioIso();
   return t.vencimento < ref && t.status !== "PAGO" && t.status !== "CANCELADO";
 }
 
@@ -103,7 +104,7 @@ export function agregadoFromMemoriaItens(
   const parsed: MemorialCalculoResult[] = rows.map((r) => ({
     valorNominal: num(r.valorNominal),
     vencimento: r.vencimento?.slice(0, 10) ?? "",
-    dataCalculo: new Date().toISOString().slice(0, 10),
+    dataCalculo: hojeNegocioIso(),
     diasAtraso: num(r.diasAtraso),
     multaPercentual: num(r.multaPercentual) || 2,
     jurosMensalPercentual: num(r.jurosMensalPercentual) || 1,
