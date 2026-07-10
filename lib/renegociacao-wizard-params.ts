@@ -1,10 +1,17 @@
 import type { ModalidadeRenegociacao } from "./renegociacao-types";
+import { formatIsoDate } from "./fin-vencimento";
+
+export function dataAcordoPadrao(): string {
+  return formatIsoDate(new Date());
+}
 
 export type ParametrosWizardRenegociacao = {
   parcelaInicial: number;
   quantidadeParcelas: number;
   pctDesconto: number | null;
   valorEntrada: number | null;
+  /** Data do acordo — referência para correções (VP, mora). */
+  dataAcordo: string;
 };
 
 export type AjudaParametrosModalidade = {
@@ -12,6 +19,7 @@ export type AjudaParametrosModalidade = {
   parcelaInicial: string;
   quantidadeParcelas: string;
   desconto: string;
+  dataAcordo?: string;
   ocultarQuantidadeParcelas?: boolean;
   forcarUmaParcela?: boolean;
 };
@@ -22,6 +30,8 @@ export const AJUDA_PARAMETROS_POR_MODALIDADE: Partial<
   T1_PARCELAS_VENCIDAS: {
     descricaoPasso:
       "Acordo sobre mora: vencidas a valor presente, divididas em N parcelas e somadas às próximas N vincendas do contrato.",
+    dataAcordo:
+      "Data de referência para atualizar mora (multa e juros de boleto) até o acordo. Padrão: hoje.",
     parcelaInicial: "Opcional: parcela mínima das vencidas que entram no VP (1 = todas). Não confundir com a primeira vincenda.",
     quantidadeParcelas:
       "Em quantas parcelas o total do acordo será diluído (somado ao valor normal de cada vincenda).",
@@ -43,6 +53,8 @@ export const AJUDA_PARAMETROS_POR_MODALIDADE: Partial<
   T4_QUITACAO: {
     descricaoPasso:
       "Quitação antecipada: total anterior = saldo devedor (parcelas restantes × valor da parcela) + inadimplência a valor presente; total quitado = total anterior − desconto (opcional).",
+    dataAcordo:
+      "Data de referência para calcular a inadimplência a valor presente. Padrão: hoje.",
     parcelaInicial:
       "Parcela de corte: use a primeira parcela em aberto (títulos cancelados na efetivação partirão daqui).",
     quantidadeParcelas:
@@ -78,10 +90,10 @@ export function defaultsParametrosModalidade(
   const parcela = primeiraParcelaAberta(financeiro?.titulosAbertos) ?? 1;
   if (modalidade === "T1_PARCELAS_VENCIDAS") {
     // Filtro opcional de vencidas — default 1 inclui toda a mora (≠ parcela de corte T2/T3).
-    return { parcelaInicial: 1 };
+    return { parcelaInicial: 1, dataAcordo: dataAcordoPadrao() };
   }
   if (modalidade === "T4_QUITACAO") {
-    return { parcelaInicial: parcela, quantidadeParcelas: 1 };
+    return { parcelaInicial: parcela, quantidadeParcelas: 1, dataAcordo: dataAcordoPadrao() };
   }
-  return { parcelaInicial: parcela };
+  return { parcelaInicial: parcela, dataAcordo: dataAcordoPadrao() };
 }

@@ -56,6 +56,7 @@ import {
 } from "@/lib/renegociacao-service";
 import {
   AJUDA_PARAMETROS_POR_MODALIDADE,
+  dataAcordoPadrao,
   defaultsParametrosModalidade,
 } from "@/lib/renegociacao-wizard-params";
 import { fetchBoletoEncargosConfig, type BoletoEncargosConfig } from "@/lib/fin-memorial-calculo";
@@ -82,6 +83,8 @@ import {
   type ContratoHonorariosFormValues,
 } from "@/lib/validations/contrato-honorarios";
 import { cn } from "@/lib/utils";
+import { DashboardCalendar } from "@/lib/dashboard-calendar";
+import { formatIsoDate, normalizarDataCalendario, parseIsoDate } from "@/lib/fin-vencimento";
 import { previewT1Acordo } from "@/lib/renegociacao-t1-calculo";
 import {
   buildRenegociacaoDashboardUrl,
@@ -151,6 +154,7 @@ export function RenegociacaoWizard({
   const [parcelaInicial, setParcelaInicial] = useState(1);
   const [quantidadeParcelas, setQuantidadeParcelas] = useState(12);
   const [pctDesconto, setPctDesconto] = useState<number | null>(null);
+  const [dataAcordo, setDataAcordo] = useState(dataAcordoPadrao);
   const [primeiroVencimento, setPrimeiroVencimento] = useState<string | null>(null);
   const [valorEntrada, setValorEntrada] = useState<number | null>(null);
   const [nrProcesso, setNrProcesso] = useState("");
@@ -195,8 +199,8 @@ export function RenegociacaoWizard({
 
   const previewQuitacao = useMemo(() => {
     if (modalidade !== "T4_QUITACAO" || !financeiro) return null;
-    return montarBaseQuitacaoLocal(financeiro, parcelaInicial, encargos ?? undefined);
-  }, [modalidade, financeiro, parcelaInicial, encargos]);
+    return montarBaseQuitacaoLocal(financeiro, parcelaInicial, encargos ?? undefined, dataAcordo);
+  }, [modalidade, financeiro, parcelaInicial, encargos, dataAcordo]);
 
   const previewInadimplenciaVp = useMemo(() => {
     if (!financeiro || !encargos) return null;
@@ -204,9 +208,10 @@ export function RenegociacaoWizard({
     const vencidos = titulosVencidosDoPainel(
       financeiro.titulosAbertos.filter((t) => t.numeroParcela >= parcelaInicial),
       financeiro.titulosVencidos.filter((t) => t.numeroParcela >= parcelaInicial),
+      dataAcordo,
     );
-    return agregarInadimplenciaPresente(vencidos, encargos);
-  }, [financeiro, encargos, modalidade, parcelaInicial]);
+    return agregarInadimplenciaPresente(vencidos, encargos, dataAcordo);
+  }, [financeiro, encargos, modalidade, parcelaInicial, dataAcordo]);
 
   const previewT1 = useMemo(() => {
     if (modalidade !== "T1_PARCELAS_VENCIDAS" || !financeiro || !encargos) return null;
@@ -217,8 +222,9 @@ export function RenegociacaoWizard({
       parcelaInicial,
       quantidadeParcelas,
       pctDesconto,
+      dataAcordo,
     });
-  }, [modalidade, financeiro, encargos, parcelaInicial, quantidadeParcelas, pctDesconto]);
+  }, [modalidade, financeiro, encargos, parcelaInicial, quantidadeParcelas, pctDesconto, dataAcordo]);
 
   const inadimplenciaSimulacao = useMemo(() => {
     if (!simulacao || (modalidade !== "T4_QUITACAO" && modalidade !== "T1_PARCELAS_VENCIDAS")) {
@@ -230,8 +236,9 @@ export function RenegociacaoWizard({
       parcelaInicial,
       simulacao.memoriaCalculo?.itens,
       simulacao.totalAnterior,
+      dataAcordo,
     );
-  }, [simulacao, financeiro, encargos, parcelaInicial, modalidade]);
+  }, [simulacao, financeiro, encargos, parcelaInicial, modalidade, dataAcordo]);
 
   /** Mesma base do passo de parâmetros (saldo + VP), independente do totalAnterior da API. */
   const inadimplenciaQuitacaoExibicao = useMemo(() => {
@@ -248,6 +255,7 @@ export function RenegociacaoWizard({
     const d = defaultsParametrosModalidade(modalidade, financeiro ?? undefined);
     if (d.parcelaInicial != null) setParcelaInicial(d.parcelaInicial);
     if (d.quantidadeParcelas != null) setQuantidadeParcelas(d.quantidadeParcelas);
+    if (d.dataAcordo) setDataAcordo(d.dataAcordo);
   }, [modalidade, financeiro?.titulosAbertos]);
 
   useEffect(() => {
@@ -265,6 +273,9 @@ export function RenegociacaoWizard({
         if (!modalidadeInicial) setModalidade(det.modalidade);
         if (det.motivo?.trim()) {
           setMotivo((prev) => (prev.trim() ? prev : det.motivo!.trim()));
+        }
+        if (det.dataAcordo) {
+          setDataAcordo(det.dataAcordo.slice(0, 10));
         }
       })
       .catch(() => {
@@ -389,6 +400,7 @@ export function RenegociacaoWizard({
             modalidade,
             parcelaInicial,
             quantidadeParcelas,
+            dataAcordo,
             primeiroVencimento: primeiroVencimento ?? undefined,
             pctDesconto: pctDesconto ?? undefined,
             valorEntrada: valorEntrada ?? undefined,
@@ -423,6 +435,7 @@ export function RenegociacaoWizard({
               primeiroVencimento,
               diaVencimentoContrato: contratoApi?.condicoes?.diaVencimento ?? undefined,
               encargos: encargos ?? undefined,
+              dataAcordo,
             });
             simFinal = alinharSimulacaoQuitacaoT4(res, localT4);
             if (previewQuitacao && Math.abs(res.totalAnterior - previewQuitacao.baseQuitacao) > 1) {
@@ -458,6 +471,7 @@ export function RenegociacaoWizard({
         const raw = await simularViaCondicoesVersao(contratoId, {
           tipoOrigem,
           parcelaInicial,
+          dataVigencia: dataAcordo,
           condicoes: payload as unknown as Record<string, unknown>,
           motivo: motivo.trim() || "Renegociação via wizard unificado",
           politicaReajuste: "CADEIA",
@@ -475,6 +489,7 @@ export function RenegociacaoWizard({
           primeiroVencimento,
           diaVencimentoContrato: contratoApi?.condicoes?.diaVencimento ?? undefined,
           encargos: encargos ?? undefined,
+          dataAcordo,
         });
         if (local.totalAnterior <= 0 && local.saldoDevedor <= 0) {
           toast.error(
@@ -799,6 +814,22 @@ export function RenegociacaoWizard({
                   </>
                 )}
                 <div className="grid w-full gap-5 md:grid-cols-2">
+                <div>
+                  <label className={RENEGOCIACAO_LABEL_CLASS}>Data do acordo</label>
+                  <DashboardCalendar
+                    value={dataAcordo ? parseIsoDate(dataAcordo) : null}
+                    onChange={(e) => {
+                      const d = normalizarDataCalendario(e.value as Date | null | undefined);
+                      setDataAcordo(d ? formatIsoDate(d) : dataAcordoPadrao());
+                    }}
+                    className="w-full"
+                    inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                  />
+                  <p className={RENEGOCIACAO_HINT_CLASS}>
+                    {ajudaParametros?.dataAcordo ??
+                      "Data de referência para correções (valor presente da mora). Padrão: hoje."}
+                  </p>
+                </div>
                 <div>
                   <label className={RENEGOCIACAO_LABEL_CLASS}>Parcela inicial (corte)</label>
                   <InputNumber

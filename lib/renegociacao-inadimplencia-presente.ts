@@ -16,10 +16,10 @@ export type InadimplenciaPresenteAgregado = {
   itens: MemorialCalculoResult[];
 };
 
-function isVencido(t: AtendimentoTituloResumo): boolean {
+function isVencido(t: AtendimentoTituloResumo, dataReferencia?: string): boolean {
   if (t.status === "VENCIDO") return true;
-  const hoje = new Date().toISOString().slice(0, 10);
-  return t.vencimento < hoje && t.status !== "PAGO" && t.status !== "CANCELADO";
+  const ref = dataReferencia ?? new Date().toISOString().slice(0, 10);
+  return t.vencimento < ref && t.status !== "PAGO" && t.status !== "CANCELADO";
 }
 
 function formatMemoriaAgregada(
@@ -40,7 +40,7 @@ export function agregarInadimplenciaPresente(
   encargos: BoletoEncargosConfig,
   dataCalculo?: string,
 ): InadimplenciaPresenteAgregado {
-  const vencidos = titulos.filter(isVencido);
+  const vencidos = titulos.filter((t) => isVencido(t, dataCalculo));
   const itens = vencidos.map((t) =>
     calcularMemorialTitulo(
       {
@@ -77,10 +77,11 @@ export function agregarInadimplenciaPresente(
 export function titulosVencidosDoPainel(
   titulosAbertos: AtendimentoTituloResumo[],
   titulosVencidos: AtendimentoTituloResumo[],
+  dataReferencia?: string,
 ): AtendimentoTituloResumo[] {
   const byId = new Map<string, AtendimentoTituloResumo>();
   for (const t of [...titulosVencidos, ...titulosAbertos]) {
-    if (isVencido(t)) byId.set(t.id, t);
+    if (isVencido(t, dataReferencia)) byId.set(t.id, t);
   }
   return [...byId.values()].sort((a, b) => a.numeroParcela - b.numeroParcela);
 }
@@ -142,13 +143,15 @@ export function agregadoInadimplenciaParaExibicao(
   parcelaInicial: number,
   memoriaItens?: MemoriaCalculoItem[],
   totalAnteriorReferencia?: number,
+  dataAcordo?: string,
 ): InadimplenciaPresenteAgregado | null {
   if (financeiro && encargos) {
     const vencidos = titulosVencidosDoPainel(
       financeiro.titulosAbertos.filter((t) => t.numeroParcela >= parcelaInicial),
       financeiro.titulosVencidos.filter((t) => t.numeroParcela >= parcelaInicial),
+      dataAcordo,
     );
-    const agg = agregarInadimplenciaPresente(vencidos, encargos);
+    const agg = agregarInadimplenciaPresente(vencidos, encargos, dataAcordo);
     if (agg.valorPresenteTotal > 0) return agg;
   }
 

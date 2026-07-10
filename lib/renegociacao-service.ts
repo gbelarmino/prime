@@ -149,6 +149,7 @@ export async function simularViaCondicoesVersao(
   body: {
     tipoOrigem: "RENEGOCIACAO_SALDO" | "ADITIVO_GRADE";
     parcelaInicial: number;
+    dataVigencia?: string | null;
     condicoes: Record<string, unknown>;
     politicaReajuste?: PoliticaReajustePosTransicao | null;
     motivo?: string | null;
@@ -208,9 +209,15 @@ export function simularQuitacaoLocal(
     primeiroVencimento?: string | null;
     diaVencimentoContrato?: number | null;
     encargos?: BoletoEncargosConfig;
+    dataAcordo?: string | null;
   },
 ): RenegociacaoSimulacaoResponse {
-  const base = montarBaseQuitacaoLocal(financeiro, params.parcelaInicial, params.encargos);
+  const base = montarBaseQuitacaoLocal(
+    financeiro,
+    params.parcelaInicial,
+    params.encargos,
+    params.dataAcordo ?? undefined,
+  );
   const saldoDevedor = base.saldoDevedorContrato;
   const inadimplenciaVp = base.inadimplenciaPresente.valorPresenteTotal;
   const totalAnterior = base.baseQuitacao;

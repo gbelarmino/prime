@@ -110,6 +110,7 @@ export function renegociacaoPodeSerCancelada(status: StatusRenegociacao): boolea
 }
 
 export type RenegociacaoDetalhe = RenegociacaoResumo & {
+  dataAcordo?: string | null;
   motivo?: string | null;
   justificativa?: string | null;
   classificacaoJuridica?: ClassificacaoJuridica | null;
@@ -129,6 +130,9 @@ export type SimularRenegociacaoRequest = {
   /** Alinha o processo à modalidade do wizard (evita processo antigo com T1 gravado). */
   modalidade?: ModalidadeRenegociacao;
   parcelaInicial?: number;
+  /** Data do acordo — referência para correções (VP, mora). */
+  dataAcordo?: string;
+  /** @deprecated use dataAcordo */
   dataCorte?: string;
   valorEntrada?: number;
   quantidadeParcelas?: number;

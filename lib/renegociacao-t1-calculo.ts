@@ -62,12 +62,17 @@ export function previewT1Acordo(options: {
   quantidadeParcelas: number;
   pctDesconto?: number | null;
   vlDesconto?: number | null;
+  dataAcordo?: string;
 }): T1PreviewResultado {
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = options.dataAcordo ?? new Date().toISOString().slice(0, 10);
   const filtro = options.parcelaInicial ?? 1;
   const n = Math.max(1, options.quantidadeParcelas ?? 1);
 
-  const todos = titulosVencidosDoPainel(options.titulosAbertos, options.titulosVencidos);
+  const todos = titulosVencidosDoPainel(
+    options.titulosAbertos,
+    options.titulosVencidos,
+    hoje,
+  );
   const vencidas = todos
     .filter((t) => t.numeroParcela >= filtro)
     .sort((a, b) => a.numeroParcela - b.numeroParcela);
@@ -88,7 +93,7 @@ export function previewT1Acordo(options: {
     };
   }
 
-  const inad = agregarInadimplenciaPresente(vencidas, options.encargos);
+  const inad = agregarInadimplenciaPresente(vencidas, options.encargos, hoje);
   const vpTotal = inad.valorPresenteTotal;
   const totalAcordo = aplicarDescontoQuitacao(
     vpTotal,

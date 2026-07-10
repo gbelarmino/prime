@@ -27,6 +27,7 @@ export function montarBaseQuitacaoLocal(
   financeiro: AtendimentoResumoFinanceiro,
   parcelaInicial: number,
   encargos?: BoletoEncargosConfig,
+  dataAcordo?: string,
 ): BaseQuitacaoLocal {
   const saldo = financeiro.saldoDevedor;
   const inadimplente = financeiro.valorInadimplente;
@@ -38,9 +39,10 @@ export function montarBaseQuitacaoLocal(
   const vencidosCorte = titulosVencidosDoPainel(
     financeiro.titulosAbertos.filter((t) => t.numeroParcela >= parcelaInicial),
     financeiro.titulosVencidos.filter((t) => t.numeroParcela >= parcelaInicial),
+    dataAcordo,
   );
   const inadimplenciaPresente = encargos
-    ? agregarInadimplenciaPresente(vencidosCorte, encargos)
+    ? agregarInadimplenciaPresente(vencidosCorte, encargos, dataAcordo)
     : {
         nominalTotal: 0,
         multaTotal: 0,
