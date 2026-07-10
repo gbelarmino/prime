@@ -632,6 +632,7 @@ export function RenegociacaoWizard({
         key,
       );
       setEfetivacaoResultado(res);
+      setStep(6);
       if (res.concluida && res.status === "EFETIVADO") {
         toast.success(
           modalidade === "T1_PARCELAS_VENCIDAS"
