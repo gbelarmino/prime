@@ -1,18 +1,28 @@
-/** Reajuste anual IPCA nas parcelas 13, 25, 37, … (12k+1). */
+/** Reajuste anual IPCA/IGP-M nas parcelas 13, 25, 37, … (12k+1). */
 
 export function proximaParcelaComReajuste(parcelaAtual: number): number {
   if (parcelaAtual <= 12) return 13;
   return Math.ceil((parcelaAtual - 1) / 12) * 12 + 1;
 }
 
-/** Máximo em lote sem incluir a parcela de reajuste (13, 25, 37, …). */
+/** Máximo em lote: até antes do próximo reajuste; na parcela de reajuste, só 1. */
 export function maxParcelasAteProximoReajuste(parcelaInicial: number): number {
+  if (isParcelaReajuste(parcelaInicial)) {
+    return 1;
+  }
   const parcelaReajuste = proximaParcelaComReajuste(parcelaInicial);
   return Math.max(0, parcelaReajuste - parcelaInicial);
 }
 
 export function ultimaParcelaEmitivelEmLote(parcelaInicial: number): number {
+  if (isParcelaReajuste(parcelaInicial)) {
+    return parcelaInicial;
+  }
   return proximaParcelaComReajuste(parcelaInicial) - 1;
+}
+
+export function emitindoSomenteParcelaReajuste(parcelaInicial: number, parcelaFinal: number): boolean {
+  return isParcelaReajuste(parcelaInicial) && parcelaInicial === parcelaFinal;
 }
 
 export function isParcelaReajuste(numeroParcela: number): boolean {

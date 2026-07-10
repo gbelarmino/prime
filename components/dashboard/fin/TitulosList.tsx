@@ -1530,16 +1530,15 @@ export function TitulosList({
       return null;
     }
     if (maxParcelasPermitidas < 1) {
-      toast.error(
-        `A parcela ${parcelaReajusteLimite} exige reajuste IPCA antes da emissão. Gere essa parcela individualmente após o reajuste.`,
-      );
+      toast.error("Não há parcelas disponíveis para emissão em lote neste contrato.");
       return null;
     }
     const qtd = Math.floor(quantidadeParcelas);
     if (!Number.isFinite(qtd) || qtd < 1 || qtd > maxParcelasPermitidas) {
-      toast.error(
-        `Informe entre 1 e ${maxParcelasPermitidas} parcela(s) (até a parcela ${ultimaParcelaEmitivel}; a ${parcelaReajusteLimite}ª só após reajuste IPCA).`,
-      );
+      const limiteMsg = contexto && isParcelaReajuste(contexto.numeroParcela)
+        ? `Informe 1 parcela (reajuste automático do índice na parcela ${contexto.numeroParcela}).`
+        : `Informe entre 1 e ${maxParcelasPermitidas} parcela(s) (até a parcela ${ultimaParcelaEmitivel}; a ${parcelaReajusteLimite}ª é de reajuste e só pode ser emitida sozinha).`;
+      toast.error(limiteMsg);
       return null;
     }
     return qtd;
@@ -2467,18 +2466,22 @@ export function TitulosList({
                 <p className="text-xs text-white/40">
                   Vencimento no dia {contexto.diaVencimentoMensal} de cada mês (conforme contrato).
                   Se cair em fim de semana, usa a segunda-feira seguinte.
-                  {maxParcelasPermitidas > 0 ? (
+                  {isParcelaReajuste(contexto.numeroParcela) ? (
+                    <>
+                      {" "}
+                      Parcela de reajuste — valor calculado automaticamente (6% + índice do contrato).
+                    </>
+                  ) : maxParcelasPermitidas > 0 ? (
                     <>
                       {" "}
                       Máximo de {maxParcelasPermitidas} parcela(s) até a {ultimaParcelaEmitivel}ª (a{" "}
-                      {parcelaReajusteLimite}ª só após reajuste IPCA).
+                      {parcelaReajusteLimite}ª é de reajuste e só pode ser emitida sozinha).
                     </>
                   ) : null}
                 </p>
                 {maxParcelasPermitidas < 1 ? (
                   <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-200/90">
-                    A próxima parcela ({parcelaReajusteLimite}) exige reajuste IPCA antes da emissão.
-                    Não é possível gerar títulos em lote neste momento.
+                    Não há parcelas disponíveis para emissão em lote neste contrato.
                   </p>
                 ) : (
                   <InputNumber
