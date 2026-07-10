@@ -283,3 +283,28 @@ export type EfetivarRenegociacaoResultado = {
   mensagemResumo: string;
   operacoes: EfetivacaoOperacao[];
 };
+
+export type TipoDocumentoRenegociacao =
+  | "ADITIVO"
+  | "CONFISSAO_DIVIDA"
+  | "TERMO_RENEGOCIACAO"
+  | "TERMO_QUITACAO"
+  | "HISTORICO_CONSOLIDADO"
+  | "ACORDO_JUDICIAL";
+
+export type DocumentoRenegociacao = {
+  id: number;
+  tipo: TipoDocumentoRenegociacao;
+  statusAssinatura: string;
+  nomeArquivo: string | null;
+  arquivoEnviado: boolean;
+};
+
+export const DOCUMENTO_RENEGOCIACAO_LABEL: Record<TipoDocumentoRenegociacao, string> = {
+  ADITIVO: "Aditivo contratual",
+  CONFISSAO_DIVIDA: "Confissão de dívida",
+  TERMO_RENEGOCIACAO: "Termo de renegociação",
+  TERMO_QUITACAO: "Termo de quitação",
+  HISTORICO_CONSOLIDADO: "Histórico consolidado",
+  ACORDO_JUDICIAL: "Acordo judicial",
+};

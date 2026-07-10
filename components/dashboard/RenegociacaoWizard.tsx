@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Calculator, Download, FileText, Scale } from "lucide-react";
+import { ArrowRight, Calculator, Download, Scale } from "lucide-react";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
@@ -45,7 +45,7 @@ import {
   obterSimulacaoRenegociacao,
   efetivarRenegociacao,
   listarOperacoesEfetivacao,
-  gerarDocumentosRenegociacao,
+  documentosRenegociacaoCompletos,
   gerarPropostaRenegociacao,
   modalidadeEfetivaNoWizard,
   modalidadeUsaMotorCondicoes,
@@ -71,6 +71,7 @@ import {
 import { InadimplenciaPresenteCard } from "@/components/dashboard/renegociacao-form/InadimplenciaPresenteCard";
 import { QuitacaoLiquidacaoMemoriaCard } from "@/components/dashboard/renegociacao-form/QuitacaoLiquidacaoMemoriaCard";
 import { T1AcordoDetalheCard } from "@/components/dashboard/renegociacao-form/T1AcordoDetalheCard";
+import { RenegociacaoDocumentosStep } from "@/components/dashboard/renegociacao-form/RenegociacaoDocumentosStep";
 import { RenegociacaoEfetivacaoResumo } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResumo";
 import { RenegociacaoEfetivacaoResultado } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResultado";
 import {
@@ -80,6 +81,7 @@ import {
   type RenegociacaoSimulacaoResponse,
   type EfetivarRenegociacaoResultado,
   type StatusRenegociacao,
+  type DocumentoRenegociacao,
 } from "@/lib/renegociacao-types";
 import {
   condicoesToApiPayload,
@@ -168,6 +170,7 @@ export function RenegociacaoWizard({
   const [propostaId, setPropostaId] = useState<number | null>(null);
   const [workflowOk, setWorkflowOk] = useState(false);
   const [documentosOk, setDocumentosOk] = useState(false);
+  const [documentosProcesso, setDocumentosProcesso] = useState<DocumentoRenegociacao[]>([]);
   const [processoRetomado, setProcessoRetomado] = useState(false);
   const [encargos, setEncargos] = useState<BoletoEncargosConfig | null>(null);
   const [baixandoProposta, setBaixandoProposta] = useState(false);
@@ -644,14 +647,15 @@ export function RenegociacaoWizard({
   const processarDocumentos = async () => {
     const procId = renegociacaoId;
     if (procId == null || procId <= 0) return;
+    if (!documentosRenegociacaoCompletos(documentosProcesso)) {
+      toast.error("Envie todos os instrumentos jurídicos antes de continuar.");
+      return;
+    }
     setLoading(true);
     try {
-      await gerarDocumentosRenegociacao(contratoId, procId);
       setDocumentosOk(true);
-      toast.success("Documentos marcados para geração.");
+      toast.success("Documentos registrados no processo.");
       setStep(6);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao gerar documentos");
     } finally {
       setLoading(false);
     }
@@ -1164,23 +1168,26 @@ export function RenegociacaoWizard({
 
         {step === 5 && (
           <motion.div key="d" {...STEP_MOTION}>
-            <FormSection title="Documentos" description="Registra instrumentos sugeridos (PDF/assinatura em fase posterior).">
-              <div className="grid gap-3 md:grid-cols-2">
-                {(simulacao?.instrumentosSugeridos ?? ["ADITIVO", "TERMO_RENEGOCIACAO"]).map((doc) => (
-                  <div
-                    key={doc}
-                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4"
-                  >
-                    <FileText className="h-8 w-8 text-violet-400" />
-                    <div>
-                      <p className="font-semibold text-white">{doc.replace(/_/g, " ")}</p>
-                      <p className="text-xs text-white/40">
-                        {documentosOk ? "Registrado no processo" : "Será registrado ao continuar"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <FormSection
+              title="Documentos"
+              description="Anexe os instrumentos jurídicos assinados (PDF ou imagem). Todos os arquivos são obrigatórios para efetivar."
+            >
+              {renegociacaoId != null && renegociacaoId > 0 ? (
+                <RenegociacaoDocumentosStep
+                  contratoId={contratoId}
+                  renegociacaoId={renegociacaoId}
+                  tiposEsperados={simulacao?.instrumentosSugeridos}
+                  somenteLeitura={processoJaEfetivado}
+                  onDocumentosChange={(lista, completos) => {
+                    setDocumentosProcesso(lista);
+                    setDocumentosOk(completos);
+                  }}
+                />
+              ) : (
+                <p className="text-sm text-amber-200/80">
+                  Conclua a simulação e a proposta para registrar os documentos do processo.
+                </p>
+              )}
             </FormSection>
           </motion.div>
         )}
@@ -1303,7 +1310,9 @@ export function RenegociacaoWizard({
                 step === 4
                   ? "Gerar proposta"
                   : step === 5
-                    ? "Registrar documentos"
+                    ? documentosOk
+                      ? "Continuar para efetivação"
+                      : "Envie todos os documentos"
                     : "Continuar"
               }
               icon={<ArrowRight className="mr-2 h-4 w-4" />}

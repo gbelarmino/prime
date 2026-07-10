@@ -9,6 +9,8 @@ import {
   getRenegociacaoEfetivarUrl,
   getRenegociacaoEfetivacaoOperacoesUrl,
   getRenegociacaoGerarDocumentosUrl,
+  getRenegociacaoDocumentosUrl,
+  getRenegociacaoDocumentoUploadUrl,
   getRenegociacaoPropostaPdfUrl,
   getRenegociacaoPropostaUrl,
   getRenegociacaoSimularUrl,
@@ -17,6 +19,7 @@ import {
 } from "./api-config";
 import type {
   CriarRenegociacaoRequest,
+  DocumentoRenegociacao,
   EfetivacaoOperacao,
   EfetivarRenegociacaoResultado,
   ModalidadeRenegociacao,
@@ -390,12 +393,42 @@ export async function aprovarRenegociacao(
 export async function gerarDocumentosRenegociacao(
   contratoId: number,
   renegociacaoId: number,
-): Promise<{ id: number | null; tipo: string; statusAssinatura: string; linkArquivo: string | null }[]> {
+): Promise<DocumentoRenegociacao[]> {
   const url = getRenegociacaoGerarDocumentosUrl(contratoId, renegociacaoId);
   if (!url) throw new Error("API não configurada");
   const res = await apiFetch(url, { method: "POST" });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
+}
+
+export async function listarDocumentosRenegociacao(
+  contratoId: number,
+  renegociacaoId: number,
+): Promise<DocumentoRenegociacao[]> {
+  const url = getRenegociacaoDocumentosUrl(contratoId, renegociacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function uploadDocumentoRenegociacao(
+  contratoId: number,
+  renegociacaoId: number,
+  documentoId: number,
+  file: File,
+): Promise<DocumentoRenegociacao> {
+  const url = getRenegociacaoDocumentoUploadUrl(contratoId, renegociacaoId, documentoId);
+  if (!url) throw new Error("API não configurada");
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await apiFetch(url, { method: "POST", body: fd });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export function documentosRenegociacaoCompletos(documentos: DocumentoRenegociacao[]): boolean {
+  return documentos.length > 0 && documentos.every((d) => d.arquivoEnviado);
 }
 
 export async function submeterAprovacao(

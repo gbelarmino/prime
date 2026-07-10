@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
 import { Button } from "primereact/button";
 import type { EfetivacaoOperacao, EfetivarRenegociacaoResultado } from "@/lib/renegociacao-types";
+import { buildRenegociacaoTitulosContratoUrl } from "@/lib/renegociacao-routes";
 import { cn } from "@/lib/utils";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -147,7 +148,7 @@ export function RenegociacaoEfetivacaoResultado({
             />
           </Link>
         ) : null}
-        <Link href={`/dashboard/fin/titulos?contratoId=${contratoId}`}>
+        <Link href={buildRenegociacaoTitulosContratoUrl(contratoId)}>
           <Button
             type="button"
             outlined

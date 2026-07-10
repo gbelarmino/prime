@@ -1,4 +1,5 @@
 import type { ModalidadeRenegociacao } from "./renegociacao-types";
+import { getUserRole } from "./auth-storage";
 
 export const RENEGOCIACAO_DASHBOARD_PATH = "/dashboard/contratos/renegociacao";
 
@@ -42,4 +43,13 @@ export function buildRenegociacaoDashboardUrl(options?: {
   }
   const qs = params.toString();
   return qs ? `${RENEGOCIACAO_DASHBOARD_PATH}?${qs}` : RENEGOCIACAO_DASHBOARD_PATH;
+}
+
+/** Destino seguro para “ver títulos” após efetivação (rotas existentes no export estático). */
+export function buildRenegociacaoTitulosContratoUrl(contratoId: number): string {
+  const role = getUserRole();
+  if (role === "ADMIN" || role === "ADMINISTRATIVO") {
+    return "/dashboard/financeiro/titulos";
+  }
+  return `/dashboard/atendimento/painel?id=${contratoId}`;
 }

@@ -505,6 +505,31 @@ export function getRenegociacaoGerarDocumentosUrl(contratoId: number, renegociac
   return b ? `${b}/${renegociacaoId}/documentos/gerar` : "";
 }
 
+export function getRenegociacaoDocumentosUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/documentos` : "";
+}
+
+export function getRenegociacaoDocumentoUploadUrl(
+  contratoId: number,
+  renegociacaoId: number,
+  documentoId: number,
+): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/documentos/${documentoId}/upload` : "";
+}
+
+export function getRenegociacaoDocumentoDownloadUrl(
+  contratoId: number,
+  renegociacaoId: number,
+  documentoId: number,
+  download = false,
+): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  if (!b) return "";
+  return `${b}/${renegociacaoId}/documentos/${documentoId}${download ? "?download=true" : ""}`;
+}
+
 export function getRenegociacaoSubmeterAprovacaoUrl(
   contratoId: number,
   renegociacaoId: number,
