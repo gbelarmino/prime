@@ -728,6 +728,10 @@ export function getWhatsAppUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.whatsapp);
 }
 
+export function getWhatsAppBoletoEnvioHabilitadoUrl(): string {
+  return `${getWhatsAppUrl()}/boleto-envio-habilitado`;
+}
+
 function withOptionalAccountIdQuery(url: string, accountId?: string | null): string {
   const a = accountId?.trim();
   if (!a) return url;

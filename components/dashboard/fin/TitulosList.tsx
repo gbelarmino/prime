@@ -73,6 +73,7 @@ import {
   type TituloSmsCobrancaLoteResult,
   type TituloWhatsAppCobrancaLoteResult,
 } from "@/lib/fin-service";
+import { whatsappService } from "@/lib/whatsapp-service";
 import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import {
   isParcelaReajuste,
@@ -347,6 +348,7 @@ export function TitulosList({
   const [pdfLoteDialogOpen, setPdfLoteDialogOpen] = useState(false);
   const [pdfLoteResultado, setPdfLoteResultado] = useState<TituloPdfLoteResult | null>(null);
   const [selecionandoTodos, setSelecionandoTodos] = useState(false);
+  const [whatsappBoletoEnvioHabilitado, setWhatsappBoletoEnvioHabilitado] = useState(false);
 
   const titulosRegistraveisSelecionados = useMemo(
     () => selectedTitulos.filter((t) => tituloRegistravel(t.status)),
@@ -454,6 +456,21 @@ export function TitulosList({
   useEffect(() => {
     void load(hasLoadedRef.current);
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    whatsappService
+      .boletoEnvioHabilitado()
+      .then((habilitado) => {
+        if (!cancelled) setWhatsappBoletoEnvioHabilitado(habilitado);
+      })
+      .catch(() => {
+        if (!cancelled) setWhatsappBoletoEnvioHabilitado(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const tituloSmsNotificacoesDialogId = tituloSmsNotificacoes?.id ?? null;
 
@@ -1428,7 +1445,7 @@ export function TitulosList({
       );
     }
 
-    if (tituloElegivelWhatsApp(row.status)) {
+    if (whatsappBoletoEnvioHabilitado && tituloElegivelWhatsApp(row.status)) {
       items.push(
         dashboardActionMenuItem({
           label: "Enviar WhatsApp",
@@ -1907,14 +1924,16 @@ export function TitulosList({
               >
                 {selecionandoTodos ? "A carregar…" : "Rascunhos do filtro"}
               </button>
-              <button
-                type="button"
-                onClick={() => void selecionarTodosWhatsAppDoFiltro()}
-                disabled={actionLoading || selecionandoTodos}
-                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition hover:bg-white/10 disabled:opacity-50"
-              >
-                {selecionandoTodos ? "A carregar…" : "Emitidos (WhatsApp)"}
-              </button>
+              {whatsappBoletoEnvioHabilitado ? (
+                <button
+                  type="button"
+                  onClick={() => void selecionarTodosWhatsAppDoFiltro()}
+                  disabled={actionLoading || selecionandoTodos}
+                  className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition hover:bg-white/10 disabled:opacity-50"
+                >
+                  {selecionandoTodos ? "A carregar…" : "Emitidos (WhatsApp)"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={abrirRegistrarLote}
@@ -1948,17 +1967,19 @@ export function TitulosList({
                 <MessageSquare size={14} />
                 Enviar SMS
               </button>
-              <button
-                type="button"
-                onClick={abrirWhatsAppLote}
-                disabled={
-                  actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
-                }
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-emerald-200 transition hover:bg-emerald-500/20 disabled:opacity-50"
-              >
-                <MessageCircle size={14} />
-                Enviar WhatsApp
-              </button>
+              {whatsappBoletoEnvioHabilitado ? (
+                <button
+                  type="button"
+                  onClick={abrirWhatsAppLote}
+                  disabled={
+                    actionLoading || selecionandoTodos || titulosWhatsAppSelecionados.length === 0
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-emerald-200 transition hover:bg-emerald-500/20 disabled:opacity-50"
+                >
+                  <MessageCircle size={14} />
+                  Enviar WhatsApp
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={abrirPdfLote}
@@ -2204,14 +2225,16 @@ export function TitulosList({
           error={smsNotificacoesError}
         />
 
-        <TituloWhatsAppLoteDialog
-          visible={whatsappLoteDialogOpen}
-          onHide={fecharWhatsAppLoteDialog}
-          titulos={titulosWhatsAppSelecionados}
-          resultado={whatsappLoteResultado}
-          onConfirm={() => void confirmarWhatsAppLote()}
-          loading={actionLoading}
-        />
+        {whatsappBoletoEnvioHabilitado ? (
+          <TituloWhatsAppLoteDialog
+            visible={whatsappLoteDialogOpen}
+            onHide={fecharWhatsAppLoteDialog}
+            titulos={titulosWhatsAppSelecionados}
+            resultado={whatsappLoteResultado}
+            onConfirm={() => void confirmarWhatsAppLote()}
+            loading={actionLoading}
+          />
+        ) : null}
 
         <TituloPdfLoteDialog
           visible={pdfLoteDialogOpen}

@@ -18,6 +18,7 @@ import {
   getWhatsAppFilaUrl,
   getWhatsAppFilaReprocessarUrl,
   getWhatsAppFilaCancelarUrl,
+  getWhatsAppBoletoEnvioHabilitadoUrl,
   getContratantesListUrl,
 } from "./api-config";
 import type { SpringPage } from "./spring-page";
@@ -374,5 +375,14 @@ export const whatsappService = {
       throw new Error(msg);
     }
     return res.json();
+  },
+
+  async boletoEnvioHabilitado(): Promise<boolean> {
+    const url = getWhatsAppBoletoEnvioHabilitadoUrl();
+    if (!url) return false;
+    const res = await apiFetch(url, { skipLoading: true });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { habilitado?: boolean };
+    return Boolean(data.habilitado);
   },
 };
