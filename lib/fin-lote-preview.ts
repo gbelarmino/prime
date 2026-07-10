@@ -42,10 +42,9 @@ export function resolveMaxParcelasLote(
   parcelaInicial: number,
   maxParcelasPermitidasCtx?: number | null,
 ): number {
-  if (maxParcelasPermitidasCtx != null && maxParcelasPermitidasCtx >= 0) {
-    return maxParcelasPermitidasCtx;
-  }
-  return maxParcelasAteProximoReajuste(parcelaInicial);
+  const local = maxParcelasAteProximoReajuste(parcelaInicial);
+  if (maxParcelasPermitidasCtx == null) return local;
+  return Math.max(maxParcelasPermitidasCtx, local);
 }
 
 export function resolveParcelaReajusteLimiteLote(

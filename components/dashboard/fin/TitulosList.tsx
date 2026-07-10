@@ -196,7 +196,10 @@ type TitulosListProps = {
 };
 
 function resolveMaxParcelas(ctx: TituloContextoLote): number {
-  return ctx.maxParcelasPermitidas ?? maxParcelasAteProximoReajuste(ctx.numeroParcela);
+  const local = maxParcelasAteProximoReajuste(ctx.numeroParcela);
+  if (ctx.maxParcelasPermitidas == null) return local;
+  // API antiga devolvia 0 na parcela de reajuste (13, 25, 37…); o cálculo local prevalece.
+  return Math.max(ctx.maxParcelasPermitidas, local);
 }
 
 function resolveParcelaReajusteLimite(ctx: TituloContextoLote): number {
