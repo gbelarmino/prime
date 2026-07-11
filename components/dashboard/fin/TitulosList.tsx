@@ -78,8 +78,8 @@ import { podeBaixarPdfBoleto } from "@/lib/baixar-boleto-pdf";
 import {
   isParcelaReajuste,
   labelIndiceReajusteContrato,
+  limiteExclusivoProximoReajuste,
   maxParcelasAteProximoReajuste,
-  proximaParcelaComReajuste,
   ultimaParcelaEmitivelEmLote,
 } from "@/lib/fin-parcela-reajuste";
 import {
@@ -204,7 +204,7 @@ function resolveMaxParcelas(ctx: TituloContextoLote): number {
 }
 
 function resolveParcelaReajusteLimite(ctx: TituloContextoLote): number {
-  return ctx.parcelaReajusteLimite ?? proximaParcelaComReajuste(ctx.numeroParcela);
+  return ctx.parcelaReajusteLimite ?? limiteExclusivoProximoReajuste(ctx.numeroParcela);
 }
 
 function resolveUltimaParcelaEmitivel(ctx: TituloContextoLote): number {
@@ -850,7 +850,7 @@ export function TitulosList({
         vencimentoBruto: formatIsoDate(detalhe.vencimentoBruto),
         ajustadoPorDiaUtil: detalhe.ajustadoPorDiaUtil,
         excedente: false,
-        parcelaReajuste: false,
+        parcelaReajuste: isParcelaReajuste(parcela),
         valor: valoresNominaisPorParcela?.get(parcela) ?? contexto.valorNominal ?? null,
       };
     });
@@ -1545,8 +1545,8 @@ export function TitulosList({
     const qtd = Math.floor(quantidadeParcelas);
     if (!Number.isFinite(qtd) || qtd < 1 || qtd > maxParcelasPermitidas) {
       const limiteMsg = contexto && isParcelaReajuste(contexto.numeroParcela)
-        ? `Informe 1 parcela (reajuste automático do índice na parcela ${contexto.numeroParcela}).`
-        : `Informe entre 1 e ${maxParcelasPermitidas} parcela(s) (até a parcela ${ultimaParcelaEmitivel}; a ${parcelaReajusteLimite}ª é de reajuste e só pode ser emitida sozinha).`;
+        ? `Informe entre 1 e ${maxParcelasPermitidas} parcela(s) (até a ${ultimaParcelaEmitivel}ª; a ${contexto.numeroParcela}ª com reajuste 6% + ${labelIndiceReajusteContrato(contexto.tipoCorrecaoAnual)}).`
+        : `Informe entre 1 e ${maxParcelasPermitidas} parcela(s) (até a parcela ${ultimaParcelaEmitivel}; a ${parcelaReajusteLimite}ª é de reajuste e não pode entrar neste lote).`;
       toast.error(limiteMsg);
       return null;
     }
@@ -2478,13 +2478,15 @@ export function TitulosList({
                   {isParcelaReajuste(contexto.numeroParcela) ? (
                     <>
                       {" "}
-                      Parcela de reajuste — valor calculado automaticamente (6% + {labelIndiceContrato}).
+                      Máximo de {maxParcelasPermitidas} parcela(s) até a {ultimaParcelaEmitivel}ª (a{" "}
+                      {contexto.numeroParcela}ª com reajuste 6% + {labelIndiceContrato}; a {parcelaReajusteLimite}ª
+                      não entra neste lote).
                     </>
                   ) : maxParcelasPermitidas > 0 ? (
                     <>
                       {" "}
                       Máximo de {maxParcelasPermitidas} parcela(s) até a {ultimaParcelaEmitivel}ª (a{" "}
-                      {parcelaReajusteLimite}ª é de reajuste e só pode ser emitida sozinha).
+                      {parcelaReajusteLimite}ª é de reajuste e não pode entrar neste lote).
                     </>
                   ) : null}
                 </p>
@@ -2657,14 +2659,21 @@ export function TitulosList({
               ) : null}
               <p className="text-xs text-white/35">
                 {isParcelaReajuste(previewLote.parcelaInicial) ? (
-                  <>
-                    Parcela de reajuste com 6% + {labelIndiceContrato} calculado automaticamente.
-                  </>
+                  previewLote.quantidade > 1 ? (
+                    <>
+                      Emissão da {previewLote.parcelaInicial}ª à {previewLote.parcelaFinal}ª. A{" "}
+                      {previewLote.parcelaInicial}ª com reajuste 6% + {labelIndiceContrato}; a{" "}
+                      {previewLote.parcelaReajusteLimite}ª não entra neste lote.
+                    </>
+                  ) : (
+                    <>
+                      Parcela de reajuste com 6% + {labelIndiceContrato} calculado automaticamente.
+                    </>
+                  )
                 ) : (
                   <>
                     Emissão em lote até a parcela {previewLote.ultimaParcelaEmitivel}. A parcela{" "}
-                    {previewLote.parcelaReajusteLimite} é de reajuste e só pode ser emitida sozinha (6% +{" "}
-                    {labelIndiceContrato}).
+                    {previewLote.parcelaReajusteLimite} é de reajuste e não pode entrar neste lote.
                   </>
                 )}
               </p>

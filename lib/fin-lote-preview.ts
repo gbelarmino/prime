@@ -1,8 +1,8 @@
 import {
   isParcelaReajuste,
+  limiteExclusivoProximoReajuste,
   maxParcelasAteProximoReajuste,
   parcelaReajusteBloqueadaParaLote,
-  proximaParcelaComReajuste,
   ultimaParcelaEmitivelEmLote,
 } from "@/lib/fin-parcela-reajuste";
 import {
@@ -51,7 +51,7 @@ export function resolveParcelaReajusteLimiteLote(
   parcelaInicial: number,
   parcelaReajusteLimiteCtx?: number | null,
 ): number {
-  return parcelaReajusteLimiteCtx ?? proximaParcelaComReajuste(parcelaInicial);
+  return parcelaReajusteLimiteCtx ?? limiteExclusivoProximoReajuste(parcelaInicial);
 }
 
 export function buildPreviewLote(input: {

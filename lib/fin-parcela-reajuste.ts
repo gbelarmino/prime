@@ -13,24 +13,22 @@ export function proximaParcelaComReajuste(parcelaAtual: number): number {
   return Math.ceil((parcelaAtual - 1) / 12) * 12 + 1;
 }
 
-/** Máximo em lote: até antes do próximo reajuste; na parcela de reajuste, só 1. */
-export function maxParcelasAteProximoReajuste(parcelaInicial: number): number {
+/** Parcela de reajuste que não pode entrar no lote (limite exclusivo). */
+export function limiteExclusivoProximoReajuste(parcelaInicial: number): number {
   if (isParcelaReajuste(parcelaInicial)) {
-    return 1;
+    return parcelaInicial + 12;
   }
-  const parcelaReajuste = proximaParcelaComReajuste(parcelaInicial);
-  return Math.max(0, parcelaReajuste - parcelaInicial);
+  return proximaParcelaComReajuste(parcelaInicial);
+}
+
+/** Máximo em lote até antes do próximo reajuste (inclui parcela de reajuste inicial). */
+export function maxParcelasAteProximoReajuste(parcelaInicial: number): number {
+  const limite = limiteExclusivoProximoReajuste(parcelaInicial);
+  return Math.max(0, limite - parcelaInicial);
 }
 
 export function ultimaParcelaEmitivelEmLote(parcelaInicial: number): number {
-  if (isParcelaReajuste(parcelaInicial)) {
-    return parcelaInicial;
-  }
-  return proximaParcelaComReajuste(parcelaInicial) - 1;
-}
-
-export function emitindoSomenteParcelaReajuste(parcelaInicial: number, parcelaFinal: number): boolean {
-  return isParcelaReajuste(parcelaInicial) && parcelaInicial === parcelaFinal;
+  return limiteExclusivoProximoReajuste(parcelaInicial) - 1;
 }
 
 export function isParcelaReajuste(numeroParcela: number): boolean {
@@ -46,7 +44,7 @@ export function parcelasReajusteNoIntervalo(inicial: number, final: number): num
   return out;
 }
 
-/** Próxima parcela de reajuste a partir de `parcelaAtual` (inclusive se já for reajuste). */
+/** Próxima parcela de reajuste bloqueada para lote após o intervalo emitível. */
 export function parcelaReajusteBloqueadaParaLote(parcelaAtual: number): number {
-  return proximaParcelaComReajuste(parcelaAtual);
+  return limiteExclusivoProximoReajuste(parcelaAtual);
 }
