@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DataTable, type DataTablePageEvent, type DataTableSortEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { DashboardConfirmDialog } from "@/components/dashboard/DashboardConfirmDialog";
@@ -100,6 +100,13 @@ import {
   listarTitulosDoLote,
 } from "@/lib/fin-indice-simulacao";
 import { springPageDisplayRange, type SpringPage } from "@/lib/spring-page";
+import {
+  buildTitulosListQuery,
+  parseTitulosListQuery,
+  titulosDetalheHref,
+  TITULOS_LIST_DEFAULT_SORT_FIELD,
+  TITULOS_LIST_DEFAULT_SORT_ORDER,
+} from "@/lib/titulos-list-query";
 
 const STATUS_OPTIONS = [
   { label: "Todos", value: "" },
@@ -136,8 +143,8 @@ type TitulosSortField =
   | "status"
   | "contratoId";
 
-const DEFAULT_SORT_FIELD: TitulosSortField = "cadastroEm";
-const DEFAULT_SORT_ORDER = -1;
+const DEFAULT_SORT_FIELD: TitulosSortField = TITULOS_LIST_DEFAULT_SORT_FIELD as TitulosSortField;
+const DEFAULT_SORT_ORDER = TITULOS_LIST_DEFAULT_SORT_ORDER as 1 | -1;
 
 const TITULOS_SORT_FIELDS = new Set<string>([
   "cadastroEm",
@@ -273,30 +280,48 @@ export function TitulosList({
   embedded = false,
 }: TitulosListProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const menuRef = useRef<Menu>(null);
+  const skipPageResetRef = useRef(true);
+  const initialQuery = useMemo(
+    () => (embedded ? null : parseTitulosListQuery(searchParams)),
+    // Hydrate only on first mount from current URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
   const [selectedRow, setSelectedRow] = useState<TituloCobranca | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [filterContrato, setFilterContrato] = useState("");
-  const [filterNome, setFilterNome] = useState("");
-  const [filterCpf, setFilterCpf] = useState("");
-  const [filterNossoNumero, setFilterNossoNumero] = useState("");
-  const [filterEmpreendimento, setFilterEmpreendimento] = useState(FILTRO_TODOS);
-  const [filterQuadra, setFilterQuadra] = useState(FILTRO_TODOS);
-  const [filterLote, setFilterLote] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState(initialQuery?.status ?? "");
+  const [filterContrato, setFilterContrato] = useState(initialQuery?.contrato ?? "");
+  const [filterNome, setFilterNome] = useState(initialQuery?.nome ?? "");
+  const [filterCpf, setFilterCpf] = useState(initialQuery?.cpf ?? "");
+  const [filterNossoNumero, setFilterNossoNumero] = useState(initialQuery?.nossoNumero ?? "");
+  const [filterEmpreendimento, setFilterEmpreendimento] = useState(
+    initialQuery?.empreendimento ?? FILTRO_TODOS,
+  );
+  const [filterQuadra, setFilterQuadra] = useState(initialQuery?.quadra ?? FILTRO_TODOS);
+  const [filterLote, setFilterLote] = useState<number | null>(initialQuery?.lote ?? null);
   const [filterQuadras, setFilterQuadras] = useState<string[]>([]);
   const [filterQuadrasLoading, setFilterQuadrasLoading] = useState(false);
   const [filterLotes, setFilterLotes] = useState<number[]>([]);
   const [filterLotesLoading, setFilterLotesLoading] = useState(false);
-  const [filterVencimentoDe, setFilterVencimentoDe] = useState("");
-  const [filterVencimentoAte, setFilterVencimentoAte] = useState("");
-  const [filterEmissaoDe, setFilterEmissaoDe] = useState("");
-  const [filterEmissaoAte, setFilterEmissaoAte] = useState("");
-  const [filterPagamentoDe, setFilterPagamentoDe] = useState("");
-  const [filterPagamentoAte, setFilterPagamentoAte] = useState("");
-  const [page, setPage] = useState(0);
-  const [sortField, setSortField] = useState<TitulosSortField>(DEFAULT_SORT_FIELD);
-  const [sortOrder, setSortOrder] = useState<1 | -1 | 0 | null | undefined>(DEFAULT_SORT_ORDER);
+  const [filterVencimentoDe, setFilterVencimentoDe] = useState(initialQuery?.vencimentoDe ?? "");
+  const [filterVencimentoAte, setFilterVencimentoAte] = useState(initialQuery?.vencimentoAte ?? "");
+  const [filterEmissaoDe, setFilterEmissaoDe] = useState(initialQuery?.emissaoDe ?? "");
+  const [filterEmissaoAte, setFilterEmissaoAte] = useState(initialQuery?.emissaoAte ?? "");
+  const [filterPagamentoDe, setFilterPagamentoDe] = useState(initialQuery?.pagamentoDe ?? "");
+  const [filterPagamentoAte, setFilterPagamentoAte] = useState(initialQuery?.pagamentoAte ?? "");
+  const [page, setPage] = useState(initialQuery?.page ?? 0);
+  const [sortField, setSortField] = useState<TitulosSortField>(() => {
+    const field = initialQuery?.sortField;
+    return field && isTitulosSortField(field) ? field : DEFAULT_SORT_FIELD;
+  });
+  const [sortOrder, setSortOrder] = useState<1 | -1 | 0 | null | undefined>(
+    initialQuery?.sortOrder === 1 || initialQuery?.sortOrder === -1
+      ? initialQuery.sortOrder
+      : DEFAULT_SORT_ORDER,
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [marcandoVencidos, setMarcandoVencidos] = useState(false);
   const [marcarVencidosDialogOpen, setMarcarVencidosDialogOpen] = useState(false);
@@ -498,6 +523,10 @@ export function TitulosList({
   useSmsFilaRealtime(onSmsFilaRealtime);
 
   useEffect(() => {
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
     setPage(0);
     setSelectedTitulos([]);
   }, [
@@ -516,6 +545,56 @@ export function TitulosList({
     filterPagamentoDe,
     filterPagamentoAte,
   ]);
+
+  const listQueryString = useMemo(
+    () =>
+      buildTitulosListQuery({
+        status: statusFilter,
+        contrato: filterContrato,
+        nome: filterNome,
+        cpf: filterCpf,
+        nossoNumero: filterNossoNumero,
+        empreendimento: filterEmpreendimento,
+        quadra: filterQuadra,
+        lote: filterLote,
+        vencimentoDe: filterVencimentoDe,
+        vencimentoAte: filterVencimentoAte,
+        emissaoDe: filterEmissaoDe,
+        emissaoAte: filterEmissaoAte,
+        pagamentoDe: filterPagamentoDe,
+        pagamentoAte: filterPagamentoAte,
+        page,
+        sortField,
+        sortOrder: typeof sortOrder === "number" ? sortOrder : DEFAULT_SORT_ORDER,
+      }),
+    [
+      statusFilter,
+      filterContrato,
+      filterNome,
+      filterCpf,
+      filterNossoNumero,
+      filterEmpreendimento,
+      filterQuadra,
+      filterLote,
+      filterVencimentoDe,
+      filterVencimentoAte,
+      filterEmissaoDe,
+      filterEmissaoAte,
+      filterPagamentoDe,
+      filterPagamentoAte,
+      page,
+      sortField,
+      sortOrder,
+    ],
+  );
+
+  useEffect(() => {
+    if (embedded) return;
+    const current = searchParams.toString();
+    if (listQueryString === current) return;
+    const href = listQueryString ? `${pathname}?${listQueryString}` : pathname;
+    router.replace(href, { scroll: false });
+  }, [embedded, listQueryString, pathname, router, searchParams]);
 
   useEffect(() => {
     setSelectedTitulos([]);
@@ -1424,7 +1503,7 @@ export function TitulosList({
       dashboardActionMenuItem({
         label: "Ver detalhes",
         icon: <Eye size={16} className="text-blue-400 transition-transform group-hover:scale-110" />,
-        onClick: () => router.push(`/dashboard/financeiro/titulos/detalhe?id=${row.id}`),
+        onClick: () => router.push(titulosDetalheHref(row.id, listQueryString)),
       }),
     ];
 

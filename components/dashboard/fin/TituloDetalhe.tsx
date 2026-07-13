@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { InputNumber } from "primereact/inputnumber";
 import { Calendar } from "primereact/calendar";
 import { DataTable } from "primereact/datatable";
@@ -33,6 +34,7 @@ import {
   type TituloCobranca,
   type TituloHistoricoItem,
 } from "@/lib/fin-service";
+import { titulosListHref } from "@/lib/titulos-list-query";
 
 const STATUS_TONES: Record<string, string> = {
   RASCUNHO: "border-white/10 bg-white/10 text-white/50",
@@ -120,11 +122,15 @@ export function TituloDetalhe({
   variant = "financeiro",
   contratoId,
 }: TituloDetalheProps) {
+  const searchParams = useSearchParams();
   const isAtendimentoView = variant === "atendimento";
-  const backHref =
-    isAtendimentoView && contratoId != null
-      ? `/dashboard/atendimento/painel?id=${contratoId}`
-      : "/dashboard/financeiro/titulos";
+  const listReturnQuery = searchParams.get("ret")?.trim() ?? "";
+  const backHref = useMemo(() => {
+    if (isAtendimentoView && contratoId != null) {
+      return `/dashboard/atendimento/painel?id=${contratoId}`;
+    }
+    return titulosListHref(listReturnQuery);
+  }, [isAtendimentoView, contratoId, listReturnQuery]);
   const backLabel = isAtendimentoView ? "Voltar ao painel" : "Voltar à lista";
   const sectionKicker = isAtendimentoView ? "Atendimento" : "Gestão Financeira";
   const [titulo, setTitulo] = useState<TituloCobranca | null>(null);
