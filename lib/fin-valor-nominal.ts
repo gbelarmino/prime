@@ -137,9 +137,9 @@ export function indiceDisponivelParaPeriodo(
   return true;
 }
 
-/** Dois meses antes do mês de vencimento do ciclo de reajuste (fim da janela do índice). */
+/** Mês imediatamente anterior ao vencimento do ciclo de reajuste (fim da janela do índice). */
 export function mesCorteIndiceReajuste(vencimento: Date): number {
-  return anoMesFromDate(subtractMonths(vencimento, 2));
+  return anoMesFromDate(subtractMonths(vencimento, 1));
 }
 
 /** Fração decimal do reajuste total (6% + índice se positivo, teto 12%). */

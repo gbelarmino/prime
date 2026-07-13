@@ -88,7 +88,7 @@ export function TituloBalaoCorrecaoDetalhe({
           Cálculo da correção
         </p>
         <p className="mt-1 text-xs text-white/45">
-          Regra: {tipoIndice} fechado 2 meses antes do vencimento + 6% fixo · teto 12% · índice
+          Regra: {tipoIndice} fechado no mês anterior ao vencimento + 6% fixo · teto 12% · índice
           negativo → só 6%.
         </p>
       </div>

@@ -114,9 +114,9 @@ function referenciaAntesPrimeiroVencimento(primeiroVencimento: Date): Date {
   );
 }
 
-/** Parcela que exibe o ponto de corte do índice antes do reajuste (ex.: 59 → reajuste na 61). */
+/** Parcela que exibe o ponto de corte do índice antes do reajuste (ex.: 60 → reajuste na 61). */
 export function parcelaMarcoCorteParaReajuste(parcelaReajuste: number): number {
-  return parcelaReajuste - 2;
+  return parcelaReajuste - 1;
 }
 
 type MarcoCorteIndice = {
