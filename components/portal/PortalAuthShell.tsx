@@ -32,10 +32,10 @@ export function PortalAuthShell({
     <div className="min-h-screen flex flex-col lg:flex-row bg-[var(--portal-bg)]">
       <aside className="portal-grain portal-lot-grid relative flex flex-col justify-between px-8 py-10 lg:px-12 lg:py-14 lg:w-[min(54%,600px)] lg:min-h-screen border-b lg:border-b-0 lg:border-r border-[var(--portal-border)] bg-[var(--portal-bg-elevated)]">
         <div className="relative z-10 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <AppLogo boxClassName="w-12 h-12 ring-2 ring-[var(--portal-accent)]/30 rounded-xl" />
-            <div>
-              <span className="block text-sm font-semibold leading-snug text-[var(--portal-text)]">
+          <div className="flex items-center gap-3 min-w-0">
+            <AppLogo boxClassName="w-14 h-14 shrink-0 rounded-xl overflow-hidden ring-2 ring-[var(--portal-accent)]/30" />
+            <div className="min-w-0">
+              <span className="block font-[family-name:var(--font-portal-display)] text-base font-semibold leading-snug text-[var(--portal-text)]">
                 {APP_BRAND_NAME}
               </span>
               <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--portal-text-faint)]">
@@ -52,7 +52,9 @@ export function PortalAuthShell({
         </div>
 
         <div className="relative z-10 my-12 lg:my-0 lg:flex-1 lg:flex lg:flex-col lg:justify-center max-w-md">
-          <p className="text-[var(--portal-accent)] text-sm font-medium mb-4">Seu lote, suas finanças</p>
+          <p className="text-[var(--portal-accent)] text-sm font-medium mb-4">
+            {APP_BRAND_NAME} · Seu lote, suas finanças
+          </p>
           <h1 className="font-[family-name:var(--font-portal-display)] text-3xl lg:text-[2.35rem] font-semibold text-[var(--portal-text)] leading-[1.12]">
             Tudo o que importa sobre o seu imóvel, num só lugar.
           </h1>

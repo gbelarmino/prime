@@ -33,9 +33,16 @@ export function PortalAppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col lg:flex-row bg-[var(--portal-bg)]">
       <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 border-r border-[var(--portal-border)] bg-[var(--portal-bg-elevated)]">
         <div className="p-5 border-b border-[var(--portal-border)]">
-          <div className="flex items-center gap-2.5">
-            <AppLogo boxClassName="w-10 h-10" />
-            <span className="font-[family-name:var(--font-portal-display)] font-semibold">Minha área</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <AppLogo boxClassName="w-10 h-10 shrink-0" />
+            <div className="min-w-0">
+              <span className="block font-[family-name:var(--font-portal-display)] text-sm font-semibold leading-snug text-[var(--portal-text)] truncate">
+                {APP_BRAND_NAME}
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--portal-text-faint)]">
+                Portal do comprador
+              </span>
+            </div>
           </div>
         </div>
         <div className="p-4 flex items-center gap-3">
@@ -44,7 +51,7 @@ export function PortalAppShell({ children }: { children: React.ReactNode }) {
           </span>
           <div className="min-w-0">
             <p className="text-sm font-medium truncate">{nome || "Comprador"}</p>
-            <p className="text-xs text-[var(--portal-text-faint)]">Portal {APP_BRAND_NAME}</p>
+            <p className="text-xs text-[var(--portal-text-faint)]">Minha área</p>
           </div>
         </div>
         <nav className="flex-1 px-3 space-y-1">
@@ -81,11 +88,18 @@ export function PortalAppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col lg:pl-64">
         <header className="lg:hidden sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b border-[var(--portal-border)] bg-[var(--portal-bg)]/95 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <AppLogo boxClassName="w-9 h-9" />
-            <span className="text-sm font-semibold truncate max-w-[140px]">{nome || "Portal"}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <AppLogo boxClassName="w-9 h-9 shrink-0" />
+            <div className="min-w-0">
+              <span className="block text-sm font-semibold truncate text-[var(--portal-text)]">
+                {APP_BRAND_NAME}
+              </span>
+              {nome ? (
+                <span className="block text-[10px] text-[var(--portal-text-faint)] truncate">{nome}</span>
+              ) : null}
+            </div>
           </div>
-          <button type="button" onClick={sair} className="text-xs text-[var(--portal-text-faint)]">
+          <button type="button" onClick={sair} className="text-xs text-[var(--portal-text-faint)] shrink-0">
             Sair
           </button>
         </header>
