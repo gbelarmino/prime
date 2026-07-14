@@ -1239,10 +1239,30 @@ export function CobrancaGruposWorkspace() {
                   <div className={`${SUBCARD_CLASS} flex flex-col gap-5`} role="tabpanel">
                     <p className="text-sm text-white/50 leading-relaxed">
                       Importa parcelas históricas já emitidas ou quitadas (vencimento retroativo
-                      permitido). Use a tabela de valores acima e informe status e pagamento quando
-                      aplicável.
+                      permitido). Informe o número da parcela (todos os lotes do grupo usam o mesmo)
+                      e os valores na tabela acima; status e pagamento quando aplicável.
                     </p>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <FormField
+                        label="Parcela"
+                        hint={
+                          contextoLider
+                            ? `Próxima do líder: ${contextoLider.numeroParcela}. Ajuste se for importar outra.`
+                            : "Número da parcela no contrato líder (mesmo nº em todos os lotes)."
+                        }
+                      >
+                        <InputNumber
+                          value={parcelaLider}
+                          onValueChange={(e) => {
+                            setSimulacao(null);
+                            setParcelaLider(e.value ?? null);
+                          }}
+                          min={1}
+                          className="w-full"
+                          inputClassName={FORM_INPUT_CLASS}
+                          useGrouping={false}
+                        />
+                      </FormField>
                       <FormField label="Vencimento (legado)">
                         <DashboardCalendar
                           value={vencimentoLegado}
