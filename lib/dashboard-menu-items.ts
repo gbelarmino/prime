@@ -31,6 +31,7 @@ import {
   Zap,
 } from "lucide-react";
 import { ADMIN_DASHBOARD_HOME, WELCOME_DASHBOARD_PATH } from "@/lib/auth-storage";
+import { WHATSAPP_RELAY_UI_ENABLED } from "@/lib/whatsapp-feature";
 
 export type MenuIcon = ComponentType<{ size?: number; className?: string }>;
 
@@ -289,6 +290,9 @@ export function menuItemVisible(
   role: string | null,
   crmFunilEnabled: boolean | null,
 ): boolean {
+  if (item.id === "grupo-whatsapp" && !WHATSAPP_RELAY_UI_ENABLED) {
+    return false;
+  }
   if (role === "ATENDIMENTO") {
     if (item.kind === "group" && item.prefix === ATENDIMENTO_MENU_PREFIX) {
       return true;

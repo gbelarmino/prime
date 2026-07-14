@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
+import { WHATSAPP_RELAY_UI_ENABLED } from "@/lib/whatsapp-feature";
 
 const CONEXAO_HREF = "/dashboard/whatsapp/conexao";
 import { whatsappService, type WhatsAppLinhaComStatus } from "@/lib/whatsapp-service";
@@ -48,12 +49,14 @@ export function WhatsAppHeaderStatus() {
   }, []);
 
   useEffect(() => {
+    if (!WHATSAPP_RELAY_UI_ENABLED) return;
     void refresh();
     const id = window.setInterval(() => void refresh(), POLL_MS);
     return () => window.clearInterval(id);
   }, [refresh]);
 
   useEffect(() => {
+    if (!WHATSAPP_RELAY_UI_ENABLED) return;
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
@@ -79,6 +82,10 @@ export function WhatsAppHeaderStatus() {
   const tooltip = [statusText, linhaLabel, relayHint && conn !== "open" ? relayHint : null]
     .filter(Boolean)
     .join(" — ");
+
+  if (!WHATSAPP_RELAY_UI_ENABLED) {
+    return null;
+  }
 
   const iconTone =
     conn === "open"
