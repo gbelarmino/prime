@@ -289,6 +289,9 @@ export function getMenuItemId(item: MenuLinkItem | MenuGroupItem): string {
 }
 
 export function menuChildVisible(child: MenuChildDef, role: string | null): boolean {
+  if (child.id === "wa-conexao" && !WHATSAPP_RELAY_UI_ENABLED) {
+    return false;
+  }
   if (!child.roles) return true;
   return Boolean(role && child.roles.includes(role));
 }
@@ -298,9 +301,6 @@ export function menuItemVisible(
   role: string | null,
   crmFunilEnabled: boolean | null,
 ): boolean {
-  if (item.id === "grupo-whatsapp" && !WHATSAPP_RELAY_UI_ENABLED) {
-    return false;
-  }
   if (role === "ATENDIMENTO") {
     if (item.kind === "group" && item.prefix === ATENDIMENTO_MENU_PREFIX) {
       return true;
