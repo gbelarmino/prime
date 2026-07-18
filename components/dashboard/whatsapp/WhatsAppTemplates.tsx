@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
   whatsappService,
   WhatsAppTemplate,
@@ -105,6 +105,7 @@ export function WhatsAppTemplates() {
 
   const handleCriarTwilio = async (template: WhatsAppTemplate, recreate = false) => {
     if (!template.id) return;
+    if (twilioBusyId === template.id) return;
     setTwilioBusyId(template.id);
     try {
       const r = await whatsappService.criarTwilioTemplate(template.id, "UTILITY", recreate);
@@ -222,6 +223,16 @@ export function WhatsAppTemplates() {
     value: e.codigo,
   }));
 
+  const runMenuCommand = (
+    e: MouseEvent,
+    item: MenuItem,
+  ) => {
+    // Evita double-fire: botão do template + handler nativo do Menu.
+    e.preventDefault();
+    e.stopPropagation();
+    item.command?.({ originalEvent: e, item });
+  };
+
   const actionItems: MenuItem[] = [
     {
       label: "Editar modelo",
@@ -229,7 +240,7 @@ export function WhatsAppTemplates() {
       template: (item: MenuItem) => (
         <button
           type="button"
-          onClick={(e) => item.command?.({ originalEvent: e, item })}
+          onClick={(e) => runMenuCommand(e, item)}
           className="group flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
         >
           <i className="pi pi-pencil text-blue-400 transition-transform group-hover:scale-110" />
@@ -248,7 +259,7 @@ export function WhatsAppTemplates() {
       template: (item: MenuItem) => (
         <button
           type="button"
-          onClick={(e) => item.command?.({ originalEvent: e, item })}
+          onClick={(e) => runMenuCommand(e, item)}
           className="group flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
         >
           <i className="pi pi-send text-emerald-400 transition-transform group-hover:scale-110" />
@@ -267,7 +278,7 @@ export function WhatsAppTemplates() {
       template: (item: MenuItem) => (
         <button
           type="button"
-          onClick={(e) => item.command?.({ originalEvent: e, item })}
+          onClick={(e) => runMenuCommand(e, item)}
           className="group flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
         >
           <i className="pi pi-refresh text-amber-400 transition-transform group-hover:scale-110" />
@@ -287,7 +298,7 @@ export function WhatsAppTemplates() {
       template: (item: MenuItem) => (
         <button
           type="button"
-          onClick={(e) => item.command?.({ originalEvent: e, item })}
+          onClick={(e) => runMenuCommand(e, item)}
           className="group flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
         >
           <i className="pi pi-trash text-rose-400 transition-transform group-hover:scale-110" />
