@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 
 const SECTION_LABEL: Record<string, string> = {
   "/dashboard/whatsapp/conexao": "Conexão",
+  "/dashboard/whatsapp/conta": "Conta Twilio",
   "/dashboard/whatsapp/modelos": "Modelos de mensagem",
   "/dashboard/whatsapp/gatilhos": "Gatilhos automáticos",
   "/dashboard/whatsapp/teste": "Teste de envio",

@@ -817,6 +817,14 @@ export function getWhatsAppTemplatesUrl(): string {
   return `${getWhatsAppUrl()}/templates`;
 }
 
+export function getWhatsAppTwilioConfigUrl(): string {
+  return `${getWhatsAppUrl()}/twilio/config`;
+}
+
+export function getWhatsAppTwilioTesteUrl(): string {
+  return `${getWhatsAppUrl()}/twilio/teste`;
+}
+
 export function getWhatsAppTwilioTemplatesUrl(): string {
   return `${getWhatsAppUrl()}/twilio/templates`;
 }

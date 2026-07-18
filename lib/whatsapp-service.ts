@@ -6,6 +6,8 @@ import {
   getWhatsAppLogoutUrl,
   getWhatsAppRecreateUrl,
   getWhatsAppTemplatesUrl,
+  getWhatsAppTwilioConfigUrl,
+  getWhatsAppTwilioTesteUrl,
   getWhatsAppTwilioTemplatesUrl,
   getWhatsAppTwilioTemplateCriarUrl,
   getWhatsAppTwilioTemplateSyncUrl,
@@ -46,6 +48,18 @@ export interface WhatsAppTemplateTwilio {
   contentSid: string;
   status: string;
   mapaVariaveisJson?: string | null;
+}
+
+export interface WhatsAppTwilioConfig {
+  id?: string;
+  tenantId?: number;
+  accountSid: string;
+  authTokenConfigured: boolean;
+  whatsappFrom: string;
+  wabaId?: string | null;
+  ativo: string;
+  ultimoTesteEm?: string | null;
+  ultimoTesteOk?: string | null;
 }
 
 export interface WhatsAppGatilho {
@@ -249,6 +263,61 @@ export const whatsappService = {
     const res = await apiFetch(`${getWhatsAppTemplatesUrl()}/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Erro ao excluir modelo do WhatsApp");
     return true;
+  },
+
+  async getTwilioConfig(): Promise<WhatsAppTwilioConfig | null> {
+    const res = await apiFetch(getWhatsAppTwilioConfigUrl());
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error("Erro ao carregar configuração Twilio");
+    const text = await res.text();
+    if (!text || text === "null") return null;
+    return JSON.parse(text) as WhatsAppTwilioConfig;
+  },
+
+  async saveTwilioConfig(payload: {
+    accountSid: string;
+    authToken?: string;
+    whatsappFrom: string;
+    wabaId?: string;
+    ativo: string;
+  }): Promise<WhatsAppTwilioConfig> {
+    const res = await apiFetch(getWhatsAppTwilioConfigUrl(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      let msg = "Erro ao guardar configuração Twilio";
+      try {
+        const j = (await res.json()) as { message?: string };
+        if (j?.message) msg = j.message;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
+    return res.json();
+  },
+
+  async testeTwilio(destino: string, mensagem?: string): Promise<void> {
+    const res = await apiFetch(getWhatsAppTwilioTesteUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        destino,
+        mensagem: mensagem?.trim() || undefined,
+      }),
+    });
+    if (!res.ok) {
+      let msg = "Erro no teste Twilio";
+      try {
+        const j = (await res.json()) as { message?: string };
+        if (j?.message) msg = j.message;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
   },
 
   async listTwilioTemplates(): Promise<WhatsAppTemplateTwilio[]> {

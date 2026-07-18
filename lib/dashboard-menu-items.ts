@@ -243,6 +243,13 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
         icon: MessageCircle,
         roles: ["ADMIN", "ATENDIMENTO"],
       },
+      {
+        id: "wa-conta",
+        href: "/dashboard/whatsapp/conta",
+        label: "Conta Twilio",
+        icon: MessageCircle,
+        roles: ["ADMIN"],
+      },
       { id: "wa-modelos", href: "/dashboard/whatsapp/modelos", label: "Modelos de mensagem", icon: FileText, roles: ["ADMIN"] },
       { id: "wa-gatilhos", href: "/dashboard/whatsapp/gatilhos", label: "Gatilhos automáticos", icon: Zap, roles: ["ADMIN"] },
       { id: "wa-teste", href: "/dashboard/whatsapp/teste", label: "Teste", icon: Send, roles: ["ADMIN"] },

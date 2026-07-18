@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function WhatsAppIndexPage() {
-  redirect("/dashboard/whatsapp/conexao");
+  redirect("/dashboard/whatsapp/conta");
 }
