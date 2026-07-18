@@ -6,6 +6,10 @@ import {
   getWhatsAppLogoutUrl,
   getWhatsAppRecreateUrl,
   getWhatsAppTemplatesUrl,
+  getWhatsAppTwilioTemplatesUrl,
+  getWhatsAppTwilioTemplateCriarUrl,
+  getWhatsAppTwilioTemplateSyncUrl,
+  getWhatsAppTwilioTemplatesSyncAllUrl,
   getWhatsAppGatilhosUrl,
   getWhatsAppEnvioTesteUrl,
   getWhatsAppEventosCatalogoUrl,
@@ -33,6 +37,15 @@ export interface WhatsAppTemplate {
   anexoUrl?: string;
   tipoAnexo?: string;
   dataCadastro?: string;
+}
+
+export interface WhatsAppTemplateTwilio {
+  id?: string;
+  templateId: string;
+  templateNome?: string;
+  contentSid: string;
+  status: string;
+  mapaVariaveisJson?: string | null;
 }
 
 export interface WhatsAppGatilho {
@@ -236,6 +249,43 @@ export const whatsappService = {
     const res = await apiFetch(`${getWhatsAppTemplatesUrl()}/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Erro ao excluir modelo do WhatsApp");
     return true;
+  },
+
+  async listTwilioTemplates(): Promise<WhatsAppTemplateTwilio[]> {
+    const res = await apiFetch(getWhatsAppTwilioTemplatesUrl());
+    if (!res.ok) throw new Error("Erro ao listar templates Twilio");
+    return res.json();
+  },
+
+  async criarTwilioTemplate(
+    templateId: string,
+    category: string = "UTILITY",
+    recreate = false,
+  ): Promise<WhatsAppTemplateTwilio> {
+    const res = await apiFetch(getWhatsAppTwilioTemplateCriarUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ templateId, category, recreate }),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(t || "Erro ao criar template na Twilio");
+    }
+    return res.json();
+  },
+
+  async syncTwilioTemplate(templateId: string): Promise<WhatsAppTemplateTwilio> {
+    const res = await apiFetch(getWhatsAppTwilioTemplateSyncUrl(templateId), {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Erro ao sincronizar status Twilio");
+    return res.json();
+  },
+
+  async syncAllTwilioTemplates(): Promise<WhatsAppTemplateTwilio[]> {
+    const res = await apiFetch(getWhatsAppTwilioTemplatesSyncAllUrl(), { method: "POST" });
+    if (!res.ok) throw new Error("Erro ao sincronizar templates Twilio");
+    return res.json();
   },
 
   // Gatilhos

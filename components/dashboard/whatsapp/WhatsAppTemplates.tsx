@@ -6,6 +6,7 @@ import {
   WhatsAppTemplate,
   type EventoPlaceholderCatalogo,
   type EventoSistemaCatalogo,
+  type WhatsAppTemplateTwilio,
 } from "@/lib/whatsapp-service";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -25,7 +26,11 @@ export function WhatsAppTemplates() {
   const menuRef = useRef<Menu>(null);
   const [selectedRow, setSelectedRow] = useState<WhatsAppTemplate | null>(null);
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [twilioByTemplateId, setTwilioByTemplateId] = useState<
+    Record<string, WhatsAppTemplateTwilio>
+  >({});
   const [eventosCatalogo, setEventosCatalogo] = useState<EventoSistemaCatalogo[]>([]);
+  const [twilioBusyId, setTwilioBusyId] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<WhatsAppTemplate | null>(null);
   const [saving, setSaving] = useState(false);
@@ -64,12 +69,18 @@ export function WhatsAppTemplates() {
 
   const fetchInitial = async () => {
     try {
-      const [data, cat] = await Promise.all([
+      const [data, cat, twilio] = await Promise.all([
         whatsappService.listTemplates(),
         whatsappService.listEventosCatalogo(),
+        whatsappService.listTwilioTemplates().catch(() => [] as WhatsAppTemplateTwilio[]),
       ]);
       setTemplates(data);
       setEventosCatalogo(cat);
+      const map: Record<string, WhatsAppTemplateTwilio> = {};
+      for (const t of twilio) {
+        if (t.templateId) map[t.templateId] = t;
+      }
+      setTwilioByTemplateId(map);
     } catch {
       toast.error("Erro ao carregar modelos");
     }
@@ -77,10 +88,67 @@ export function WhatsAppTemplates() {
 
   const fetchTemplates = async () => {
     try {
-      const data = await whatsappService.listTemplates();
+      const [data, twilio] = await Promise.all([
+        whatsappService.listTemplates(),
+        whatsappService.listTwilioTemplates().catch(() => [] as WhatsAppTemplateTwilio[]),
+      ]);
       setTemplates(data);
+      const map: Record<string, WhatsAppTemplateTwilio> = {};
+      for (const t of twilio) {
+        if (t.templateId) map[t.templateId] = t;
+      }
+      setTwilioByTemplateId(map);
     } catch {
       toast.error("Erro ao carregar modelos");
+    }
+  };
+
+  const handleCriarTwilio = async (template: WhatsAppTemplate, recreate = false) => {
+    if (!template.id) return;
+    setTwilioBusyId(template.id);
+    try {
+      const r = await whatsappService.criarTwilioTemplate(template.id, "UTILITY", recreate);
+      toast.success(
+        recreate
+          ? "Novo Content SID criado e submetido à Meta"
+          : "Template criado/submetido na Twilio",
+      );
+      setTwilioByTemplateId((prev) => ({ ...prev, [template.id!]: r }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao criar na Twilio");
+    } finally {
+      setTwilioBusyId(null);
+    }
+  };
+
+  const handleSyncTwilio = async (template: WhatsAppTemplate) => {
+    if (!template.id) return;
+    setTwilioBusyId(template.id);
+    try {
+      const r = await whatsappService.syncTwilioTemplate(template.id);
+      toast.success(`Status Twilio: ${r.status}`);
+      setTwilioByTemplateId((prev) => ({ ...prev, [template.id!]: r }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+    } finally {
+      setTwilioBusyId(null);
+    }
+  };
+
+  const handleSyncAllTwilio = async () => {
+    setTwilioBusyId("__all__");
+    try {
+      const list = await whatsappService.syncAllTwilioTemplates();
+      const map: Record<string, WhatsAppTemplateTwilio> = {};
+      for (const t of list) {
+        if (t.templateId) map[t.templateId] = t;
+      }
+      setTwilioByTemplateId(map);
+      toast.success("Status Twilio sincronizado");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+    } finally {
+      setTwilioBusyId(null);
     }
   };
 
@@ -174,6 +242,44 @@ export function WhatsAppTemplates() {
         if (selectedRow) void handleEdit(selectedRow);
       },
     },
+    {
+      label: "Criar/submeter Twilio",
+      icon: "pi pi-send",
+      template: (item: MenuItem) => (
+        <button
+          type="button"
+          onClick={(e) => item.command?.({ originalEvent: e, item })}
+          className="group flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
+        >
+          <i className="pi pi-send text-emerald-400 transition-transform group-hover:scale-110" />
+          <span className="whitespace-nowrap text-left text-xs font-bold uppercase tracking-widest text-white/70">
+            {item.label}
+          </span>
+        </button>
+      ),
+      command: () => {
+        if (selectedRow) void handleCriarTwilio(selectedRow, false);
+      },
+    },
+    {
+      label: "Sincronizar status Twilio",
+      icon: "pi pi-refresh",
+      template: (item: MenuItem) => (
+        <button
+          type="button"
+          onClick={(e) => item.command?.({ originalEvent: e, item })}
+          className="group flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
+        >
+          <i className="pi pi-refresh text-amber-400 transition-transform group-hover:scale-110" />
+          <span className="whitespace-nowrap text-left text-xs font-bold uppercase tracking-widest text-white/70">
+            {item.label}
+          </span>
+        </button>
+      ),
+      command: () => {
+        if (selectedRow) void handleSyncTwilio(selectedRow);
+      },
+    },
     { separator: true },
     {
       label: "Excluir modelo",
@@ -216,16 +322,26 @@ export function WhatsAppTemplates() {
       <WhatsAppSectionShell
         eyebrow="Biblioteca"
         title="Modelos de mensagem"
-        description="Textos reutilizáveis com variáveis (ex.: nome do cliente). Estes modelos são escolhidos nos gatilhos automáticos."
+        description="Textos reutilizáveis com variáveis (ex.: nome do cliente). Use o menu de ações para criar o Content Template na Twilio e submeter à aprovação da Meta."
         actions={
-          <button
-            type="button"
-            onClick={handleNew}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white shadow-lg shadow-emerald-900/25 transition hover:bg-emerald-500 active:scale-[0.98]"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
-            Novo modelo
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void handleSyncAllTwilio()}
+              disabled={twilioBusyId === "__all__"}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white/80 transition hover:bg-white/10 active:scale-[0.98] disabled:opacity-50"
+            >
+              Sync Twilio
+            </button>
+            <button
+              type="button"
+              onClick={handleNew}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white shadow-lg shadow-emerald-900/25 transition hover:bg-emerald-500 active:scale-[0.98]"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
+              Novo modelo
+            </button>
+          </div>
         }
       >
         <div className="-mx-3 overflow-x-auto border-b border-white/10 bg-white/5 sm:-mx-4">
@@ -303,6 +419,38 @@ export function WhatsAppTemplates() {
                     </p>
                   </div>
                 )}
+              />
+              <Column
+                header="Twilio"
+                headerClassName="text-left"
+                body={(r: WhatsAppTemplate) => {
+                  const tw = r.id ? twilioByTemplateId[r.id] : undefined;
+                  if (!tw) {
+                    return (
+                      <span className="text-[11px] text-white/35">
+                        {twilioBusyId === r.id ? "…" : "não enviado"}
+                      </span>
+                    );
+                  }
+                  return (
+                    <div className="flex flex-col gap-0.5">
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-wider ${
+                          tw.status === "APPROVED"
+                            ? "text-emerald-400"
+                            : tw.status === "REJECTED"
+                              ? "text-rose-400"
+                              : "text-amber-400"
+                        }`}
+                      >
+                        {tw.status}
+                      </span>
+                      <span className="max-w-[9rem] truncate font-mono text-[10px] text-white/35" title={tw.contentSid}>
+                        {tw.contentSid}
+                      </span>
+                    </div>
+                  );
+                }}
               />
               <Column
                 header="Ações"

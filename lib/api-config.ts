@@ -817,6 +817,22 @@ export function getWhatsAppTemplatesUrl(): string {
   return `${getWhatsAppUrl()}/templates`;
 }
 
+export function getWhatsAppTwilioTemplatesUrl(): string {
+  return `${getWhatsAppUrl()}/twilio/templates`;
+}
+
+export function getWhatsAppTwilioTemplateCriarUrl(): string {
+  return `${getWhatsAppUrl()}/twilio/templates/criar`;
+}
+
+export function getWhatsAppTwilioTemplateSyncUrl(templateId: string): string {
+  return `${getWhatsAppUrl()}/twilio/templates/${encodeURIComponent(templateId)}/sync`;
+}
+
+export function getWhatsAppTwilioTemplatesSyncAllUrl(): string {
+  return `${getWhatsAppUrl()}/twilio/templates/sync-all`;
+}
+
 export function getWhatsAppGatilhosUrl(): string {
   return `${getWhatsAppUrl()}/gatilhos`;
 }
@@ -1479,6 +1495,34 @@ export function getFinPorImovelByIdUrl(imovelId: number): string {
 
 export function getAtendimentoUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.atendimento);
+}
+
+export function getAtendimentoConversasUrl(status?: string): string {
+  const base = withBase(getApiBaseUrl(), `${API_PATHS.atendimento}/conversas`);
+  if (!status) return base;
+  const q = new URLSearchParams({ status });
+  return `${base}?${q.toString()}`;
+}
+
+export function getAtendimentoConversaMensagensUrl(
+  conversaId: string,
+  opts?: { before?: string; beforeId?: string; limit?: number },
+): string {
+  const base = withBase(
+    getApiBaseUrl(),
+    `${API_PATHS.atendimento}/conversas/${conversaId}/mensagens`,
+  );
+  if (!opts) return base;
+  const q = new URLSearchParams();
+  if (opts.before) q.set("before", opts.before);
+  if (opts.beforeId) q.set("beforeId", opts.beforeId);
+  if (opts.limit != null) q.set("limit", String(opts.limit));
+  const qs = q.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+export function getAtendimentoConversaUrl(conversaId: string): string {
+  return withBase(getApiBaseUrl(), `${API_PATHS.atendimento}/conversas/${conversaId}`);
 }
 
 export type AtendimentoBuscaSort = {

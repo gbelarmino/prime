@@ -178,7 +178,15 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     icon: Headset,
     roles: ["ADMIN", "ATENDIMENTO", "ADMINISTRATIVO"],
     prefix: ATENDIMENTO_MENU_PREFIX,
-    children: [{ id: "atendimento-consulta", href: "/dashboard/atendimento", label: "Consulta", icon: Search }],
+    children: [
+      { id: "atendimento-consulta", href: "/dashboard/atendimento", label: "Consulta", icon: Search },
+      {
+        id: "atendimento-chat",
+        href: "/dashboard/atendimento/chat",
+        label: "Chat WhatsApp",
+        icon: MessageCircle,
+      },
+    ],
   },
   {
     kind: "group",
