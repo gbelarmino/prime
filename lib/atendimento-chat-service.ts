@@ -2,6 +2,7 @@ import { apiFetch } from "./api-fetch";
 import {
   getAtendimentoConversasUrl,
   getAtendimentoConversaMensagensUrl,
+  getAtendimentoConversaAnexoUrl,
   getAtendimentoConversaUrl,
 } from "./api-config";
 
@@ -42,6 +43,11 @@ export type WhatsAppMensagemChat = {
   status?: string | null;
   usuarioAgenteId?: number | null;
   dataCadastro?: string | null;
+  mediaToken?: string | null;
+  mediaNomeArquivo?: string | null;
+  mediaContentType?: string | null;
+  mediaKind?: "IMAGE" | "DOCUMENT" | string | null;
+  mediaUrl?: string | null;
 };
 
 export type WhatsAppMensagensPage = {
@@ -91,6 +97,24 @@ export const atendimentoChatService = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mensagem }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async responderAnexo(
+    conversaId: string,
+    file: File,
+    mensagem?: string,
+  ): Promise<WhatsAppMensagemChat> {
+    const form = new FormData();
+    form.append("file", file);
+    if (mensagem?.trim()) {
+      form.append("mensagem", mensagem.trim());
+    }
+    const res = await apiFetch(getAtendimentoConversaAnexoUrl(conversaId), {
+      method: "POST",
+      body: form,
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();

@@ -51,11 +51,43 @@ function JanelaBadge({
   );
 }
 
+function MensagemAnexo({ m }: { m: WhatsAppMensagemChat }) {
+  if (!m.mediaUrl && !m.mediaNomeArquivo) return null;
+  const isImage =
+    (m.mediaKind ?? "").toUpperCase() === "IMAGE" ||
+    (m.mediaContentType ?? "").startsWith("image/");
+  if (isImage && m.mediaUrl) {
+    return (
+      <a href={m.mediaUrl} target="_blank" rel="noreferrer" className="mt-1 block">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={m.mediaUrl}
+          alt={m.mediaNomeArquivo || "Imagem"}
+          className="max-h-56 max-w-full rounded-lg object-contain"
+        />
+      </a>
+    );
+  }
+  return (
+    <a
+      href={m.mediaUrl || "#"}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-1 flex items-center gap-2 rounded-lg bg-black/20 px-2.5 py-2 text-xs underline-offset-2 hover:underline"
+    >
+      <i className="pi pi-file text-sm opacity-80" />
+      <span className="truncate">{m.mediaNomeArquivo || "Documento"}</span>
+    </a>
+  );
+}
+
 export function AtendimentoChatDesk() {
   const [conversas, setConversas] = useState<WhatsAppConversa[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<WhatsAppMensagemChat[]>([]);
   const [texto, setTexto] = useState("");
+  const [anexo, setAnexo] = useState<File | null>(null);
+  const [anexoPreviewUrl, setAnexoPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -69,6 +101,7 @@ export function AtendimentoChatDesk() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const loadingOlderRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selected = conversas.find((c) => c.id === selectedId);
   const restanteSelected = useJanelaTick(selected?.janelaExpiraEm);
@@ -83,6 +116,26 @@ export function AtendimentoChatDesk() {
     const id = window.setInterval(() => setListNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!anexo || !anexo.type.startsWith("image/")) {
+      setAnexoPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(anexo);
+    setAnexoPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [anexo]);
+
+  function limparAnexo() {
+    setAnexo(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function onEscolherArquivo(fileList: FileList | null) {
+    const f = fileList?.[0] ?? null;
+    setAnexo(f);
+  }
 
   const carregarConversas = useCallback(async () => {
     try {
@@ -170,6 +223,8 @@ export function AtendimentoChatDesk() {
     setHasMore(false);
     setNextBefore(null);
     setNextBeforeId(null);
+    setTexto("");
+    limparAnexo();
     if (selectedId) void carregarMensagensIniciais(selectedId);
   }, [selectedId, carregarMensagensIniciais]);
 
@@ -213,12 +268,20 @@ export function AtendimentoChatDesk() {
   }
 
   async function enviar() {
-    if (!selectedId || !texto.trim() || !podeTextoLivre) return;
+    if (!selectedId || !podeTextoLivre) return;
+    if (!texto.trim() && !anexo) return;
     setLoading(true);
     setErro(null);
     try {
-      const msg = await atendimentoChatService.responder(selectedId, texto.trim());
+      const msg = anexo
+        ? await atendimentoChatService.responderAnexo(
+            selectedId,
+            anexo,
+            texto.trim() || undefined,
+          )
+        : await atendimentoChatService.responder(selectedId, texto.trim());
       setTexto("");
+      limparAnexo();
       setMensagens((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -389,7 +452,10 @@ export function AtendimentoChatDesk() {
                         : "bg-white/10 text-white/90"
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{m.corpo}</div>
+                    <MensagemAnexo m={m} />
+                    {m.corpo ? (
+                      <div className="whitespace-pre-wrap">{m.corpo}</div>
+                    ) : null}
                     <div className="mt-1 text-[10px] opacity-50">
                       {m.autor}
                       {m.dataCadastro
@@ -413,7 +479,47 @@ export function AtendimentoChatDesk() {
                 {TEMPLATE_HINT}
               </p>
             ) : null}
+            {anexo ? (
+              <div className="mb-2 flex items-center gap-2 rounded border border-white/15 bg-black/25 px-2.5 py-1.5 text-xs text-white/70">
+                {anexoPreviewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={anexoPreviewUrl}
+                    alt=""
+                    className="h-10 w-10 rounded object-cover"
+                  />
+                ) : (
+                  <i className="pi pi-file text-base opacity-70" />
+                )}
+                <span className="min-w-0 flex-1 truncate">{anexo.name}</span>
+                <button
+                  type="button"
+                  className="text-white/50 hover:text-white"
+                  onClick={limparAnexo}
+                  disabled={loading}
+                  aria-label="Remover anexo"
+                >
+                  <i className="pi pi-times" />
+                </button>
+              </div>
+            ) : null}
             <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.odt,.ods"
+                onChange={(e) => onEscolherArquivo(e.target.files)}
+              />
+              <Button
+                icon="pi pi-paperclip"
+                outlined
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!selected || loading || !podeTextoLivre}
+                tooltip="Anexar imagem ou documento"
+                tooltipOptions={{ position: "top" }}
+              />
               <InputTextarea
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
@@ -423,7 +529,9 @@ export function AtendimentoChatDesk() {
                   !selected
                     ? "Selecione uma conversa"
                     : podeTextoLivre
-                      ? "Escreva a resposta…"
+                      ? anexo
+                        ? "Legenda opcional…"
+                        : "Escreva a resposta…"
                       : "Janela fechada — use template em WhatsApp → Modelos"
                 }
                 disabled={!selected || loading || !podeTextoLivre}
@@ -432,7 +540,10 @@ export function AtendimentoChatDesk() {
                 icon="pi pi-send"
                 onClick={() => void enviar()}
                 disabled={
-                  !selected || loading || !texto.trim() || !podeTextoLivre
+                  !selected ||
+                  loading ||
+                  !podeTextoLivre ||
+                  (!texto.trim() && !anexo)
                 }
                 loading={loading}
               />

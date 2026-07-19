@@ -1529,6 +1529,13 @@ export function getAtendimentoConversaMensagensUrl(
   return qs ? `${base}?${qs}` : base;
 }
 
+export function getAtendimentoConversaAnexoUrl(conversaId: string): string {
+  return withBase(
+    getApiBaseUrl(),
+    `${API_PATHS.atendimento}/conversas/${conversaId}/mensagens/anexo`,
+  );
+}
+
 export function getAtendimentoConversaUrl(conversaId: string): string {
   return withBase(getApiBaseUrl(), `${API_PATHS.atendimento}/conversas/${conversaId}`);
 }
