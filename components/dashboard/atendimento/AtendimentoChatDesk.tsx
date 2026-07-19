@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "primereact/button";
 import { InputTextarea } from "primereact/inputtextarea";
 import { useConversaRealtime } from "@/hooks/use-conversa-realtime";
@@ -18,6 +19,8 @@ import {
   segundosAte,
 } from "@/lib/whatsapp-janela";
 import { requestTwilioSaldoRefresh } from "@/lib/twilio-saldo-events";
+import { WHATSAPP_INBOUND_ALERT_EVENT } from "@/lib/whatsapp-inbound-alert";
+import { WhatsAppDeliveryTicks } from "@/lib/whatsapp-message-ticks";
 
 const TEMPLATE_HINT =
   "Fora da janela de 24h, use templates Meta aprovados (Content SID) cadastrados em WhatsApp → Modelos.";
@@ -97,8 +100,10 @@ function MensagemAnexo({ m }: { m: WhatsAppMensagemChat }) {
 }
 
 export function AtendimentoChatDesk() {
+  const searchParams = useSearchParams();
   const [conversas, setConversas] = useState<WhatsAppConversa[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [flashConversaId, setFlashConversaId] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<WhatsAppMensagemChat[]>([]);
   const [texto, setTexto] = useState("");
   const [anexo, setAnexo] = useState<File | null>(null);
@@ -255,6 +260,22 @@ export function AtendimentoChatDesk() {
   }, [carregarConversas]);
 
   useEffect(() => {
+    const id = searchParams.get("conversa");
+    if (id) setSelectedId(id);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const onInboundFlash = (e: Event) => {
+      const conversaId =
+        (e as CustomEvent<{ conversaId?: string | null }>).detail?.conversaId ?? null;
+      setFlashConversaId(conversaId);
+      window.setTimeout(() => setFlashConversaId(null), 1800);
+    };
+    window.addEventListener(WHATSAPP_INBOUND_ALERT_EVENT, onInboundFlash);
+    return () => window.removeEventListener(WHATSAPP_INBOUND_ALERT_EVENT, onInboundFlash);
+  }, []);
+
+  useEffect(() => {
     setMensagens([]);
     setHasMore(false);
     setNextBefore(null);
@@ -263,6 +284,16 @@ export function AtendimentoChatDesk() {
     limparAnexo();
     if (selectedId) void carregarMensagensIniciais(selectedId);
   }, [selectedId, carregarMensagensIniciais]);
+
+  const onRealtimeMessage = useCallback((msg: { type?: string; mensagemId?: unknown; status?: unknown }) => {
+    if (msg.type !== "MSG_STATUS") return;
+    const mensagemId = typeof msg.mensagemId === "string" ? msg.mensagemId : null;
+    const status = typeof msg.status === "string" ? msg.status : null;
+    if (!mensagemId || !status) return;
+    setMensagens((prev) =>
+      prev.map((m) => (m.id === mensagemId ? { ...m, status } : m)),
+    );
+  }, []);
 
   /** Realtime: só atualiza a “ponta” recente sem resetar o histórico já carregado. */
   useConversaRealtime(
@@ -291,6 +322,7 @@ export function AtendimentoChatDesk() {
         }
       })();
     }, [carregarConversas, selectedId, scrollToBottom]),
+    { onMessage: onRealtimeMessage },
   );
 
   function onThreadScroll() {
@@ -411,7 +443,11 @@ export function AtendimentoChatDesk() {
                     onClick={() => setSelectedId(c.id)}
                     className={`flex w-full flex-col gap-0.5 border-b border-white/5 px-3 py-2.5 text-left transition ${
                       selectedId === c.id ? "bg-blue-500/20" : "hover:bg-white/5"
-                    } ${fechando ? "border-l-2 border-l-amber-400/80" : ""}`}
+                    } ${fechando ? "border-l-2 border-l-amber-400/80" : ""} ${
+                      flashConversaId === c.id
+                        ? "bg-emerald-500/20 ring-1 ring-inset ring-emerald-400/50"
+                        : ""
+                    }`}
                   >
                     <span className="flex items-start justify-between gap-2">
                       <span className="line-clamp-2 text-sm font-medium text-white">
@@ -447,7 +483,13 @@ export function AtendimentoChatDesk() {
           </ul>
         </aside>
 
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5">
+        <section
+          className={`flex min-h-0 flex-col overflow-hidden rounded-xl border bg-white/5 transition-[box-shadow,border-color] duration-300 ${
+            flashConversaId && selectedId === flashConversaId
+              ? "border-emerald-400/60 shadow-[0_0_0_1px_rgba(52,211,153,0.35)]"
+              : "border-white/10"
+          }`}
+        >
           <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
             <div className="min-w-0">
               <div className="truncate text-sm font-medium text-white/90">
@@ -504,6 +546,11 @@ export function AtendimentoChatDesk() {
 
             {mensagens.map((m) => {
               const out = m.direcao === "OUT";
+              const when = m.dataCadastro ? new Date(m.dataCadastro) : null;
+              const timeLabel = when
+                ? when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                : "";
+              const fullWhen = when ? when.toLocaleString("pt-BR") : "";
               return (
                 <div
                   key={m.id}
@@ -520,11 +567,17 @@ export function AtendimentoChatDesk() {
                     {m.corpo ? (
                       <div className="whitespace-pre-wrap">{m.corpo}</div>
                     ) : null}
-                    <div className="mt-1 text-[10px] opacity-50">
-                      {m.autor}
-                      {m.dataCadastro
-                        ? ` · ${new Date(m.dataCadastro).toLocaleString("pt-BR")}`
-                        : ""}
+                    <div
+                      className={`mt-1 flex items-center gap-1 text-[10px] opacity-60 ${
+                        out ? "justify-end" : "justify-start"
+                      }`}
+                      title={fullWhen || undefined}
+                    >
+                      {!out && m.autor ? (
+                        <span className="mr-0.5 truncate opacity-80">{m.autor}</span>
+                      ) : null}
+                      {timeLabel ? <span>{timeLabel}</span> : null}
+                      {out ? <WhatsAppDeliveryTicks status={m.status} /> : null}
                     </div>
                   </div>
                 </div>

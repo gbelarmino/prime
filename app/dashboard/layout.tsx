@@ -39,6 +39,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { WhatsAppHeaderStatus } from "@/components/dashboard/whatsapp/WhatsAppHeaderStatus";
 import { TenantSwitcher } from "@/components/dashboard/TenantSwitcher";
 import { TwilioSaldoHeader } from "@/components/dashboard/TwilioSaldoHeader";
+import { WhatsAppInboundAlertControl } from "@/components/dashboard/whatsapp/WhatsAppInboundAlertControl";
 import {
   FIN_UNICRED_WEBHOOKS_PATH,
   useUnicredWebhookPendentes,
@@ -564,7 +565,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <TenantSwitcher className="mr-2" />
             {(admin ||
               role === "ATENDIMENTO" ||
-              role === "ADMINISTRATIVO") && <TwilioSaldoHeader />}
+              role === "ADMINISTRATIVO") && (
+              <>
+                <TwilioSaldoHeader />
+                <WhatsAppInboundAlertControl />
+              </>
+            )}
             <button className="p-2 text-white/40 hover:text-white transition-colors rounded-full">
               <Mail size={22} />
             </button>

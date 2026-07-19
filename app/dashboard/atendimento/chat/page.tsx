@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AtendimentoChatDesk } from "@/components/dashboard/atendimento/AtendimentoChatDesk";
 import { pageTitle } from "@/lib/app-brand";
 
@@ -21,7 +22,9 @@ export default function AtendimentoChatPage() {
           Receba e responda mensagens dos clientes em tempo real via Twilio.
         </p>
       </div>
-      <AtendimentoChatDesk />
+      <Suspense fallback={<div className="px-4 text-sm text-white/40">Carregando chat…</div>}>
+        <AtendimentoChatDesk />
+      </Suspense>
     </div>
   );
 }
