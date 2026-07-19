@@ -16,6 +16,7 @@ import {
   janelaPodeTextoLivre,
   segundosAte,
 } from "@/lib/whatsapp-janela";
+import { requestTwilioSaldoRefresh } from "@/lib/twilio-saldo-events";
 
 const TEMPLATE_HINT =
   "Fora da janela de 24h, use templates Meta aprovados (Content SID) cadastrados em WhatsApp → Modelos.";
@@ -289,6 +290,7 @@ export function AtendimentoChatDesk() {
       stickToBottomRef.current = true;
       scrollToBottom();
       await carregarConversas();
+      requestTwilioSaldoRefresh();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha ao enviar");
     } finally {

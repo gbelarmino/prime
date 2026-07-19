@@ -38,6 +38,7 @@ import { MenuItem } from "primereact/menuitem";
 import { NotificationBell } from "@/components/notification-bell";
 import { WhatsAppHeaderStatus } from "@/components/dashboard/whatsapp/WhatsAppHeaderStatus";
 import { TenantSwitcher } from "@/components/dashboard/TenantSwitcher";
+import { TwilioSaldoHeader } from "@/components/dashboard/TwilioSaldoHeader";
 import {
   FIN_UNICRED_WEBHOOKS_PATH,
   useUnicredWebhookPendentes,
@@ -561,6 +562,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-1 mr-2">
             <TenantSwitcher className="mr-2" />
+            {(admin ||
+              role === "ATENDIMENTO" ||
+              role === "ADMINISTRATIVO") && <TwilioSaldoHeader />}
             <button className="p-2 text-white/40 hover:text-white transition-colors rounded-full">
               <Mail size={22} />
             </button>

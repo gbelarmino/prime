@@ -821,6 +821,10 @@ export function getWhatsAppTwilioConfigUrl(): string {
   return `${getWhatsAppUrl()}/twilio/config`;
 }
 
+export function getWhatsAppTwilioSaldoUrl(): string {
+  return `${getWhatsAppUrl()}/twilio/saldo`;
+}
+
 export function getWhatsAppTwilioTesteUrl(): string {
   return `${getWhatsAppUrl()}/twilio/teste`;
 }
