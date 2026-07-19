@@ -5,6 +5,12 @@ import {
   getAtendimentoConversaUrl,
 } from "./api-config";
 
+export type WhatsAppJanelaEstado =
+  | "ABERTA"
+  | "FECHANDO"
+  | "FECHADA"
+  | "SEM_INBOUND";
+
 export type WhatsAppConversa = {
   id: string;
   tenantId: number;
@@ -12,8 +18,18 @@ export type WhatsAppConversa = {
   status: string;
   usuarioAtribuidoId?: number | null;
   dataUltimaMensagem?: string | null;
+  dataUltimaInbound?: string | null;
   naoLidas?: number;
   clienteId?: string | null;
+  contratanteId?: number | null;
+  clienteNome?: string | null;
+  empreendimento?: string | null;
+  quadra?: string | null;
+  lote?: number | null;
+  tituloExibicao?: string | null;
+  janelaEstado?: WhatsAppJanelaEstado | string | null;
+  janelaExpiraEm?: string | null;
+  janelaRestanteSegundos?: number | null;
 };
 
 export type WhatsAppMensagemChat = {
