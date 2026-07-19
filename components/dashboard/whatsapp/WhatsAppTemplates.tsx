@@ -81,9 +81,34 @@ export function WhatsAppTemplates() {
     return map;
   };
 
+  const indexTwilioFromTemplates = (list: WhatsAppTemplate[]) => {
+    const map: Record<string, WhatsAppTemplateTwilio> = {};
+    for (const t of list) {
+      if (!t.id || !t.twilioStatus) continue;
+      const key = String(t.id).toLowerCase();
+      map[key] = {
+        templateId: t.id,
+        templateNome: t.nome,
+        contentSid: t.twilioContentSid ?? "",
+        status: t.twilioStatus,
+      };
+      const nome = (t.nome ?? "").trim().toLowerCase();
+      if (nome) map[`nome:${nome}`] = map[key];
+    }
+    return map;
+  };
+
   const twilioForTemplate = (r: WhatsAppTemplate) => {
     const byId = r.id ? twilioByTemplateId[String(r.id).toLowerCase()] : undefined;
     if (byId) return byId;
+    if (r.twilioStatus) {
+      return {
+        templateId: r.id ?? "",
+        templateNome: r.nome,
+        contentSid: r.twilioContentSid ?? "",
+        status: r.twilioStatus,
+      } satisfies WhatsAppTemplateTwilio;
+    }
     const nome = (r.nome ?? "").trim().toLowerCase();
     return nome ? twilioByTemplateId[`nome:${nome}`] : undefined;
   };
@@ -96,13 +121,15 @@ export function WhatsAppTemplates() {
       ]);
       setTemplates(data);
       setEventosCatalogo(cat);
+      setTwilioByTemplateId(indexTwilioFromTemplates(data));
       try {
         const twilio = await whatsappService.listTwilioTemplates();
-        setTwilioByTemplateId(indexTwilioByTemplateId(twilio));
+        if (twilio.length > 0) {
+          setTwilioByTemplateId(indexTwilioByTemplateId(twilio));
+        }
       } catch (e) {
         console.error(e);
-        toast.error("Não foi possível carregar status Twilio dos modelos");
-        setTwilioByTemplateId({});
+        // Status já veio embutido em /templates; não zerar o mapa.
       }
     } catch {
       toast.error("Erro ao carregar modelos");
@@ -113,12 +140,14 @@ export function WhatsAppTemplates() {
     try {
       const data = await whatsappService.listTemplates();
       setTemplates(data);
+      setTwilioByTemplateId(indexTwilioFromTemplates(data));
       try {
         const twilio = await whatsappService.listTwilioTemplates();
-        setTwilioByTemplateId(indexTwilioByTemplateId(twilio));
+        if (twilio.length > 0) {
+          setTwilioByTemplateId(indexTwilioByTemplateId(twilio));
+        }
       } catch (e) {
         console.error(e);
-        toast.error("Não foi possível carregar status Twilio dos modelos");
       }
     } catch {
       toast.error("Erro ao carregar modelos");
