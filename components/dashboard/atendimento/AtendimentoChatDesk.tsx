@@ -8,6 +8,7 @@ import {
   atendimentoChatService,
   type WhatsAppConversa,
   type WhatsAppMensagemChat,
+  type WhatsAppTemplateAprovado,
 } from "@/lib/atendimento-chat-service";
 import {
   janelaBadgeClass,
@@ -113,6 +114,9 @@ export function AtendimentoChatDesk() {
   const [listNow, setListNow] = useState(() => Date.now());
   /** Painel Contexto recolhido por padrão; expande para a esquerda. */
   const [contextoAberto, setContextoAberto] = useState(false);
+  const [templates, setTemplates] = useState<WhatsAppTemplateAprovado[]>([]);
+  const [templateId, setTemplateId] = useState<string>("");
+  const [enviandoTemplate, setEnviandoTemplate] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -131,6 +135,22 @@ export function AtendimentoChatDesk() {
   useEffect(() => {
     const id = window.setInterval(() => setListNow(Date.now()), 1000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const list = await atendimentoChatService.listarTemplatesAprovados();
+        setTemplates(list);
+        setTemplateId((prev) => {
+          if (prev && list.some((t) => t.templateId === prev)) return prev;
+          const boas = list.find((t) => t.nome === "mensagem_de_boas_vindas");
+          return boas?.templateId ?? list[0]?.templateId ?? "";
+        });
+      } catch {
+        setTemplates([]);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -319,6 +339,27 @@ export function AtendimentoChatDesk() {
     await carregarConversas();
   }
 
+  async function enviarTemplate() {
+    if (!selectedId || !templateId) return;
+    setEnviandoTemplate(true);
+    setErro(null);
+    try {
+      const msg = await atendimentoChatService.responderTemplate(selectedId, templateId);
+      setMensagens((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+      stickToBottomRef.current = true;
+      scrollToBottom();
+      await carregarConversas();
+      requestTwilioSaldoRefresh();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao enviar template");
+    } finally {
+      setEnviandoTemplate(false);
+    }
+  }
+
   return (
     <div className="flex h-[calc(100vh-12rem)] min-h-[480px] flex-col gap-3 px-4">
       {erro ? (
@@ -499,8 +540,39 @@ export function AtendimentoChatDesk() {
             ) : null}
             {selected && !podeTextoLivre ? (
               <p className="mb-2 rounded border border-white/15 bg-black/30 px-2.5 py-1.5 text-xs text-white/55">
-                {TEMPLATE_HINT}
+                Janela fechada — envie um template Meta aprovado abaixo (ex.: boas-vindas).
               </p>
+            ) : null}
+            {selected && templates.length > 0 ? (
+              <div
+                className={`mb-2 flex flex-wrap items-center gap-2 rounded border px-2.5 py-2 ${
+                  !podeTextoLivre
+                    ? "border-blue-500/40 bg-blue-950/30"
+                    : "border-white/10 bg-black/20"
+                }`}
+              >
+                <span className="text-[11px] text-white/45">Template</span>
+                <select
+                  className="min-w-[12rem] flex-1 rounded border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-white"
+                  value={templateId}
+                  onChange={(e) => setTemplateId(e.target.value)}
+                  disabled={loading || enviandoTemplate}
+                >
+                  {templates.map((t) => (
+                    <option key={t.templateId} value={t.templateId}>
+                      {t.nome}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  label="Enviar template"
+                  icon="pi pi-send"
+                  size="small"
+                  onClick={() => void enviarTemplate()}
+                  disabled={!selected || !templateId || loading || enviandoTemplate}
+                  loading={enviandoTemplate}
+                />
+              </div>
             ) : null}
             {anexo ? (
               <div className="mb-2 flex items-center gap-2 rounded border border-white/15 bg-black/25 px-2.5 py-1.5 text-xs text-white/70">
@@ -555,7 +627,7 @@ export function AtendimentoChatDesk() {
                       ? anexo
                         ? "Legenda opcional…"
                         : "Escreva a resposta…"
-                      : "Janela fechada — use template em WhatsApp → Modelos"
+                      : "Janela fechada — use o envio por template acima"
                 }
                 disabled={!selected || loading || !podeTextoLivre}
               />

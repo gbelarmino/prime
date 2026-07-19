@@ -1540,6 +1540,17 @@ export function getAtendimentoConversaAnexoUrl(conversaId: string): string {
   );
 }
 
+export function getAtendimentoConversaTemplateUrl(conversaId: string): string {
+  return withBase(
+    getApiBaseUrl(),
+    `${API_PATHS.atendimento}/conversas/${conversaId}/mensagens/template`,
+  );
+}
+
+export function getAtendimentoTemplatesAprovadosUrl(): string {
+  return withBase(getApiBaseUrl(), `${API_PATHS.atendimento}/templates-aprovados`);
+}
+
 export function getAtendimentoConversaUrl(conversaId: string): string {
   return withBase(getApiBaseUrl(), `${API_PATHS.atendimento}/conversas/${conversaId}`);
 }

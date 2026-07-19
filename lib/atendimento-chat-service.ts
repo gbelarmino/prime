@@ -3,6 +3,8 @@ import {
   getAtendimentoConversasUrl,
   getAtendimentoConversaMensagensUrl,
   getAtendimentoConversaAnexoUrl,
+  getAtendimentoConversaTemplateUrl,
+  getAtendimentoTemplatesAprovadosUrl,
   getAtendimentoConversaUrl,
 } from "./api-config";
 
@@ -50,6 +52,15 @@ export type WhatsAppMensagemChat = {
   mediaUrl?: string | null;
 };
 
+export type WhatsAppTemplateAprovado = {
+  templateId: string;
+  nome: string;
+  descricao?: string | null;
+  conteudo?: string | null;
+  contentSid: string;
+  mapaVariaveisJson?: string | null;
+};
+
 export type WhatsAppMensagensPage = {
   itens: WhatsAppMensagemChat[];
   hasMore: boolean;
@@ -66,7 +77,14 @@ export const atendimentoChatService = {
     return res.json();
   },
 
-  /** Últimas mensagens (página inicial). */
+  async listarTemplatesAprovados(): Promise<WhatsAppTemplateAprovado[]> {
+    const res = await apiFetch(getAtendimentoTemplatesAprovadosUrl(), {
+      skipLoading: true,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
   async listarMensagensRecentes(conversaId: string): Promise<WhatsAppMensagensPage> {
     const res = await apiFetch(
       getAtendimentoConversaMensagensUrl(conversaId, { limit: PAGE_SIZE }),
@@ -75,7 +93,6 @@ export const atendimentoChatService = {
     return res.json();
   },
 
-  /** Mensagens mais antigas que o cursor. */
   async listarMensagensAntigas(
     conversaId: string,
     before: string,
@@ -115,6 +132,23 @@ export const atendimentoChatService = {
     const res = await apiFetch(getAtendimentoConversaAnexoUrl(conversaId), {
       method: "POST",
       body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async responderTemplate(
+    conversaId: string,
+    templateId: string,
+    variaveis?: Record<string, string>,
+  ): Promise<WhatsAppMensagemChat> {
+    const res = await apiFetch(getAtendimentoConversaTemplateUrl(conversaId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        templateId,
+        variaveis: variaveis && Object.keys(variaveis).length > 0 ? variaveis : undefined,
+      }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
