@@ -39,6 +39,9 @@ export interface WhatsAppTemplate {
   anexoUrl?: string;
   tipoAnexo?: string;
   dataCadastro?: string;
+  /** Preenchido por GET /templates (status Twilio embutido). */
+  twilioStatus?: string | null;
+  twilioContentSid?: string | null;
 }
 
 export interface WhatsAppTemplateTwilio {
