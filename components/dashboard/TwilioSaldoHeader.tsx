@@ -24,11 +24,11 @@ function formatSaldo(balance: string | null, currency: string | null): string {
       return new Intl.NumberFormat("pt-BR", {
         style: "currency",
         currency: cur,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
       }).format(n);
     } catch {
-      return `${n.toFixed(2)} ${cur}`;
+      return `${n.toFixed(3)} ${cur}`;
     }
   }
   return `${balance} ${cur}`;

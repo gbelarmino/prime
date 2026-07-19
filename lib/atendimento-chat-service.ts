@@ -46,7 +46,7 @@ export type WhatsAppMensagemChat = {
   mediaToken?: string | null;
   mediaNomeArquivo?: string | null;
   mediaContentType?: string | null;
-  mediaKind?: "IMAGE" | "DOCUMENT" | string | null;
+  mediaKind?: "IMAGE" | "DOCUMENT" | "AUDIO" | string | null;
   mediaUrl?: string | null;
 };
 

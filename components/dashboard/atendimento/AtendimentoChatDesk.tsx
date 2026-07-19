@@ -54,9 +54,10 @@ function JanelaBadge({
 
 function MensagemAnexo({ m }: { m: WhatsAppMensagemChat }) {
   if (!m.mediaUrl && !m.mediaNomeArquivo) return null;
-  const isImage =
-    (m.mediaKind ?? "").toUpperCase() === "IMAGE" ||
-    (m.mediaContentType ?? "").startsWith("image/");
+  const kind = (m.mediaKind ?? "").toUpperCase();
+  const ct = m.mediaContentType ?? "";
+  const isImage = kind === "IMAGE" || ct.startsWith("image/");
+  const isAudio = kind === "AUDIO" || ct.startsWith("audio/");
   if (isImage && m.mediaUrl) {
     return (
       <a href={m.mediaUrl} target="_blank" rel="noreferrer" className="mt-1 block">
@@ -67,6 +68,18 @@ function MensagemAnexo({ m }: { m: WhatsAppMensagemChat }) {
           className="max-h-56 max-w-full rounded-lg object-contain"
         />
       </a>
+    );
+  }
+  if (isAudio && m.mediaUrl) {
+    return (
+      <div className="mt-1 min-w-[200px]">
+        <audio controls preload="metadata" className="w-full max-w-xs">
+          <source src={m.mediaUrl} type={ct || undefined} />
+        </audio>
+        {m.mediaNomeArquivo ? (
+          <div className="mt-1 truncate text-[10px] opacity-60">{m.mediaNomeArquivo}</div>
+        ) : null}
+      </div>
     );
   }
   return (
