@@ -67,20 +67,31 @@ export function WhatsAppTemplates() {
     };
   }, [showDialog, currentTemplate?.codigoEventoCatalogo]);
 
+  const indexTwilioByTemplateId = (list: WhatsAppTemplateTwilio[]) => {
+    const map: Record<string, WhatsAppTemplateTwilio> = {};
+    for (const t of list) {
+      const key = String(t.templateId ?? "").toLowerCase();
+      if (key) map[key] = t;
+    }
+    return map;
+  };
+
   const fetchInitial = async () => {
     try {
-      const [data, cat, twilio] = await Promise.all([
+      const [data, cat] = await Promise.all([
         whatsappService.listTemplates(),
         whatsappService.listEventosCatalogo(),
-        whatsappService.listTwilioTemplates().catch(() => [] as WhatsAppTemplateTwilio[]),
       ]);
       setTemplates(data);
       setEventosCatalogo(cat);
-      const map: Record<string, WhatsAppTemplateTwilio> = {};
-      for (const t of twilio) {
-        if (t.templateId) map[t.templateId] = t;
+      try {
+        const twilio = await whatsappService.listTwilioTemplates();
+        setTwilioByTemplateId(indexTwilioByTemplateId(twilio));
+      } catch (e) {
+        console.error(e);
+        toast.error("Não foi possível carregar status Twilio dos modelos");
+        setTwilioByTemplateId({});
       }
-      setTwilioByTemplateId(map);
     } catch {
       toast.error("Erro ao carregar modelos");
     }
@@ -88,16 +99,15 @@ export function WhatsAppTemplates() {
 
   const fetchTemplates = async () => {
     try {
-      const [data, twilio] = await Promise.all([
-        whatsappService.listTemplates(),
-        whatsappService.listTwilioTemplates().catch(() => [] as WhatsAppTemplateTwilio[]),
-      ]);
+      const data = await whatsappService.listTemplates();
       setTemplates(data);
-      const map: Record<string, WhatsAppTemplateTwilio> = {};
-      for (const t of twilio) {
-        if (t.templateId) map[t.templateId] = t;
+      try {
+        const twilio = await whatsappService.listTwilioTemplates();
+        setTwilioByTemplateId(indexTwilioByTemplateId(twilio));
+      } catch (e) {
+        console.error(e);
+        toast.error("Não foi possível carregar status Twilio dos modelos");
       }
-      setTwilioByTemplateId(map);
     } catch {
       toast.error("Erro ao carregar modelos");
     }
@@ -114,7 +124,9 @@ export function WhatsAppTemplates() {
           ? "Novo Content SID criado e submetido à Meta"
           : "Template criado/submetido na Twilio",
       );
-      setTwilioByTemplateId((prev) => ({ ...prev, [template.id!]: r }));
+      const key = String(template.id).toLowerCase();
+      setTwilioByTemplateId((prev) => ({ ...prev, [key]: r }));
+      void fetchTemplates();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao criar na Twilio");
     } finally {
@@ -128,7 +140,8 @@ export function WhatsAppTemplates() {
     try {
       const r = await whatsappService.syncTwilioTemplate(template.id);
       toast.success(`Status Twilio: ${r.status}`);
-      setTwilioByTemplateId((prev) => ({ ...prev, [template.id!]: r }));
+      const key = String(template.id).toLowerCase();
+      setTwilioByTemplateId((prev) => ({ ...prev, [key]: r }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
     } finally {
@@ -140,11 +153,7 @@ export function WhatsAppTemplates() {
     setTwilioBusyId("__all__");
     try {
       const list = await whatsappService.syncAllTwilioTemplates();
-      const map: Record<string, WhatsAppTemplateTwilio> = {};
-      for (const t of list) {
-        if (t.templateId) map[t.templateId] = t;
-      }
-      setTwilioByTemplateId(map);
+      setTwilioByTemplateId(indexTwilioByTemplateId(list));
       toast.success("Status Twilio sincronizado");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
@@ -435,7 +444,8 @@ export function WhatsAppTemplates() {
                 header="Twilio"
                 headerClassName="text-left"
                 body={(r: WhatsAppTemplate) => {
-                  const tw = r.id ? twilioByTemplateId[r.id] : undefined;
+                  const key = r.id ? String(r.id).toLowerCase() : "";
+                  const tw = key ? twilioByTemplateId[key] : undefined;
                   if (!tw) {
                     return (
                       <span className="text-[11px] text-white/35">
@@ -443,6 +453,18 @@ export function WhatsAppTemplates() {
                       </span>
                     );
                   }
+                  const sid = tw.contentSid ?? "";
+                  const claiming = sid.startsWith("__CLAIMING__");
+                  const statusLabel =
+                    tw.status === "PENDING"
+                      ? "EM ANÁLISE"
+                      : tw.status === "APPROVED"
+                        ? "APROVADO"
+                        : tw.status === "REJECTED"
+                          ? "REJEITADO"
+                          : tw.status === "DRAFT" || claiming
+                            ? "RASCUNHO"
+                            : tw.status;
                   return (
                     <div className="flex flex-col gap-0.5">
                       <span
@@ -454,11 +476,16 @@ export function WhatsAppTemplates() {
                               : "text-amber-400"
                         }`}
                       >
-                        {tw.status}
+                        {statusLabel}
                       </span>
-                      <span className="max-w-[9rem] truncate font-mono text-[10px] text-white/35" title={tw.contentSid}>
-                        {tw.contentSid}
-                      </span>
+                      {!claiming && sid ? (
+                        <span
+                          className="max-w-[9rem] truncate font-mono text-[10px] text-white/35"
+                          title={sid}
+                        >
+                          {sid}
+                        </span>
+                      ) : null}
                     </div>
                   );
                 }}
