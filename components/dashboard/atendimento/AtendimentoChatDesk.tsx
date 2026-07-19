@@ -622,7 +622,33 @@ export function AtendimentoChatDesk() {
                 </div>
                 <div>
                   <dt className="text-white/40">Cliente</dt>
-                  <dd>{selected.clienteNome ?? selected.clienteId ?? "—"}</dd>
+                  <dd>
+                    {selected.clienteNome || selected.tituloExibicao ? (
+                      <span>
+                        {selected.clienteNome || selected.tituloExibicao}
+                        {selected.contratanteId != null ? (
+                          <>
+                            {" "}
+                            <a
+                              href={`/dashboard/clientes/edit?id=${selected.contratanteId}`}
+                              className="text-blue-300/90 hover:underline"
+                            >
+                              #{selected.contratanteId}
+                            </a>
+                          </>
+                        ) : null}
+                      </span>
+                    ) : selected.contratanteId != null ? (
+                      <a
+                        href={`/dashboard/clientes/edit?id=${selected.contratanteId}`}
+                        className="text-blue-300/90 hover:underline"
+                      >
+                        Cliente #{selected.contratanteId}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </dd>
                 </div>
                 <p className="pt-4 text-xs text-white/35">{TEMPLATE_HINT}</p>
               </dl>
