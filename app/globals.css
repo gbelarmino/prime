@@ -539,3 +539,36 @@ body.p-overflow-hidden .min-h-screen.flex {
 .dashboard-email-editor .ql-snow a {
   color: #38bdf8;
 }
+
+/* WhatsApp Ops Signal Desk — tokens scoped ao módulo de chat */
+.wa-desk {
+  --wa-desk-unread: #60a5fa;
+  --wa-desk-janela-aberta: #34d399;
+  --wa-desk-janela-fechando: #fbbf24;
+  --wa-desk-janela-fechada: #fb7185;
+  --wa-desk-preview: rgba(255, 255, 255, 0.45);
+  --wa-desk-surface: rgba(255, 255, 255, 0.04);
+  --wa-desk-surface-hover: rgba(255, 255, 255, 0.07);
+  --wa-desk-selected: rgba(59, 130, 246, 0.22);
+  --wa-desk-thread-bg: #0b1220;
+  height: calc(100vh - 5.5rem);
+  min-height: 480px;
+}
+
+.wa-desk__avatar-ring--aberta {
+  box-shadow: 0 0 0 2px var(--wa-desk-janela-aberta);
+}
+
+.wa-desk__avatar-ring--fechando {
+  box-shadow: 0 0 0 2px var(--wa-desk-janela-fechando);
+}
+
+.wa-desk__avatar-ring--fechada,
+.wa-desk__avatar-ring--sem_inbound {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.wa-desk__unread-pill {
+  background: var(--wa-desk-unread);
+  color: #020817;
+}

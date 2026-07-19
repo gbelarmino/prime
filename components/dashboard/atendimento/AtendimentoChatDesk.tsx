@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "primereact/button";
-import { InputTextarea } from "primereact/inputtextarea";
 import { useConversaRealtime } from "@/hooks/use-conversa-realtime";
 import {
   atendimentoChatService,
@@ -12,8 +11,6 @@ import {
   type WhatsAppTemplateAprovado,
 } from "@/lib/atendimento-chat-service";
 import {
-  janelaBadgeClass,
-  janelaBadgeLabel,
   janelaHeaderText,
   janelaPodeTextoLivre,
   segundosAte,
@@ -21,6 +18,8 @@ import {
 import { requestTwilioSaldoRefresh } from "@/lib/twilio-saldo-events";
 import { WHATSAPP_INBOUND_ALERT_EVENT } from "@/lib/whatsapp-inbound-alert";
 import { WhatsAppDeliveryTicks } from "@/lib/whatsapp-message-ticks";
+import { ConversaInboxColumn } from "./ConversaInboxColumn";
+import { ChatComposer } from "./ChatComposer";
 
 const TEMPLATE_HINT =
   "Fora da janela de 24h, use templates Meta aprovados (Content SID) cadastrados em WhatsApp → Modelos.";
@@ -33,27 +32,6 @@ function useJanelaTick(expiraEm: string | null | undefined) {
     return () => window.clearInterval(id);
   }, [expiraEm]);
   return segundosAte(expiraEm, now);
-}
-
-function JanelaBadge({
-  conversa,
-  restanteOverride,
-}: {
-  conversa: WhatsAppConversa;
-  restanteOverride?: number;
-}) {
-  const restante =
-    restanteOverride ??
-    (conversa.janelaExpiraEm
-      ? segundosAte(conversa.janelaExpiraEm)
-      : (conversa.janelaRestanteSegundos ?? 0));
-  return (
-    <span
-      className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset ${janelaBadgeClass(conversa.janelaEstado)}`}
-    >
-      {janelaBadgeLabel(conversa.janelaEstado, restante)}
-    </span>
-  );
 }
 
 function MensagemAnexo({ m }: { m: WhatsAppMensagemChat }) {
@@ -117,9 +95,7 @@ export function AtendimentoChatDesk() {
   const [nextBeforeId, setNextBeforeId] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<string>("");
-  /** Tick global para badges da lista. */
   const [listNow, setListNow] = useState(() => Date.now());
-  /** Painel Contexto recolhido por padrão; expande para a esquerda. */
   const [contextoAberto, setContextoAberto] = useState(false);
   const [templates, setTemplates] = useState<WhatsAppTemplateAprovado[]>([]);
   const [templateId, setTemplateId] = useState<string>("");
@@ -128,7 +104,7 @@ export function AtendimentoChatDesk() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const loadingOlderRef = useRef(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const marcarLidaInFlightRef = useRef<string | null>(null);
 
   const selected = conversas.find((c) => c.id === selectedId);
   const restanteSelected = useJanelaTick(selected?.janelaExpiraEm);
@@ -172,12 +148,6 @@ export function AtendimentoChatDesk() {
 
   function limparAnexo() {
     setAnexo(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  function onEscolherArquivo(fileList: FileList | null) {
-    const f = fileList?.[0] ?? null;
-    setAnexo(f);
   }
 
   const carregarConversas = useCallback(async () => {
@@ -290,17 +260,39 @@ export function AtendimentoChatDesk() {
     if (selectedId) void carregarMensagensIniciais(selectedId);
   }, [selectedId, carregarMensagensIniciais]);
 
-  const onRealtimeMessage = useCallback((msg: { type?: string; mensagemId?: unknown; status?: unknown }) => {
-    if (msg.type !== "MSG_STATUS") return;
-    const mensagemId = typeof msg.mensagemId === "string" ? msg.mensagemId : null;
-    const status = typeof msg.status === "string" ? msg.status : null;
-    if (!mensagemId || !status) return;
-    setMensagens((prev) =>
-      prev.map((m) => (m.id === mensagemId ? { ...m, status } : m)),
+  /** Marcar lida ao abrir / quando chegam novas com a thread aberta. */
+  useEffect(() => {
+    if (!selectedId) return;
+    const conv = conversas.find((c) => c.id === selectedId);
+    if (!conv || (conv.naoLidas ?? 0) <= 0) return;
+    if (marcarLidaInFlightRef.current === selectedId) return;
+    marcarLidaInFlightRef.current = selectedId;
+    setConversas((prev) =>
+      prev.map((c) => (c.id === selectedId ? { ...c, naoLidas: 0 } : c)),
     );
-  }, []);
+    void atendimentoChatService
+      .marcarLida(selectedId)
+      .catch(() => undefined)
+      .finally(() => {
+        if (marcarLidaInFlightRef.current === selectedId) {
+          marcarLidaInFlightRef.current = null;
+        }
+      });
+  }, [selectedId, conversas]);
 
-  /** Realtime: só atualiza a “ponta” recente sem resetar o histórico já carregado. */
+  const onRealtimeMessage = useCallback(
+    (msg: { type?: string; mensagemId?: unknown; status?: unknown; conversaId?: unknown }) => {
+      if (msg.type !== "MSG_STATUS") return;
+      const mensagemId = typeof msg.mensagemId === "string" ? msg.mensagemId : null;
+      const status = typeof msg.status === "string" ? msg.status : null;
+      if (!mensagemId || !status) return;
+      setMensagens((prev) =>
+        prev.map((m) => (m.id === mensagemId ? { ...m, status } : m)),
+      );
+    },
+    [],
+  );
+
   useConversaRealtime(
     useCallback(() => {
       void carregarConversas();
@@ -338,6 +330,11 @@ export function AtendimentoChatDesk() {
     if (el.scrollTop < 60 && hasMore && !loadingOlderRef.current) {
       void carregarMaisAntigas();
     }
+  }
+
+  function selectConversa(id: string) {
+    marcarLidaInFlightRef.current = null;
+    setSelectedId(id);
   }
 
   async function enviar() {
@@ -398,113 +395,34 @@ export function AtendimentoChatDesk() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] min-h-[480px] flex-col gap-3 px-4">
+    <div className="wa-desk flex flex-col gap-2 px-4">
       {erro ? (
-        <div className="rounded border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
+        <div className="shrink-0 rounded border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
           {erro}
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="rounded border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-white"
-          value={filtroStatus}
-          onChange={(e) => setFiltroStatus(e.target.value)}
-        >
-          <option value="">Todas</option>
-          <option value="ABERTA">Abertas</option>
-          <option value="PENDENTE">Pendentes</option>
-          <option value="RESOLVIDA">Resolvidas</option>
-        </select>
-        <Button
-          label="Atualizar"
-          size="small"
-          outlined
-          loading={loadingConversas}
-          onClick={() => void carregarConversas()}
-        />
-      </div>
-
       <div
-        className={`grid min-h-0 flex-1 grid-cols-1 gap-3 transition-[grid-template-columns] duration-300 ease-out ${
+        className={`grid min-h-0 flex-1 grid-cols-1 gap-2 transition-[grid-template-columns] duration-300 ease-out ${
           contextoAberto
-            ? "lg:grid-cols-[280px_minmax(0,1fr)_240px]"
-            : "lg:grid-cols-[280px_minmax(0,1fr)_44px]"
+            ? "lg:grid-cols-[300px_minmax(0,1fr)_240px]"
+            : "lg:grid-cols-[300px_minmax(0,1fr)_44px]"
         }`}
       >
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5">
-          <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-            <span>Conversas</span>
-            {loadingConversas ? (
-              <span
-                className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border border-white/20 border-t-white/70"
-                aria-label="A carregar conversas"
-              />
-            ) : null}
-          </div>
-          <ul className="relative min-h-0 flex-1 overflow-y-auto">
-            {loadingConversas && conversas.length === 0 ? (
-              <li className="flex items-center justify-center px-3 py-10">
-                <span
-                  className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-white/60"
-                  aria-label="A carregar"
-                />
-              </li>
-            ) : null}
-            {conversas.map((c) => {
-              const fechando = (c.janelaEstado ?? "").toUpperCase() === "FECHANDO";
-              const restante = c.janelaExpiraEm
-                ? segundosAte(c.janelaExpiraEm, listNow)
-                : (c.janelaRestanteSegundos ?? 0);
-              return (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(c.id)}
-                    className={`flex w-full flex-col gap-0.5 border-b border-white/5 px-3 py-2.5 text-left transition ${
-                      selectedId === c.id ? "bg-blue-500/20" : "hover:bg-white/5"
-                    } ${fechando ? "border-l-2 border-l-amber-400/80" : ""} ${
-                      flashConversaId === c.id
-                        ? "bg-emerald-500/20 ring-1 ring-inset ring-emerald-400/50"
-                        : ""
-                    }`}
-                  >
-                    <span className="flex items-start justify-between gap-2">
-                      <span className="line-clamp-2 text-sm font-medium text-white">
-                        {c.tituloExibicao || c.clienteNome || c.telefone}
-                      </span>
-                      <JanelaBadge conversa={c} restanteOverride={restante} />
-                    </span>
-                    <span className="font-mono text-[11px] text-white/45">{c.telefone}</span>
-                    {(c.empreendimento || c.quadra || c.lote != null) && (
-                      <span className="text-[11px] text-white/40">
-                        {[
-                          c.empreendimento,
-                          c.quadra ? `Q${c.quadra}` : null,
-                          c.lote != null ? `L${c.lote}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    )}
-                    <span className="text-[11px] text-white/40">
-                      {c.status}
-                      {(c.naoLidas ?? 0) > 0 ? ` · ${c.naoLidas} nova(s)` : ""}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-            {!loadingConversas && conversas.length === 0 ? (
-              <li className="px-3 py-6 text-center text-sm text-white/30">
-                Nenhuma conversa
-              </li>
-            ) : null}
-          </ul>
-        </aside>
+        <ConversaInboxColumn
+          conversas={conversas}
+          selectedId={selectedId}
+          flashConversaId={flashConversaId}
+          loading={loadingConversas}
+          filtroStatus={filtroStatus}
+          onFiltroStatus={setFiltroStatus}
+          onRefresh={() => void carregarConversas()}
+          onSelect={selectConversa}
+          listNow={listNow}
+        />
 
         <section
-          className={`flex min-h-0 flex-col overflow-hidden rounded-xl border bg-white/5 transition-[box-shadow,border-color] duration-300 ${
+          className={`flex min-h-0 flex-col overflow-hidden rounded-xl border bg-[var(--wa-desk-surface)] transition-[box-shadow,border-color,opacity] duration-300 ${
             flashConversaId && selectedId === flashConversaId
               ? "border-emerald-400/60 shadow-[0_0_0_1px_rgba(52,211,153,0.35)]"
               : "border-white/10"
@@ -551,7 +469,7 @@ export function AtendimentoChatDesk() {
             className="relative min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3"
           >
             {loadingThread ? (
-              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0b1220]/35">
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0b1220]/40">
                 <span
                   className="h-6 w-6 animate-spin rounded-full border-2 border-white/15 border-t-white/65"
                   aria-label="A carregar mensagens"
@@ -612,123 +530,29 @@ export function AtendimentoChatDesk() {
               );
             })}
           </div>
-          <div className="border-t border-white/10 p-3">
-            {selected && estadoSelected === "FECHANDO" ? (
-              <p className="mb-2 rounded border border-amber-500/40 bg-amber-950/40 px-2.5 py-1.5 text-xs text-amber-100">
-                A janela de texto livre está fechando. Responda em breve ou use um
-                template após o corte.
-              </p>
-            ) : null}
-            {selected && !podeTextoLivre ? (
-              <p className="mb-2 rounded border border-white/15 bg-black/30 px-2.5 py-1.5 text-xs text-white/55">
-                Janela fechada — envie um template Meta aprovado abaixo (ex.: boas-vindas).
-              </p>
-            ) : null}
-            {selected && templates.length > 0 ? (
-              <div
-                className={`mb-2 flex flex-wrap items-center gap-2 rounded border px-2.5 py-2 ${
-                  !podeTextoLivre
-                    ? "border-blue-500/40 bg-blue-950/30"
-                    : "border-white/10 bg-black/20"
-                }`}
-              >
-                <span className="text-[11px] text-white/45">Template</span>
-                <select
-                  className="min-w-[12rem] flex-1 rounded border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-white"
-                  value={templateId}
-                  onChange={(e) => setTemplateId(e.target.value)}
-                  disabled={loading || enviandoTemplate}
-                >
-                  {templates.map((t) => (
-                    <option key={t.templateId} value={t.templateId}>
-                      {t.nome}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  label="Enviar template"
-                  icon="pi pi-send"
-                  size="small"
-                  onClick={() => void enviarTemplate()}
-                  disabled={!selected || !templateId || loading || enviandoTemplate}
-                  loading={enviandoTemplate}
-                />
-              </div>
-            ) : null}
-            {anexo ? (
-              <div className="mb-2 flex items-center gap-2 rounded border border-white/15 bg-black/25 px-2.5 py-1.5 text-xs text-white/70">
-                {anexoPreviewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={anexoPreviewUrl}
-                    alt=""
-                    className="h-10 w-10 rounded object-cover"
-                  />
-                ) : (
-                  <i className="pi pi-file text-base opacity-70" />
-                )}
-                <span className="min-w-0 flex-1 truncate">{anexo.name}</span>
-                <button
-                  type="button"
-                  className="text-white/50 hover:text-white"
-                  onClick={limparAnexo}
-                  disabled={loading}
-                  aria-label="Remover anexo"
-                >
-                  <i className="pi pi-times" />
-                </button>
-              </div>
-            ) : null}
-            <div className="flex gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.odt,.ods"
-                onChange={(e) => onEscolherArquivo(e.target.files)}
-              />
-              <Button
-                icon="pi pi-paperclip"
-                outlined
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!selected || loading || !podeTextoLivre}
-                tooltip="Anexar imagem ou documento"
-                tooltipOptions={{ position: "top" }}
-              />
-              <InputTextarea
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                rows={2}
-                className="w-full"
-                placeholder={
-                  !selected
-                    ? "Selecione uma conversa"
-                    : podeTextoLivre
-                      ? anexo
-                        ? "Legenda opcional…"
-                        : "Escreva a resposta…"
-                      : "Janela fechada — use o envio por template acima"
-                }
-                disabled={!selected || loading || !podeTextoLivre}
-              />
-              <Button
-                icon="pi pi-send"
-                onClick={() => void enviar()}
-                disabled={
-                  !selected ||
-                  loading ||
-                  !podeTextoLivre ||
-                  (!texto.trim() && !anexo)
-                }
-                loading={loading}
-              />
-            </div>
-          </div>
+          <ChatComposer
+            disabled={!selected || loading}
+            podeTextoLivre={podeTextoLivre}
+            janelaFechando={estadoSelected === "FECHANDO"}
+            texto={texto}
+            onTexto={setTexto}
+            anexo={anexo}
+            anexoPreviewUrl={anexoPreviewUrl}
+            onEscolherArquivo={(files) => setAnexo(files?.[0] ?? null)}
+            onLimparAnexo={limparAnexo}
+            onEnviar={() => void enviar()}
+            loading={loading}
+            templates={templates}
+            templateId={templateId}
+            onTemplateId={setTemplateId}
+            onEnviarTemplate={() => void enviarTemplate()}
+            enviandoTemplate={enviandoTemplate}
+            hasSelected={!!selected}
+          />
         </section>
 
         <aside
-          className={`relative hidden min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5 transition-[width] duration-300 ease-out lg:flex ${
+          className={`relative hidden min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[var(--wa-desk-surface)] transition-[width] duration-300 ease-out lg:flex ${
             contextoAberto ? "p-3" : "items-center px-0 py-2"
           }`}
         >
@@ -786,6 +610,20 @@ export function AtendimentoChatDesk() {
                     {janelaHeaderText(estadoSelected, restanteSelected)}
                   </dd>
                 </div>
+                {(selected.empreendimento || selected.quadra || selected.lote != null) && (
+                  <div>
+                    <dt className="text-white/40">Imóvel</dt>
+                    <dd>
+                      {[
+                        selected.empreendimento,
+                        selected.quadra ? `Q${selected.quadra}` : null,
+                        selected.lote != null ? `L${selected.lote}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt className="text-white/40">Cliente</dt>
                   <dd>

@@ -33,6 +33,7 @@ export type WhatsAppConversa = {
   janelaEstado?: WhatsAppJanelaEstado | string | null;
   janelaExpiraEm?: string | null;
   janelaRestanteSegundos?: number | null;
+  ultimaMensagemPreview?: string | null;
 };
 
 export type WhatsAppMensagemChat = {
@@ -162,15 +163,23 @@ export const atendimentoChatService = {
 
   async atualizar(
     conversaId: string,
-    body: { status?: string; atribuirAMim?: boolean },
+    body: { status?: string; atribuirAMim?: boolean; marcarLida?: boolean },
   ): Promise<WhatsAppConversa> {
+    const payload: Record<string, string> = {};
+    if (body.status) payload.status = body.status;
+    if (body.atribuirAMim) payload.atribuirAMim = "true";
+    if (body.marcarLida) payload.marcarLida = "true";
     const res = await apiFetch(getAtendimentoConversaUrl(conversaId), {
       ...quiet,
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
+  },
+
+  async marcarLida(conversaId: string): Promise<WhatsAppConversa> {
+    return this.atualizar(conversaId, { marcarLida: true });
   },
 };
