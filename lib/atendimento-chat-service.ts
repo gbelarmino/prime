@@ -70,17 +70,18 @@ export type WhatsAppMensagensPage = {
 
 const PAGE_SIZE = 40;
 
+/** Chat: nunca dispara o GlobalSpinner da app. */
+const quiet = { skipLoading: true as const };
+
 export const atendimentoChatService = {
   async listarConversas(status?: string): Promise<WhatsAppConversa[]> {
-    const res = await apiFetch(getAtendimentoConversasUrl(status));
+    const res = await apiFetch(getAtendimentoConversasUrl(status), quiet);
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async listarTemplatesAprovados(): Promise<WhatsAppTemplateAprovado[]> {
-    const res = await apiFetch(getAtendimentoTemplatesAprovadosUrl(), {
-      skipLoading: true,
-    });
+    const res = await apiFetch(getAtendimentoTemplatesAprovadosUrl(), quiet);
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -88,6 +89,7 @@ export const atendimentoChatService = {
   async listarMensagensRecentes(conversaId: string): Promise<WhatsAppMensagensPage> {
     const res = await apiFetch(
       getAtendimentoConversaMensagensUrl(conversaId, { limit: PAGE_SIZE }),
+      quiet,
     );
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -104,6 +106,7 @@ export const atendimentoChatService = {
         beforeId,
         limit: PAGE_SIZE,
       }),
+      quiet,
     );
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -111,6 +114,7 @@ export const atendimentoChatService = {
 
   async responder(conversaId: string, mensagem: string): Promise<WhatsAppMensagemChat> {
     const res = await apiFetch(getAtendimentoConversaMensagensUrl(conversaId), {
+      ...quiet,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mensagem }),
@@ -130,6 +134,7 @@ export const atendimentoChatService = {
       form.append("mensagem", mensagem.trim());
     }
     const res = await apiFetch(getAtendimentoConversaAnexoUrl(conversaId), {
+      ...quiet,
       method: "POST",
       body: form,
     });
@@ -143,6 +148,7 @@ export const atendimentoChatService = {
     variaveis?: Record<string, string>,
   ): Promise<WhatsAppMensagemChat> {
     const res = await apiFetch(getAtendimentoConversaTemplateUrl(conversaId), {
+      ...quiet,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -159,6 +165,7 @@ export const atendimentoChatService = {
     body: { status?: string; atribuirAMim?: boolean },
   ): Promise<WhatsAppConversa> {
     const res = await apiFetch(getAtendimentoConversaUrl(conversaId), {
+      ...quiet,
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

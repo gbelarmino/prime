@@ -109,6 +109,8 @@ export function AtendimentoChatDesk() {
   const [anexo, setAnexo] = useState<File | null>(null);
   const [anexoPreviewUrl, setAnexoPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [loadingConversas, setLoadingConversas] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
@@ -179,6 +181,7 @@ export function AtendimentoChatDesk() {
   }
 
   const carregarConversas = useCallback(async () => {
+    setLoadingConversas(true);
     try {
       const list = await atendimentoChatService.listarConversas(
         filtroStatus || undefined,
@@ -186,6 +189,8 @@ export function AtendimentoChatDesk() {
       setConversas(list);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha ao listar conversas");
+    } finally {
+      setLoadingConversas(false);
     }
   }, [filtroStatus]);
 
@@ -199,7 +204,7 @@ export function AtendimentoChatDesk() {
 
   const carregarMensagensIniciais = useCallback(
     async (id: string) => {
-      setLoading(true);
+      setLoadingThread(true);
       setErro(null);
       try {
         const page = await atendimentoChatService.listarMensagensRecentes(id);
@@ -212,7 +217,7 @@ export function AtendimentoChatDesk() {
       } catch (e) {
         setErro(e instanceof Error ? e.message : "Falha ao carregar mensagens");
       } finally {
-        setLoading(false);
+        setLoadingThread(false);
       }
     },
     [scrollToBottom],
@@ -415,6 +420,7 @@ export function AtendimentoChatDesk() {
           label="Atualizar"
           size="small"
           outlined
+          loading={loadingConversas}
           onClick={() => void carregarConversas()}
         />
       </div>
@@ -427,10 +433,24 @@ export function AtendimentoChatDesk() {
         }`}
       >
         <aside className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5">
-          <div className="border-b border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-            Conversas
+          <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+            <span>Conversas</span>
+            {loadingConversas ? (
+              <span
+                className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border border-white/20 border-t-white/70"
+                aria-label="A carregar conversas"
+              />
+            ) : null}
           </div>
-          <ul className="min-h-0 flex-1 overflow-y-auto">
+          <ul className="relative min-h-0 flex-1 overflow-y-auto">
+            {loadingConversas && conversas.length === 0 ? (
+              <li className="flex items-center justify-center px-3 py-10">
+                <span
+                  className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-white/60"
+                  aria-label="A carregar"
+                />
+              </li>
+            ) : null}
             {conversas.map((c) => {
               const fechando = (c.janelaEstado ?? "").toUpperCase() === "FECHANDO";
               const restante = c.janelaExpiraEm
@@ -475,7 +495,7 @@ export function AtendimentoChatDesk() {
                 </li>
               );
             })}
-            {conversas.length === 0 ? (
+            {!loadingConversas && conversas.length === 0 ? (
               <li className="px-3 py-6 text-center text-sm text-white/30">
                 Nenhuma conversa
               </li>
@@ -528,8 +548,16 @@ export function AtendimentoChatDesk() {
           <div
             ref={scrollRef}
             onScroll={onThreadScroll}
-            className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3"
+            className="relative min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3"
           >
+            {loadingThread ? (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0b1220]/35">
+                <span
+                  className="h-6 w-6 animate-spin rounded-full border-2 border-white/15 border-t-white/65"
+                  aria-label="A carregar mensagens"
+                />
+              </div>
+            ) : null}
             {loadingOlder ? (
               <div className="py-2 text-center text-[11px] text-white/40">
                 Carregando mensagens anteriores…
