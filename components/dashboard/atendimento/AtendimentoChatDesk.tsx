@@ -98,6 +98,8 @@ export function AtendimentoChatDesk() {
   const [filtroStatus, setFiltroStatus] = useState<string>("");
   /** Tick global para badges da lista. */
   const [listNow, setListNow] = useState(() => Date.now());
+  /** Painel Contexto recolhido por padrão; expande para a esquerda. */
+  const [contextoAberto, setContextoAberto] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -331,7 +333,13 @@ export function AtendimentoChatDesk() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[280px_1fr_240px]">
+      <div
+        className={`grid min-h-0 flex-1 grid-cols-1 gap-3 transition-[grid-template-columns] duration-300 ease-out ${
+          contextoAberto
+            ? "lg:grid-cols-[280px_minmax(0,1fr)_240px]"
+            : "lg:grid-cols-[280px_minmax(0,1fr)_44px]"
+        }`}
+      >
         <aside className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5">
           <div className="border-b border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/50">
             Conversas
@@ -553,43 +561,75 @@ export function AtendimentoChatDesk() {
           </div>
         </section>
 
-        <aside className="hidden min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5 p-3 lg:flex">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-            Contexto
-          </div>
-          {selected ? (
-            <dl className="space-y-2 text-sm text-white/70">
-              <div>
-                <dt className="text-white/40">Telefone</dt>
-                <dd className="font-mono">{selected.telefone}</dd>
-              </div>
-              <div>
-                <dt className="text-white/40">Status</dt>
-                <dd>{selected.status}</dd>
-              </div>
-              <div>
-                <dt className="text-white/40">Janela 24h</dt>
-                <dd
-                  className={
-                    estadoSelected === "FECHANDO"
-                      ? "text-amber-300"
-                      : estadoSelected === "ABERTA"
-                        ? "text-emerald-300"
-                        : "text-white/50"
-                  }
+        <aside
+          className={`relative hidden min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5 transition-[width] duration-300 ease-out lg:flex ${
+            contextoAberto ? "p-3" : "items-center px-0 py-2"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setContextoAberto((v) => !v)}
+            className={`flex shrink-0 items-center gap-1.5 text-white/50 transition-colors hover:text-white ${
+              contextoAberto
+                ? "mb-2 w-full justify-between text-xs font-semibold uppercase tracking-wider"
+                : "h-full w-full flex-col justify-start gap-3 pt-1"
+            }`}
+            title={contextoAberto ? "Recolher contexto" : "Expandir contexto"}
+            aria-expanded={contextoAberto}
+            aria-label={contextoAberto ? "Recolher contexto" : "Expandir contexto"}
+          >
+            {contextoAberto ? (
+              <>
+                <span>Contexto</span>
+                <i className="pi pi-angle-right text-sm" />
+              </>
+            ) : (
+              <>
+                <i className="pi pi-angle-left text-sm" />
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-wider"
+                  style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
                 >
-                  {janelaHeaderText(estadoSelected, restanteSelected)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-white/40">Cliente</dt>
-                <dd>{selected.clienteNome ?? selected.clienteId ?? "—"}</dd>
-              </div>
-              <p className="pt-4 text-xs text-white/35">{TEMPLATE_HINT}</p>
-            </dl>
-          ) : (
-            <p className="text-sm text-white/30">Sem conversa selecionada.</p>
-          )}
+                  Contexto
+                </span>
+              </>
+            )}
+          </button>
+          {contextoAberto ? (
+            selected ? (
+              <dl className="min-h-0 flex-1 space-y-2 overflow-y-auto text-sm text-white/70">
+                <div>
+                  <dt className="text-white/40">Telefone</dt>
+                  <dd className="font-mono">{selected.telefone}</dd>
+                </div>
+                <div>
+                  <dt className="text-white/40">Status</dt>
+                  <dd>{selected.status}</dd>
+                </div>
+                <div>
+                  <dt className="text-white/40">Janela 24h</dt>
+                  <dd
+                    className={
+                      estadoSelected === "FECHANDO"
+                        ? "text-amber-300"
+                        : estadoSelected === "ABERTA"
+                          ? "text-emerald-300"
+                          : "text-white/50"
+                    }
+                  >
+                    {janelaHeaderText(estadoSelected, restanteSelected)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-white/40">Cliente</dt>
+                  <dd>{selected.clienteNome ?? selected.clienteId ?? "—"}</dd>
+                </div>
+                <p className="pt-4 text-xs text-white/35">{TEMPLATE_HINT}</p>
+              </dl>
+            ) : (
+              <p className="text-sm text-white/30">Sem conversa selecionada.</p>
+            )
+          ) : null}
         </aside>
       </div>
     </div>
