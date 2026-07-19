@@ -21,9 +21,11 @@ import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
 import { Plus, Save, X, FileText, Info } from "lucide-react";
 import { WhatsAppSectionShell } from "@/components/dashboard/whatsapp/WhatsAppSectionShell";
+import { getTenantSlug } from "@/lib/auth-storage";
 
 export function WhatsAppTemplates() {
   const menuRef = useRef<Menu>(null);
+  const [tenantSlug, setTenantSlug] = useState<string | null>(null);
   const [selectedRow, setSelectedRow] = useState<WhatsAppTemplate | null>(null);
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [twilioByTemplateId, setTwilioByTemplateId] = useState<
@@ -47,6 +49,7 @@ export function WhatsAppTemplates() {
   };
 
   useEffect(() => {
+    setTenantSlug(getTenantSlug());
     void fetchInitial();
   }, []);
 
@@ -72,8 +75,17 @@ export function WhatsAppTemplates() {
     for (const t of list) {
       const key = String(t.templateId ?? "").toLowerCase();
       if (key) map[key] = t;
+      const nome = (t.templateNome ?? "").trim().toLowerCase();
+      if (nome) map[`nome:${nome}`] = t;
     }
     return map;
+  };
+
+  const twilioForTemplate = (r: WhatsAppTemplate) => {
+    const byId = r.id ? twilioByTemplateId[String(r.id).toLowerCase()] : undefined;
+    if (byId) return byId;
+    const nome = (r.nome ?? "").trim().toLowerCase();
+    return nome ? twilioByTemplateId[`nome:${nome}`] : undefined;
   };
 
   const fetchInitial = async () => {
@@ -342,7 +354,11 @@ export function WhatsAppTemplates() {
       <WhatsAppSectionShell
         eyebrow="Biblioteca"
         title="Modelos de mensagem"
-        description="Textos reutilizáveis com variáveis (ex.: nome do cliente). Use o menu de ações para criar o Content Template na Twilio e submeter à aprovação da Meta."
+        description={
+          tenantSlug
+            ? `Textos reutilizáveis com variáveis. Status Twilio reflete o tenant ativo (${tenantSlug}). Use o menu para criar/submeter na Twilio.`
+            : "Textos reutilizáveis com variáveis (ex.: nome do cliente). Use o menu de ações para criar o Content Template na Twilio e submeter à aprovação da Meta."
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             <button
@@ -444,8 +460,7 @@ export function WhatsAppTemplates() {
                 header="Twilio"
                 headerClassName="text-left"
                 body={(r: WhatsAppTemplate) => {
-                  const key = r.id ? String(r.id).toLowerCase() : "";
-                  const tw = key ? twilioByTemplateId[key] : undefined;
+                  const tw = twilioForTemplate(r);
                   if (!tw) {
                     return (
                       <span className="text-[11px] text-white/35">
