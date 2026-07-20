@@ -185,7 +185,7 @@ export function AtendimentoChatDesk() {
         setTemplates([]);
       }
     })();
-  }, []);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!anexo || !anexo.type.startsWith("image/")) {

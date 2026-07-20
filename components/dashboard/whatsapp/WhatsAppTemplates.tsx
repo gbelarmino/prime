@@ -195,7 +195,13 @@ export function WhatsAppTemplates() {
     try {
       const list = await whatsappService.syncAllTwilioTemplates();
       setTwilioByTemplateId(indexTwilioByTemplateId(list));
-      toast.success("Status Twilio sincronizado");
+      await fetchTemplates();
+      const aprovados = list.filter((t) => (t.status ?? "").toUpperCase() === "APPROVED").length;
+      toast.success(
+        aprovados > 0
+          ? `Status Twilio sincronizado (${aprovados} aprovado${aprovados === 1 ? "" : "s"})`
+          : "Status Twilio sincronizado",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
     } finally {
@@ -499,23 +505,24 @@ export function WhatsAppTemplates() {
                   }
                   const sid = tw.contentSid ?? "";
                   const claiming = sid.startsWith("__CLAIMING__");
+                  const st = (tw.status ?? "").toUpperCase();
                   const statusLabel =
-                    tw.status === "PENDING"
+                    st === "PENDING"
                       ? "EM ANÁLISE"
-                      : tw.status === "APPROVED"
+                      : st === "APPROVED"
                         ? "APROVADO"
-                        : tw.status === "REJECTED"
+                        : st === "REJECTED"
                           ? "REJEITADO"
-                          : tw.status === "DRAFT" || claiming
+                          : st === "DRAFT" || claiming
                             ? "RASCUNHO"
                             : tw.status;
                   return (
                     <div className="flex flex-col gap-0.5">
                       <span
                         className={`text-[10px] font-bold uppercase tracking-wider ${
-                          tw.status === "APPROVED"
+                          st === "APPROVED"
                             ? "text-emerald-400"
-                            : tw.status === "REJECTED"
+                            : st === "REJECTED"
                               ? "text-rose-400"
                               : "text-amber-400"
                         }`}

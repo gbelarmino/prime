@@ -68,7 +68,7 @@ export function ChatComposer({
   onCancelReply,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const showTemplates = hasSelected && templates.length > 0 && !podeTextoLivre;
+  const showTemplates = hasSelected && templates.length > 0;
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -89,7 +89,9 @@ export function ChatComposer({
 
       {showTemplates ? (
         <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-blue-500/35 bg-blue-950/25 px-2 py-1.5">
-          <span className="text-[11px] text-white/45">Template</span>
+          <span className="text-[11px] text-white/45">
+            {podeTextoLivre ? "Template (opcional)" : "Template"}
+          </span>
           <select
             className="min-w-[10rem] flex-1 rounded border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-white"
             value={templateId}
