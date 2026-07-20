@@ -887,6 +887,8 @@ export interface UnicredWebhookConciliacaoFiltros {
   nossoNumero?: string;
   dataRecebimentoDe?: string;
   dataRecebimentoAte?: string;
+  dataPagamentoDe?: string;
+  dataPagamentoAte?: string;
   contrato?: string;
 }
 
@@ -1628,6 +1630,8 @@ export const finService = {
         nossoNumero: filtros?.nossoNumero,
         dataRecebimentoDe: filtros?.dataRecebimentoDe,
         dataRecebimentoAte: filtros?.dataRecebimentoAte,
+        dataPagamentoDe: filtros?.dataPagamentoDe,
+        dataPagamentoAte: filtros?.dataPagamentoAte,
         contrato: filtros?.contrato,
       }),
       {

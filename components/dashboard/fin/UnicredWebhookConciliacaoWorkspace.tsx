@@ -137,6 +137,8 @@ export function UnicredWebhookConciliacaoWorkspace() {
   const [nossoNumeroFiltro, setNossoNumeroFiltro] = useState("");
   const [dataRecebimentoDe, setDataRecebimentoDe] = useState("");
   const [dataRecebimentoAte, setDataRecebimentoAte] = useState("");
+  const [dataPagamentoDe, setDataPagamentoDe] = useState("");
+  const [dataPagamentoAte, setDataPagamentoAte] = useState("");
   const [contratoFiltro, setContratoFiltro] = useState("");
   const [pageData, setPageData] = useState<SpringPage<UnicredWebhookConciliacaoResumo> | null>(null);
   const [pendentes, setPendentes] = useState(0);
@@ -175,6 +177,8 @@ export function UnicredWebhookConciliacaoWorkspace() {
             nossoNumero: nossoNumeroFiltro.trim() || undefined,
             dataRecebimentoDe: dataRecebimentoDe || undefined,
             dataRecebimentoAte: dataRecebimentoAte || undefined,
+            dataPagamentoDe: dataPagamentoDe || undefined,
+            dataPagamentoAte: dataPagamentoAte || undefined,
             contrato: contratoFiltro.trim() || undefined,
           },
           { skipLoading: true },
@@ -196,6 +200,8 @@ export function UnicredWebhookConciliacaoWorkspace() {
     nossoNumeroFiltro,
     dataRecebimentoDe,
     dataRecebimentoAte,
+    dataPagamentoDe,
+    dataPagamentoAte,
     contratoFiltro,
   ]);
 
@@ -205,7 +211,16 @@ export function UnicredWebhookConciliacaoWorkspace() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [statusFiltro, nomeFiltro, nossoNumeroFiltro, dataRecebimentoDe, dataRecebimentoAte, contratoFiltro]);
+  }, [
+    statusFiltro,
+    nomeFiltro,
+    nossoNumeroFiltro,
+    dataRecebimentoDe,
+    dataRecebimentoAte,
+    dataPagamentoDe,
+    dataPagamentoAte,
+    contratoFiltro,
+  ]);
 
   useEffect(() => {
     finService
@@ -530,6 +545,38 @@ export function UnicredWebhookConciliacaoWorkspace() {
             />
           </div>
 
+          <div className="flex min-w-[140px] flex-col">
+            <label
+              htmlFor="webhook-pago-de"
+              className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Pagamento de
+            </label>
+            <input
+              id="webhook-pago-de"
+              type="date"
+              value={dataPagamentoDe}
+              onChange={(e) => setDataPagamentoDe(e.target.value)}
+              className={FILTER_INPUT_CLASS}
+            />
+          </div>
+
+          <div className="flex min-w-[140px] flex-col">
+            <label
+              htmlFor="webhook-pago-ate"
+              className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Pagamento até
+            </label>
+            <input
+              id="webhook-pago-ate"
+              type="date"
+              value={dataPagamentoAte}
+              onChange={(e) => setDataPagamentoAte(e.target.value)}
+              className={FILTER_INPUT_CLASS}
+            />
+          </div>
+
           <div className="relative min-w-[180px] flex-1">
             <label
               htmlFor="webhook-nome"
@@ -616,21 +663,28 @@ export function UnicredWebhookConciliacaoWorkspace() {
             body={(r: UnicredWebhookConciliacaoResumo) =>
               dashboardCellText(formatDateTime(r.dataRecebimento))
             }
-            style={{ width: "14%" }}
+            style={{ width: "13%" }}
+          />
+          <Column
+            header="Pagamento"
+            body={(r: UnicredWebhookConciliacaoResumo) =>
+              dashboardCellText(formatVencimento(r.dataLiquidacao))
+            }
+            style={{ width: "10%" }}
           />
           <Column
             header="Contrato"
             body={(r: UnicredWebhookConciliacaoResumo) =>
               dashboardCellMono(r.numeroContrato ?? "—")
             }
-            style={{ width: "10%" }}
+            style={{ width: "9%" }}
           />
           <Column
             header="Nosso número"
             body={(r: UnicredWebhookConciliacaoResumo) =>
               dashboardCellMono(r.nossoNumero ?? "—")
             }
-            style={{ width: "12%" }}
+            style={{ width: "11%" }}
           />
           <Column
             header="Pagador"
