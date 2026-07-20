@@ -14,6 +14,7 @@ type Props = {
   onFiltroStatus: (v: string) => void;
   onRefresh: () => void;
   onSelect: (id: string) => void;
+  onNovaConversa: () => void;
   listNow: number;
 };
 
@@ -26,6 +27,7 @@ export function ConversaInboxColumn({
   onFiltroStatus,
   onRefresh,
   onSelect,
+  onNovaConversa,
   listNow,
 }: Props) {
   const [busca, setBusca] = useState("");
@@ -62,19 +64,30 @@ export function ConversaInboxColumn({
           <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">
             Inbox
           </span>
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="text-white/40 transition-colors hover:text-white"
-            title="Atualizar"
-            aria-label="Atualizar conversas"
-          >
-            {loading ? (
-              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border border-white/20 border-t-white/70" />
-            ) : (
-              <i className="pi pi-refresh text-xs" />
-            )}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onNovaConversa}
+              className="inline-flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-950/30 px-2 py-1 text-[10px] font-medium text-emerald-200/90 transition-colors hover:border-emerald-400/50 hover:bg-emerald-900/40"
+              title="Iniciar conversa com template"
+            >
+              <i className="pi pi-plus text-[9px]" />
+              Nova
+            </button>
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="text-white/40 transition-colors hover:text-white"
+              title="Atualizar"
+              aria-label="Atualizar conversas"
+            >
+              {loading ? (
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border border-white/20 border-t-white/70" />
+              ) : (
+                <i className="pi pi-refresh text-xs" />
+              )}
+            </button>
+          </div>
         </div>
         <input
           type="search"

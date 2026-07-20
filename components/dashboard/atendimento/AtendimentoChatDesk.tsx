@@ -21,6 +21,7 @@ import { WHATSAPP_INBOUND_ALERT_EVENT } from "@/lib/whatsapp-inbound-alert";
 import { WhatsAppDeliveryTicks } from "@/lib/whatsapp-message-ticks";
 import { ConversaInboxColumn } from "./ConversaInboxColumn";
 import { ChatComposer } from "./ChatComposer";
+import { NovaConversaDialog } from "./NovaConversaDialog";
 
 const TEMPLATE_HINT =
   "Fora da janela de 24h, use templates Meta aprovados (Content SID) cadastrados em WhatsApp → Modelos.";
@@ -82,6 +83,14 @@ function toReplyDraft(m: WhatsAppMensagemChat): WhatsAppMensagemReplyTo {
     direcao: m.direcao,
     mediaKind: m.mediaKind,
   };
+}
+
+/** Remove prefixo legado `[Template: …]` de mensagens antigas no desk. */
+function MensagemCorpo({ corpo }: { corpo: string }) {
+  const match = corpo.match(/^\[Template:\s*[^\]]+\]\s*\n?([\s\S]*)$/);
+  const texto = (match ? match[1] : corpo).trim();
+  if (!texto) return null;
+  return <div className="whitespace-pre-wrap">{texto}</div>;
 }
 
 function MensagemAnexo({ m }: { m: WhatsAppMensagemChat }) {
@@ -151,6 +160,7 @@ export function AtendimentoChatDesk() {
   const [templateId, setTemplateId] = useState<string>("");
   const [enviandoTemplate, setEnviandoTemplate] = useState(false);
   const [replyTo, setReplyTo] = useState<WhatsAppMensagemReplyTo | null>(null);
+  const [novaConversaOpen, setNovaConversaOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -450,8 +460,30 @@ export function AtendimentoChatDesk() {
     }
   }
 
+  async function iniciarNovaConversa(args: {
+    contratanteId?: number;
+    telefone: string;
+    templateId: string;
+  }) {
+    setErro(null);
+    const result = await atendimentoChatService.iniciarConversa({
+      contratanteId: args.contratanteId,
+      telefone: args.telefone,
+      templateId: args.templateId,
+    });
+    await carregarConversas();
+    setSelectedId(result.conversa.id);
+    requestTwilioSaldoRefresh();
+  }
+
   return (
     <div className="wa-desk flex flex-col gap-2 px-4">
+      <NovaConversaDialog
+        visible={novaConversaOpen}
+        onHide={() => setNovaConversaOpen(false)}
+        templates={templates}
+        onEnviar={iniciarNovaConversa}
+      />
       {erro ? (
         <div className="shrink-0 rounded border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
           {erro}
@@ -474,6 +506,7 @@ export function AtendimentoChatDesk() {
           onFiltroStatus={setFiltroStatus}
           onRefresh={() => void carregarConversas()}
           onSelect={selectConversa}
+          onNovaConversa={() => setNovaConversaOpen(true)}
           listNow={listNow}
         />
 
@@ -581,9 +614,7 @@ export function AtendimentoChatDesk() {
                     ) : null}
                     {m.replyTo ? <MensagemQuote replyTo={m.replyTo} out={out} /> : null}
                     <MensagemAnexo m={m} />
-                    {m.corpo ? (
-                      <div className="whitespace-pre-wrap">{m.corpo}</div>
-                    ) : null}
+                    {m.corpo ? <MensagemCorpo corpo={m.corpo} /> : null}
                     <div
                       className={`mt-1 flex items-center gap-1 text-[10px] opacity-60 ${
                         out ? "justify-end" : "justify-start"

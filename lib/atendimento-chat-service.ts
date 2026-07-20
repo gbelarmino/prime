@@ -6,6 +6,7 @@ import {
   getAtendimentoConversaTemplateUrl,
   getAtendimentoTemplatesAprovadosUrl,
   getAtendimentoConversaUrl,
+  getAtendimentoConversasIniciarUrl,
 } from "./api-config";
 
 export type WhatsAppJanelaEstado =
@@ -76,6 +77,11 @@ export type WhatsAppMensagensPage = {
   hasMore: boolean;
   nextBefore?: string | null;
   nextBeforeId?: string | null;
+};
+
+export type WhatsAppIniciarConversaResult = {
+  conversa: WhatsAppConversa;
+  mensagem: WhatsAppMensagemChat;
 };
 
 const PAGE_SIZE = 40;
@@ -175,6 +181,30 @@ export const atendimentoChatService = {
       body: JSON.stringify({
         templateId,
         variaveis: variaveis && Object.keys(variaveis).length > 0 ? variaveis : undefined,
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async iniciarConversa(body: {
+    contratanteId?: number | null;
+    telefone?: string | null;
+    templateId: string;
+    variaveis?: Record<string, string>;
+  }): Promise<WhatsAppIniciarConversaResult> {
+    const res = await apiFetch(getAtendimentoConversasIniciarUrl(), {
+      ...quiet,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contratanteId: body.contratanteId ?? undefined,
+        telefone: body.telefone?.trim() || undefined,
+        templateId: body.templateId,
+        variaveis:
+          body.variaveis && Object.keys(body.variaveis).length > 0
+            ? body.variaveis
+            : undefined,
       }),
     });
     if (!res.ok) throw new Error(await res.text());

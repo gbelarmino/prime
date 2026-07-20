@@ -1555,6 +1555,10 @@ export function getAtendimentoConversaUrl(conversaId: string): string {
   return withBase(getApiBaseUrl(), `${API_PATHS.atendimento}/conversas/${conversaId}`);
 }
 
+export function getAtendimentoConversasIniciarUrl(): string {
+  return withBase(getApiBaseUrl(), `${API_PATHS.atendimento}/conversas/iniciar`);
+}
+
 export type AtendimentoBuscaSort = {
   field: string;
   direction: "asc" | "desc";

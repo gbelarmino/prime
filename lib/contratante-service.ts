@@ -55,6 +55,29 @@ export async function fetchContratanteOption(
   return toOption(row);
 }
 
+export type ContratanteComTelefones = ContratanteOption & {
+  telefoneCelular1?: string | null;
+  telefoneCelular2?: string | null;
+};
+
+export async function fetchContratanteComTelefones(
+  id: number,
+): Promise<ContratanteComTelefones | null> {
+  const url = getContratanteByIdUrl(id);
+  if (!url) return null;
+  const res = await apiFetch(url, { skipLoading: true });
+  if (!res.ok) return null;
+  const row = (await res.json()) as ContratanteListRow & {
+    telefoneCelular1?: string | null;
+    telefoneCelular2?: string | null;
+  };
+  return {
+    ...toOption(row),
+    telefoneCelular1: row.telefoneCelular1 ?? null,
+    telefoneCelular2: row.telefoneCelular2 ?? null,
+  };
+}
+
 /** Exporta clientes com celular em vCard para a agenda do telemóvel. */
 export async function exportContratantesAgenda(q?: string): Promise<{
   exported: number;

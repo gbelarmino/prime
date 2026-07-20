@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "primereact/button";
 import { InputTextarea } from "primereact/inputtextarea";
 import type {
@@ -68,7 +68,20 @@ export function ChatComposer({
   onCancelReply,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textoRef = useRef<HTMLTextAreaElement | null>(null);
   const showTemplates = hasSelected && templates.length > 0;
+
+  useEffect(() => {
+    if (!replyTo || disabled || !podeTextoLivre) return;
+    const id = window.requestAnimationFrame(() => {
+      const el = textoRef.current;
+      if (!el) return;
+      el.focus();
+      const len = el.value.length;
+      el.setSelectionRange(len, len);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [replyTo, disabled, podeTextoLivre]);
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -177,6 +190,19 @@ export function ChatComposer({
           tooltipOptions={{ position: "top" }}
         />
         <InputTextarea
+          ref={(el) => {
+            if (!el) {
+              textoRef.current = null;
+              return;
+            }
+            const anyEl = el as unknown as {
+              getElement?: () => HTMLTextAreaElement;
+            };
+            textoRef.current =
+              typeof anyEl.getElement === "function"
+                ? anyEl.getElement()
+                : (el as unknown as HTMLTextAreaElement);
+          }}
           value={texto}
           onChange={(e) => onTexto(e.target.value)}
           onKeyDown={onKeyDown}
