@@ -36,7 +36,8 @@ function phonesFromCliente(c: {
 
 export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Props) {
   const [clientes, setClientes] = useState<ContratanteOption[]>([]);
-  const [cliente, setCliente] = useState<ContratanteOption | undefined>(undefined);
+  /** Objeto = cliente selecionado; string = texto a digitar na busca. */
+  const [cliente, setCliente] = useState<ContratanteOption | string | undefined>(undefined);
   const [clientesLoading, setClientesLoading] = useState(false);
   const [telefonesCliente, setTelefonesCliente] = useState<string[]>([]);
   const [telefone, setTelefone] = useState("");
@@ -74,12 +75,11 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
     }
   }, []);
 
-  async function onSelectCliente(opt: ContratanteOption | undefined) {
+  async function onSelectCliente(opt: ContratanteOption) {
     setCliente(opt);
     setTelefonesCliente([]);
     setTelefone("");
     setErro(null);
-    if (!opt?.id) return;
     const id = Number(opt.id);
     if (!Number.isFinite(id)) return;
     const full = await fetchContratanteComTelefones(id);
@@ -108,7 +108,9 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
     setEnviando(true);
     setErro(null);
     try {
-      const contratanteId = cliente?.id ? Number(cliente.id) : undefined;
+      const selected =
+        cliente && typeof cliente === "object" && "id" in cliente ? cliente : undefined;
+      const contratanteId = selected?.id ? Number(selected.id) : undefined;
       await onEnviar({
         contratanteId: Number.isFinite(contratanteId) ? contratanteId : undefined,
         telefone: tel,
@@ -133,7 +135,7 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
           className:
             "border-b border-white/[0.06] bg-transparent px-5 py-4 font-semibold text-white",
         },
-        content: { className: "bg-transparent px-5 py-4" },
+        content: { className: "bg-transparent px-5 py-4 overflow-visible" },
         footer: { className: "border-t border-white/[0.06] bg-transparent px-5 py-4" },
       }}
       footer={
@@ -156,7 +158,7 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
           para iniciar a conversa.
         </p>
 
-        <label className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <span className="text-[11px] uppercase tracking-wider text-white/40">Cliente</span>
           <AutoComplete
             value={cliente}
@@ -165,18 +167,28 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
             field="nome"
             dropdown
             forceSelection={false}
+            delay={280}
+            minLength={2}
             placeholder="Buscar por nome, CPF ou e-mail…"
             className="w-full"
             inputClassName="w-full !bg-black/30 !border-white/10 !text-white"
             panelClassName="!bg-[#0b1220] !border-white/10"
             onChange={(e) => {
-              const v = e.value;
+              // Com forceSelection=false o PrimeReact emite string ao digitar;
+              // o tipo genérico do AutoComplete só reflete o item (objeto).
+              const v = e.value as ContratanteOption | string | null | undefined;
               if (v && typeof v === "object" && "id" in v) {
-                void onSelectCliente(v as ContratanteOption);
-              } else {
-                setCliente(undefined);
-                setTelefonesCliente([]);
+                void onSelectCliente(v);
+                return;
               }
+              // Texto digitado: manter no input (não zerar — isso “bloqueava” a digitação)
+              if (typeof v === "string") {
+                setCliente(v);
+                if (!v.trim()) setTelefonesCliente([]);
+                return;
+              }
+              setCliente(undefined);
+              setTelefonesCliente([]);
             }}
             itemTemplate={(c: ContratanteOption) => (
               <div className="flex flex-col py-0.5">
@@ -190,7 +202,7 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
           {clientesLoading ? (
             <span className="text-[10px] text-white/35">A procurar…</span>
           ) : null}
-        </label>
+        </div>
 
         {telefonesCliente.length > 1 ? (
           <label className="flex flex-col gap-1">
