@@ -8,6 +8,7 @@ import {
   atendimentoChatService,
   type WhatsAppConversa,
   type WhatsAppMensagemChat,
+  type WhatsAppMensagemReplyTo,
   type WhatsAppTemplateAprovado,
 } from "@/lib/atendimento-chat-service";
 import {
@@ -32,6 +33,55 @@ function useJanelaTick(expiraEm: string | null | undefined) {
     return () => window.clearInterval(id);
   }, [expiraEm]);
   return segundosAte(expiraEm, now);
+}
+
+function replyPreviewLabel(r: WhatsAppMensagemReplyTo): string {
+  const corpo = r.corpo?.trim();
+  if (corpo) return corpo;
+  const kind = (r.mediaKind ?? "").toUpperCase();
+  if (kind === "IMAGE") return "Imagem";
+  if (kind === "AUDIO") return "Áudio";
+  if (kind) return "Documento";
+  return "Mensagem";
+}
+
+function replyAuthorLabel(r: WhatsAppMensagemReplyTo, bubbleOut: boolean): string {
+  if (r.direcao === "OUT") return bubbleOut ? "Você" : "Agente";
+  if (r.autor === "CLIENTE") return "Cliente";
+  return r.autor?.trim() || "Mensagem";
+}
+
+function MensagemQuote({
+  replyTo,
+  out,
+}: {
+  replyTo: WhatsAppMensagemReplyTo;
+  out: boolean;
+}) {
+  return (
+    <div
+      className={`mb-1.5 rounded-md border-l-2 px-2 py-1 text-[11px] ${
+        out
+          ? "border-white/50 bg-black/20 text-white/80"
+          : "border-emerald-400/70 bg-black/25 text-white/70"
+      }`}
+    >
+      <div className={`font-medium ${out ? "text-white/90" : "text-emerald-300/90"}`}>
+        {replyAuthorLabel(replyTo, out)}
+      </div>
+      <div className="line-clamp-2 opacity-80">{replyPreviewLabel(replyTo)}</div>
+    </div>
+  );
+}
+
+function toReplyDraft(m: WhatsAppMensagemChat): WhatsAppMensagemReplyTo {
+  return {
+    id: m.id,
+    corpo: m.corpo,
+    autor: m.autor,
+    direcao: m.direcao,
+    mediaKind: m.mediaKind,
+  };
 }
 
 function MensagemAnexo({ m }: { m: WhatsAppMensagemChat }) {
@@ -100,6 +150,7 @@ export function AtendimentoChatDesk() {
   const [templates, setTemplates] = useState<WhatsAppTemplateAprovado[]>([]);
   const [templateId, setTemplateId] = useState<string>("");
   const [enviandoTemplate, setEnviandoTemplate] = useState(false);
+  const [replyTo, setReplyTo] = useState<WhatsAppMensagemReplyTo | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -256,6 +307,7 @@ export function AtendimentoChatDesk() {
     setNextBefore(null);
     setNextBeforeId(null);
     setTexto("");
+    setReplyTo(null);
     limparAnexo();
     if (selectedId) void carregarMensagensIniciais(selectedId);
   }, [selectedId, carregarMensagensIniciais]);
@@ -334,6 +386,7 @@ export function AtendimentoChatDesk() {
 
   function selectConversa(id: string) {
     marcarLidaInFlightRef.current = null;
+    setReplyTo(null);
     setSelectedId(id);
   }
 
@@ -342,16 +395,19 @@ export function AtendimentoChatDesk() {
     if (!texto.trim() && !anexo) return;
     setLoading(true);
     setErro(null);
+    const replyId = replyTo?.id ?? null;
     try {
       const msg = anexo
         ? await atendimentoChatService.responderAnexo(
             selectedId,
             anexo,
             texto.trim() || undefined,
+            replyId,
           )
-        : await atendimentoChatService.responder(selectedId, texto.trim());
+        : await atendimentoChatService.responder(selectedId, texto.trim(), replyId);
       setTexto("");
       limparAnexo();
+      setReplyTo(null);
       setMensagens((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -500,15 +556,30 @@ export function AtendimentoChatDesk() {
               return (
                 <div
                   key={m.id}
-                  className={`flex ${out ? "justify-end" : "justify-start"}`}
+                  id={`wa-msg-${m.id}`}
+                  className={`group flex ${out ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                    className={`relative max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
                       out
                         ? "bg-blue-600/80 text-white"
                         : "bg-white/10 text-white/90"
                     }`}
                   >
+                    {podeTextoLivre ? (
+                      <button
+                        type="button"
+                        className={`absolute -top-2 rounded-full border border-white/15 bg-[#0b1220] p-1 text-white/55 opacity-0 shadow transition-opacity hover:text-white group-hover:opacity-100 ${
+                          out ? "-left-2" : "-right-2"
+                        }`}
+                        title="Responder"
+                        aria-label="Responder a esta mensagem"
+                        onClick={() => setReplyTo(toReplyDraft(m))}
+                      >
+                        <i className="pi pi-reply text-[10px]" />
+                      </button>
+                    ) : null}
+                    {m.replyTo ? <MensagemQuote replyTo={m.replyTo} out={out} /> : null}
                     <MensagemAnexo m={m} />
                     {m.corpo ? (
                       <div className="whitespace-pre-wrap">{m.corpo}</div>
@@ -548,6 +619,8 @@ export function AtendimentoChatDesk() {
             onEnviarTemplate={() => void enviarTemplate()}
             enviandoTemplate={enviandoTemplate}
             hasSelected={!!selected}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
           />
         </section>
 

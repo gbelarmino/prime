@@ -3,7 +3,10 @@
 import { useRef } from "react";
 import { Button } from "primereact/button";
 import { InputTextarea } from "primereact/inputtextarea";
-import type { WhatsAppTemplateAprovado } from "@/lib/atendimento-chat-service";
+import type {
+  WhatsAppMensagemReplyTo,
+  WhatsAppTemplateAprovado,
+} from "@/lib/atendimento-chat-service";
 
 type Props = {
   disabled: boolean;
@@ -23,7 +26,25 @@ type Props = {
   onEnviarTemplate: () => void;
   enviandoTemplate: boolean;
   hasSelected: boolean;
+  replyTo: WhatsAppMensagemReplyTo | null;
+  onCancelReply: () => void;
 };
+
+function replyPreviewLabel(r: WhatsAppMensagemReplyTo): string {
+  const corpo = r.corpo?.trim();
+  if (corpo) return corpo;
+  const kind = (r.mediaKind ?? "").toUpperCase();
+  if (kind === "IMAGE") return "Imagem";
+  if (kind === "AUDIO") return "Áudio";
+  if (kind) return "Documento";
+  return "Mensagem";
+}
+
+function replyAuthorLabel(r: WhatsAppMensagemReplyTo): string {
+  if (r.direcao === "OUT") return "Você";
+  if (r.autor === "CLIENTE") return "Cliente";
+  return r.autor?.trim() || "Mensagem";
+}
 
 export function ChatComposer({
   disabled,
@@ -43,6 +64,8 @@ export function ChatComposer({
   onEnviarTemplate,
   enviandoTemplate,
   hasSelected,
+  replyTo,
+  onCancelReply,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const showTemplates = hasSelected && templates.length > 0 && !podeTextoLivre;
@@ -87,6 +110,27 @@ export function ChatComposer({
             disabled={!templateId || loading || enviandoTemplate}
             loading={enviandoTemplate}
           />
+        </div>
+      ) : null}
+
+      {replyTo ? (
+        <div className="mb-2 flex items-stretch gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/25 pl-0 pr-2">
+          <div className="w-1 shrink-0 rounded-l-lg bg-emerald-400/80" aria-hidden />
+          <div className="min-w-0 flex-1 py-1.5">
+            <div className="text-[11px] font-medium text-emerald-300/90">
+              {replyAuthorLabel(replyTo)}
+            </div>
+            <div className="truncate text-xs text-white/55">{replyPreviewLabel(replyTo)}</div>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 self-center p-1 text-white/45 hover:text-white"
+            onClick={onCancelReply}
+            disabled={loading}
+            aria-label="Cancelar resposta"
+          >
+            <i className="pi pi-times text-xs" />
+          </button>
         </div>
       ) : null}
 
@@ -141,9 +185,11 @@ export function ChatComposer({
             !hasSelected
               ? "Selecione uma conversa"
               : podeTextoLivre
-                ? anexo
-                  ? "Legenda opcional… (Enter envia)"
-                  : "Escreva a resposta… (Enter envia)"
+                ? replyTo
+                  ? "Escreva a resposta… (Enter envia)"
+                  : anexo
+                    ? "Legenda opcional… (Enter envia)"
+                    : "Escreva a resposta… (Enter envia)"
                 : "Janela fechada — use um template acima"
           }
           disabled={disabled || !podeTextoLivre}

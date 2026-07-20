@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { subscribeRealtime } from "@/lib/realtime-socket";
 import {
   isWhatsAppAlertMuted,
@@ -16,11 +15,15 @@ import { cn } from "@/lib/utils";
 
 const CHAT_HREF = "/dashboard/atendimento/chat";
 
+function openChatInNewTab(conversaId: string | null) {
+  const q = conversaId ? `?conversa=${conversaId}` : "";
+  window.open(`${CHAT_HREF}${q}`, "_blank", "noopener,noreferrer");
+}
+
 /**
  * Mute + alerta visual/sonoro global quando chega MSG_RECEBIDA no WebSocket.
  */
 export function WhatsAppInboundAlertControl() {
-  const router = useRouter();
   const [muted, setMuted] = useState(false);
   const [pulse, setPulse] = useState(false);
   const lastPlayedRef = useRef(0);
@@ -47,19 +50,24 @@ export function WhatsAppInboundAlertControl() {
       setPulse(true);
       window.setTimeout(() => setPulse(false), 1600);
 
-      toast.message("Nova mensagem WhatsApp", {
-        description: "Abrir atendimento",
-        action: {
-          label: "Abrir",
-          onClick: () => {
-            const q = conversaId ? `?conversa=${conversaId}` : "";
-            router.push(`${CHAT_HREF}${q}`);
-          },
-        },
-        duration: 5000,
-      });
+      toast.custom(
+        (id) => (
+          <button
+            type="button"
+            className="flex w-full cursor-pointer flex-col gap-0.5 rounded-lg border border-white/10 bg-[#1a1f2e] px-4 py-3 text-left shadow-lg"
+            onClick={() => {
+              openChatInNewTab(conversaId);
+              toast.dismiss(id);
+            }}
+          >
+            <span className="text-sm font-medium text-white">Nova mensagem WhatsApp</span>
+            <span className="text-xs text-white/55">Clique para abrir o chat numa nova aba</span>
+          </button>
+        ),
+        { duration: 5000 },
+      );
     },
-    [router],
+    [],
   );
 
   useEffect(() => {

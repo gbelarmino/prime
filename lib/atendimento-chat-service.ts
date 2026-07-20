@@ -36,6 +36,14 @@ export type WhatsAppConversa = {
   ultimaMensagemPreview?: string | null;
 };
 
+export type WhatsAppMensagemReplyTo = {
+  id: string;
+  corpo?: string | null;
+  autor?: string | null;
+  direcao?: string | null;
+  mediaKind?: string | null;
+};
+
 export type WhatsAppMensagemChat = {
   id: string;
   conversaId: string;
@@ -51,6 +59,7 @@ export type WhatsAppMensagemChat = {
   mediaContentType?: string | null;
   mediaKind?: "IMAGE" | "DOCUMENT" | "AUDIO" | string | null;
   mediaUrl?: string | null;
+  replyTo?: WhatsAppMensagemReplyTo | null;
 };
 
 export type WhatsAppTemplateAprovado = {
@@ -113,12 +122,19 @@ export const atendimentoChatService = {
     return res.json();
   },
 
-  async responder(conversaId: string, mensagem: string): Promise<WhatsAppMensagemChat> {
+  async responder(
+    conversaId: string,
+    mensagem: string,
+    replyToMensagemId?: string | null,
+  ): Promise<WhatsAppMensagemChat> {
     const res = await apiFetch(getAtendimentoConversaMensagensUrl(conversaId), {
       ...quiet,
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mensagem }),
+      body: JSON.stringify({
+        mensagem,
+        replyToMensagemId: replyToMensagemId || undefined,
+      }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -128,11 +144,15 @@ export const atendimentoChatService = {
     conversaId: string,
     file: File,
     mensagem?: string,
+    replyToMensagemId?: string | null,
   ): Promise<WhatsAppMensagemChat> {
     const form = new FormData();
     form.append("file", file);
     if (mensagem?.trim()) {
       form.append("mensagem", mensagem.trim());
+    }
+    if (replyToMensagemId) {
+      form.append("replyToMensagemId", replyToMensagemId);
     }
     const res = await apiFetch(getAtendimentoConversaAnexoUrl(conversaId), {
       ...quiet,
