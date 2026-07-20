@@ -36,7 +36,7 @@ function phonesFromCliente(c: {
 
 export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Props) {
   const [clientes, setClientes] = useState<ContratanteOption[]>([]);
-  const [cliente, setCliente] = useState<ContratanteOption | null>(null);
+  const [cliente, setCliente] = useState<ContratanteOption | undefined>(undefined);
   const [clientesLoading, setClientesLoading] = useState(false);
   const [telefonesCliente, setTelefonesCliente] = useState<string[]>([]);
   const [telefone, setTelefone] = useState("");
@@ -47,7 +47,7 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
 
   useEffect(() => {
     if (!visible) return;
-    setCliente(null);
+    setCliente(undefined);
     setClientes([]);
     setTelefonesCliente([]);
     setTelefone("");
@@ -74,7 +74,7 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
     }
   }, []);
 
-  async function onSelectCliente(opt: ContratanteOption | null) {
+  async function onSelectCliente(opt: ContratanteOption | undefined) {
     setCliente(opt);
     setTelefonesCliente([]);
     setTelefone("");
@@ -174,7 +174,7 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
               if (v && typeof v === "object" && "id" in v) {
                 void onSelectCliente(v as ContratanteOption);
               } else {
-                setCliente(null);
+                setCliente(undefined);
                 setTelefonesCliente([]);
               }
             }}
