@@ -890,6 +890,7 @@ export interface UnicredWebhookConciliacaoFiltros {
   dataPagamentoDe?: string;
   dataPagamentoAte?: string;
   contrato?: string;
+  empreendimento?: string;
 }
 
 export type UnicredWebhookReprocessamentoSituacao =
@@ -1633,6 +1634,7 @@ export const finService = {
         dataPagamentoDe: filtros?.dataPagamentoDe,
         dataPagamentoAte: filtros?.dataPagamentoAte,
         contrato: filtros?.contrato,
+        empreendimento: filtros?.empreendimento,
       }),
       {
         skipLoading: options?.skipLoading,

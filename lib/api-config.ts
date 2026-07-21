@@ -1758,6 +1758,7 @@ export function getFinUnicredWebhookConciliacaoListUrl(
     dataPagamentoDe?: string;
     dataPagamentoAte?: string;
     contrato?: string;
+    empreendimento?: string;
   },
 ): string {
   const base = getFinUnicredWebhookConciliacaoUrl();
@@ -1771,6 +1772,7 @@ export function getFinUnicredWebhookConciliacaoListUrl(
   if (filters?.dataPagamentoDe) params.set("dataPagamentoDe", filters.dataPagamentoDe);
   if (filters?.dataPagamentoAte) params.set("dataPagamentoAte", filters.dataPagamentoAte);
   if (filters?.contrato) params.set("contrato", filters.contrato);
+  if (filters?.empreendimento) params.set("empreendimento", filters.empreendimento);
   return `${base}?${params.toString()}`;
 }
 

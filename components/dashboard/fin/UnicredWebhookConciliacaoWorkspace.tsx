@@ -140,6 +140,9 @@ export function UnicredWebhookConciliacaoWorkspace() {
   const [dataPagamentoDe, setDataPagamentoDe] = useState("");
   const [dataPagamentoAte, setDataPagamentoAte] = useState("");
   const [contratoFiltro, setContratoFiltro] = useState("");
+  const [empreendimentoFiltro, setEmpreendimentoFiltro] = useState("");
+  const [empreendimentos, setEmpreendimentos] = useState<string[]>([]);
+  const [empreendimentosLoading, setEmpreendimentosLoading] = useState(false);
   const [pageData, setPageData] = useState<SpringPage<UnicredWebhookConciliacaoResumo> | null>(null);
   const [pendentes, setPendentes] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -180,6 +183,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
             dataPagamentoDe: dataPagamentoDe || undefined,
             dataPagamentoAte: dataPagamentoAte || undefined,
             contrato: contratoFiltro.trim() || undefined,
+            empreendimento: empreendimentoFiltro.trim() || undefined,
           },
           { skipLoading: true },
         ),
@@ -203,6 +207,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
     dataPagamentoDe,
     dataPagamentoAte,
     contratoFiltro,
+    empreendimentoFiltro,
   ]);
 
   useEffect(() => {
@@ -220,6 +225,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
     dataPagamentoDe,
     dataPagamentoAte,
     contratoFiltro,
+    empreendimentoFiltro,
   ]);
 
   useEffect(() => {
@@ -227,6 +233,15 @@ export function UnicredWebhookConciliacaoWorkspace() {
       .listConvenios()
       .then((lista) => setConvenios(lista.filter((c) => c.tipoIntegracao === "UNICRED")))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setEmpreendimentosLoading(true);
+    finService
+      .listEmpreendimentos({ skipLoading: true })
+      .then(setEmpreendimentos)
+      .catch(() => toast.error("Não foi possível carregar empreendimentos."))
+      .finally(() => setEmpreendimentosLoading(false));
   }, []);
 
   const abrirDetalhe = async (id: string) => {
@@ -510,6 +525,31 @@ export function UnicredWebhookConciliacaoWorkspace() {
               optionValue="value"
               onChange={(e) => setStatusFiltro(e.value)}
               className="w-48"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="webhook-empreendimento"
+              className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35"
+            >
+              Empreendimento
+            </label>
+            <Dropdown
+              inputId="webhook-empreendimento"
+              value={empreendimentoFiltro}
+              options={[
+                { label: "Todos", value: "" },
+                ...empreendimentos.map((emp) => ({ label: emp, value: emp })),
+              ]}
+              optionLabel="label"
+              optionValue="value"
+              onChange={(e) => setEmpreendimentoFiltro(e.value ?? "")}
+              placeholder="Todos"
+              className="w-56"
+              filter
+              showClear={!!empreendimentoFiltro}
+              disabled={empreendimentosLoading}
             />
           </div>
 
