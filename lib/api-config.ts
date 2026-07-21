@@ -38,6 +38,7 @@ const API_PATHS = {
   finCobrancaRegua: "/api/fin/cobranca-regua",
   finCobrancaGrupos: "/api/fin/cobranca-grupos",
   atendimento: "/api/atendimento",
+  atendimentoSms: "/api/atendimento/sms",
   auditoria: "/api/auditoria",
   tenantsMe: "/api/tenants/me",
   authSwitchTenant: "/api/auth/switch-tenant",
@@ -1557,6 +1558,53 @@ export function getAtendimentoConversaUrl(conversaId: string): string {
 
 export function getAtendimentoConversasIniciarUrl(): string {
   return withBase(getApiBaseUrl(), `${API_PATHS.atendimento}/conversas/iniciar`);
+}
+
+// ---------------------------------------------------------------------------
+// Atendimento SMS
+// ---------------------------------------------------------------------------
+
+export function getAtendimentoSmsUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.atendimentoSms);
+}
+
+export function getAtendimentoSmsConversasUrl(status?: string): string {
+  const base = withBase(getApiBaseUrl(), `${API_PATHS.atendimentoSms}/conversas`);
+  if (!status) return base;
+  const q = new URLSearchParams({ status });
+  return `${base}?${q.toString()}`;
+}
+
+export function getAtendimentoSmsConversaMensagensUrl(
+  conversaId: string,
+  opts?: { before?: string; beforeId?: string; limit?: number },
+): string {
+  const base = withBase(
+    getApiBaseUrl(),
+    `${API_PATHS.atendimentoSms}/conversas/${conversaId}/mensagens`,
+  );
+  if (!opts) return base;
+  const q = new URLSearchParams();
+  if (opts.before) q.set("before", opts.before);
+  if (opts.beforeId) q.set("beforeId", opts.beforeId);
+  if (opts.limit != null) q.set("limit", String(opts.limit));
+  const qs = q.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+export function getAtendimentoSmsConversaUrl(conversaId: string): string {
+  return withBase(
+    getApiBaseUrl(),
+    `${API_PATHS.atendimentoSms}/conversas/${conversaId}`,
+  );
+}
+
+export function getAtendimentoSmsConversasIniciarUrl(): string {
+  return withBase(getApiBaseUrl(), `${API_PATHS.atendimentoSms}/conversas/iniciar`);
+}
+
+export function getAtendimentoSmsMigrarHistoricoUrl(): string {
+  return withBase(getApiBaseUrl(), `${API_PATHS.atendimentoSms}/migrar-historico`);
 }
 
 export type AtendimentoBuscaSort = {

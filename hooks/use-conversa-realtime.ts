@@ -6,12 +6,23 @@ import { subscribeRealtime, type RealtimeMessage } from "@/lib/realtime-socket";
 type Options = {
   /** Se definido, recebe o evento bruto (útil para patch de MSG_STATUS). */
   onMessage?: (msg: RealtimeMessage) => void;
+  /**
+   * Filtra por canal (`SMS` | `WHATSAPP`). Eventos sem `canal` são tratados
+   * como WhatsApp (legado). Quando definido, ignora eventos de outro canal.
+   */
+  canal?: string;
 };
+
+function eventCanal(msg: RealtimeMessage): string {
+  const raw = typeof msg.canal === "string" ? msg.canal.trim() : "";
+  return (raw || "WHATSAPP").toUpperCase();
+}
 
 /** Reage a MSG_RECEBIDA / MSG_ENVIADA / MSG_STATUS / CONVERSA_ATUALIZADA no WebSocket. */
 export function useConversaRealtime(onEvent: () => void, options?: Options) {
   const [tick, setTick] = useState(0);
   const onMessage = options?.onMessage;
+  const canalWanted = options?.canal?.trim().toUpperCase() || null;
 
   useEffect(() => {
     return subscribeRealtime((msg) => {
@@ -22,6 +33,7 @@ export function useConversaRealtime(onEvent: () => void, options?: Options) {
         type === "MSG_STATUS" ||
         type === "CONVERSA_ATUALIZADA"
       ) {
+        if (canalWanted && eventCanal(msg) !== canalWanted) return;
         onMessage?.(msg);
         if (type === "MSG_STATUS") {
           // Status: só patch local; evita reload completo da thread.
@@ -32,7 +44,7 @@ export function useConversaRealtime(onEvent: () => void, options?: Options) {
         onEvent();
       }
     });
-  }, [onEvent, onMessage]);
+  }, [onEvent, onMessage, canalWanted]);
 
   return tick;
 }

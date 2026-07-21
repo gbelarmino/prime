@@ -186,6 +186,12 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
         label: "Chat WhatsApp",
         icon: MessageCircle,
       },
+      {
+        id: "atendimento-chat-sms",
+        href: "/dashboard/atendimento/sms",
+        label: "Chat SMS",
+        icon: MessageSquare,
+      },
     ],
   },
   {

@@ -5,12 +5,13 @@ import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
 import { InputSwitch } from "primereact/inputswitch";
 import { toast } from "sonner";
-import { MessageSquare, RefreshCw, Send } from "lucide-react";
+import { MessageSquare, RefreshCw, Send, Download } from "lucide-react";
 import {
   smsService,
   TEXTBEE_API_PRESET,
   type SmsTextBeeConfig,
 } from "@/lib/sms-service";
+import { smsAtendimentoChatService } from "@/lib/sms-atendimento-chat-service";
 import { WhatsAppSectionShell } from "@/components/dashboard/whatsapp/WhatsAppSectionShell";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ export function SmsContaTextBee() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const [testDestino, setTestDestino] = useState("");
   const [testMensagem, setTestMensagem] = useState(DEFAULT_TEST_MESSAGE);
   const [form, setForm] = useState({
@@ -118,6 +120,28 @@ export function SmsContaTextBee() {
     }
   };
 
+  const handleMigrarHistorico = async () => {
+    setMigrating(true);
+    try {
+      const result = await smsAtendimentoChatService.migrarHistorico();
+      const n =
+        typeof result.mensagensImportadas === "number"
+          ? result.mensagensImportadas
+          : typeof result.migradas === "number"
+            ? result.migradas
+            : null;
+      toast.success(
+        n != null
+          ? `Histórico importado (${n} mensagem${n === 1 ? "" : "s"})`
+          : "Histórico SMS importado",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao importar histórico");
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   const charCount = testMensagem.length;
 
   return (
@@ -126,15 +150,26 @@ export function SmsContaTextBee() {
       title="Conta TextBee"
       description="Uma conta por tenant. A API key fica cifrada no servidor; deixe em branco para manter a actual."
       actions={
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void load()}
-          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/15 hover:bg-white/[0.07] disabled:opacity-40"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Atualizar
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={loading || migrating}
+            onClick={() => void handleMigrarHistorico()}
+            className="inline-flex items-center gap-2 rounded-2xl border border-sky-500/30 bg-sky-950/30 px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-sky-200/90 transition hover:border-sky-400/45 hover:bg-sky-900/40 disabled:opacity-40"
+          >
+            <Download className="h-4 w-4" />
+            {migrating ? "A importar…" : "Importar histórico"}
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void load()}
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/15 hover:bg-white/[0.07] disabled:opacity-40"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Atualizar
+          </button>
+        </div>
       }
     >
       <div className="mx-auto flex max-w-2xl flex-col gap-6">

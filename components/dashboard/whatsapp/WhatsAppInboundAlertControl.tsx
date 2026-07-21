@@ -13,15 +13,22 @@ import {
 } from "@/lib/whatsapp-inbound-alert";
 import { cn } from "@/lib/utils";
 
-const CHAT_HREF = "/dashboard/atendimento/chat";
+const WA_CHAT_HREF = "/dashboard/atendimento/chat";
+const SMS_CHAT_HREF = "/dashboard/atendimento/sms";
 
-function openChatInNewTab(conversaId: string | null) {
+function openChatInNewTab(href: string, conversaId: string | null) {
   const q = conversaId ? `?conversa=${conversaId}` : "";
-  window.open(`${CHAT_HREF}${q}`, "_blank", "noopener,noreferrer");
+  window.open(`${href}${q}`, "_blank", "noopener,noreferrer");
+}
+
+function eventCanal(msg: Record<string, unknown>): string {
+  const raw = typeof msg.canal === "string" ? msg.canal.trim() : "";
+  return (raw || "WHATSAPP").toUpperCase();
 }
 
 /**
  * Mute + alerta visual/sonoro global quando chega MSG_RECEBIDA no WebSocket.
+ * Abre Chat WhatsApp ou Chat SMS conforme `canal` do evento.
  */
 export function WhatsAppInboundAlertControl() {
   const [muted, setMuted] = useState(false);
@@ -40,13 +47,17 @@ export function WhatsAppInboundAlertControl() {
   }, []);
 
   const onInbound = useCallback(
-    (conversaId: string | null) => {
+    (conversaId: string | null, canal: string) => {
       const now = Date.now();
       if (now - lastPlayedRef.current < 400) return;
       lastPlayedRef.current = now;
 
+      const isSms = canal === "SMS";
+      const href = isSms ? SMS_CHAT_HREF : WA_CHAT_HREF;
+      const titulo = isSms ? "Nova mensagem SMS" : "Nova mensagem WhatsApp";
+
       playWhatsAppInboundChime();
-      notifyWhatsAppInboundVisual(conversaId);
+      notifyWhatsAppInboundVisual(conversaId, canal);
       setPulse(true);
       window.setTimeout(() => setPulse(false), 1600);
 
@@ -56,12 +67,14 @@ export function WhatsAppInboundAlertControl() {
             type="button"
             className="flex w-full cursor-pointer flex-col gap-0.5 rounded-lg border border-white/10 bg-[#1a1f2e] px-4 py-3 text-left shadow-lg"
             onClick={() => {
-              openChatInNewTab(conversaId);
+              openChatInNewTab(href, conversaId);
               toast.dismiss(id);
             }}
           >
-            <span className="text-sm font-medium text-white">Nova mensagem WhatsApp</span>
-            <span className="text-xs text-white/55">Clique para abrir o chat numa nova aba</span>
+            <span className="text-sm font-medium text-white">{titulo}</span>
+            <span className="text-xs text-white/55">
+              Clique para abrir o chat numa nova aba
+            </span>
           </button>
         ),
         { duration: 5000 },
@@ -75,7 +88,7 @@ export function WhatsAppInboundAlertControl() {
       if (msg.type !== "MSG_RECEBIDA") return;
       const conversaId =
         typeof msg.conversaId === "string" ? msg.conversaId : null;
-      onInbound(conversaId);
+      onInbound(conversaId, eventCanal(msg));
     });
   }, [onInbound]);
 
@@ -101,7 +114,7 @@ export function WhatsAppInboundAlertControl() {
           : "text-emerald-400/90 hover:text-emerald-300",
         pulse && !muted && "text-emerald-300",
       )}
-      aria-label={muted ? "Ativar som de mensagem WhatsApp" : "Silenciar som de mensagem WhatsApp"}
+      aria-label={muted ? "Ativar som de mensagem" : "Silenciar som de mensagem"}
       title={muted ? "Som silenciado — clique para ativar" : "Som ativo — clique para silenciar"}
     >
       {muted ? <VolumeX size={22} /> : <Volume2 size={22} />}

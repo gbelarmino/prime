@@ -74,11 +74,17 @@ export function playWhatsAppInboundChime(): void {
   }
 }
 
-export function notifyWhatsAppInboundVisual(conversaId?: string | null): void {
+export function notifyWhatsAppInboundVisual(
+  conversaId?: string | null,
+  canal?: string | null,
+): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
     new CustomEvent(WHATSAPP_INBOUND_ALERT_EVENT, {
-      detail: { conversaId: conversaId ?? null },
+      detail: {
+        conversaId: conversaId ?? null,
+        canal: canal ?? "WHATSAPP",
+      },
     }),
   );
 }
