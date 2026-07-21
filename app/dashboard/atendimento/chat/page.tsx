@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function AtendimentoChatPage() {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-end justify-between gap-3 px-4 pt-1">
+    <div className="flex h-[calc(100dvh-8rem)] min-h-0 flex-col gap-2 overflow-hidden">
+      <div className="flex shrink-0 items-end justify-between gap-3 px-4 pt-1">
         <div>
           <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-blue-400">
             Central de Atendimento
@@ -23,7 +23,7 @@ export default function AtendimentoChatPage() {
       </div>
       <Suspense
         fallback={
-          <div className="flex h-[calc(100vh-5.5rem)] items-center justify-center px-4">
+          <div className="flex min-h-0 flex-1 items-center justify-center px-4">
             <span
               className="h-6 w-6 animate-spin rounded-full border-2 border-white/15 border-t-white/65"
               aria-label="A carregar chat"
@@ -31,7 +31,9 @@ export default function AtendimentoChatPage() {
           </div>
         }
       >
-        <AtendimentoChatDesk />
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <AtendimentoChatDesk />
+        </div>
       </Suspense>
     </div>
   );

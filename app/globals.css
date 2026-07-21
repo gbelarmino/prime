@@ -551,8 +551,10 @@ body.p-overflow-hidden .min-h-screen.flex {
   --wa-desk-surface-hover: rgba(255, 255, 255, 0.07);
   --wa-desk-selected: rgba(59, 130, 246, 0.22);
   --wa-desk-thread-bg: #0b1220;
-  height: calc(100vh - 5.5rem);
-  min-height: 480px;
+  /* A página do chat define a altura do contentor; o desk preenche 100%. */
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
 }
 
 .wa-desk__avatar-ring--aberta {

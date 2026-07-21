@@ -12,10 +12,18 @@ export function deliveryTickKind(status?: string | null): DeliveryTickKind {
   }
   if (s === "READ") return "read";
   if (s === "DELIVERED") return "delivered";
-  if (s === "QUEUED" || s === "ACCEPTED" || s === "SCHEDULED" || s === "SENDING") {
+  if (
+    s === "QUEUED" ||
+    s === "PENDING" ||
+    s === "ACCEPTED" ||
+    s === "SCHEDULED" ||
+    s === "SENDING" ||
+    s === "ENVIANDO" ||
+    s === "PENDENTE"
+  ) {
     return "pending";
   }
-  // SENT ou desconhecido após envio → 1 check
+  // SENT / DISPATCHED / desconhecido após envio → 1 check
   return "sent";
 }
 

@@ -479,7 +479,7 @@ export function AtendimentoChatDesk() {
   }
 
   return (
-    <div className="wa-desk flex flex-col gap-2 px-4">
+    <div className="wa-desk flex h-full min-h-0 flex-col gap-2 px-4 !h-full !max-h-full">
       <NovaConversaDialog
         visible={novaConversaOpen}
         onHide={() => setNovaConversaOpen(false)}

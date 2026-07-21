@@ -15,6 +15,20 @@ import { SmsInboxColumn } from "./SmsInboxColumn";
 import { SmsComposer } from "./SmsComposer";
 import { NovaSmsConversaDialog } from "./NovaSmsConversaDialog";
 
+function smsStatusRank(status?: string | null): number {
+  const s = (status ?? "").trim().toUpperCase();
+  if (s === "FAILED") return 90;
+  if (s === "DELIVERED") return 50;
+  if (s === "SENT" || s === "DISPATCHED") return 40;
+  if (s === "QUEUED" || s === "PENDING" || s === "SENDING" || s === "ENVIANDO") return 10;
+  return 0;
+}
+
+function preferSmsStatus(a?: string | null, b?: string | null): string | null | undefined {
+  if (smsStatusRank(b) >= smsStatusRank(a)) return b ?? a;
+  return a ?? b;
+}
+
 export function SmsChatDesk() {
   const searchParams = useSearchParams();
   const [conversas, setConversas] = useState<SmsConversa[]>([]);
@@ -214,7 +228,19 @@ export function SmsChatDesk() {
           setMensagens((prev) => {
             if (prev.length === 0) return page.itens;
             const byId = new Map(prev.map((m) => [m.id, m]));
-            for (const m of page.itens) byId.set(m.id, m);
+            for (const m of page.itens) {
+              const cur = byId.get(m.id);
+              if (!cur) {
+                byId.set(m.id, m);
+                continue;
+              }
+              // Não regredir status (ex.: DELIVERED → QUEUED por race).
+              byId.set(m.id, {
+                ...cur,
+                ...m,
+                status: preferSmsStatus(cur.status, m.status),
+              });
+            }
             return Array.from(byId.values()).sort((a, b) => {
               const ta = a.dataCadastro ? Date.parse(a.dataCadastro) : 0;
               const tb = b.dataCadastro ? Date.parse(b.dataCadastro) : 0;
@@ -294,7 +320,7 @@ export function SmsChatDesk() {
   }
 
   return (
-    <div className="wa-desk flex flex-col gap-2 px-4">
+    <div className="wa-desk flex h-full min-h-0 flex-col gap-2 px-4 !h-full !max-h-full">
       <NovaSmsConversaDialog
         visible={novaConversaOpen}
         onHide={() => setNovaConversaOpen(false)}
