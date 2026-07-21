@@ -273,15 +273,13 @@ export function SmsChatDesk() {
   }
 
   async function enviar() {
-    if (!selectedId || !texto.trim()) return;
+    if (!selectedId || !texto.trim() || loading) return;
+    const corpo = texto.trim();
+    setTexto("");
     setLoading(true);
     setErro(null);
     try {
-      const msg = await smsAtendimentoChatService.responder(
-        selectedId,
-        texto.trim(),
-      );
-      setTexto("");
+      const msg = await smsAtendimentoChatService.responder(selectedId, corpo);
       setMensagens((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -290,6 +288,7 @@ export function SmsChatDesk() {
       scrollToBottom();
       await carregarConversas();
     } catch (e) {
+      setTexto(corpo);
       setErro(e instanceof Error ? e.message : "Falha ao enviar");
     } finally {
       setLoading(false);
@@ -462,7 +461,7 @@ export function SmsChatDesk() {
             })}
           </div>
           <SmsComposer
-            disabled={!selected || loading}
+            disabled={!selected}
             texto={texto}
             onTexto={setTexto}
             onEnviar={() => void enviar()}

@@ -69,26 +69,42 @@ export function ChatComposer({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textoRef = useRef<HTMLTextAreaElement | null>(null);
+  const keepFocusAfterSendRef = useRef(false);
   const showTemplates = hasSelected && templates.length > 0;
+  const inputDisabled = disabled || !podeTextoLivre;
+
+  function focusTexto() {
+    const el = textoRef.current;
+    if (!el || el.disabled) return;
+    el.focus();
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
+  }
 
   useEffect(() => {
-    if (!replyTo || disabled || !podeTextoLivre) return;
-    const id = window.requestAnimationFrame(() => {
-      const el = textoRef.current;
-      if (!el) return;
-      el.focus();
-      const len = el.value.length;
-      el.setSelectionRange(len, len);
-    });
+    if (!replyTo || inputDisabled) return;
+    const id = window.requestAnimationFrame(focusTexto);
     return () => window.cancelAnimationFrame(id);
-  }, [replyTo, disabled, podeTextoLivre]);
+  }, [replyTo, inputDisabled]);
+
+  useEffect(() => {
+    if (loading || !keepFocusAfterSendRef.current || inputDisabled) return;
+    keepFocusAfterSendRef.current = false;
+    const id = window.requestAnimationFrame(focusTexto);
+    return () => window.cancelAnimationFrame(id);
+  }, [loading, inputDisabled]);
+
+  function dispararEnvio() {
+    if (inputDisabled || loading || (!texto.trim() && !anexo)) return;
+    keepFocusAfterSendRef.current = true;
+    onEnviar();
+    window.requestAnimationFrame(focusTexto);
+  }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!disabled && podeTextoLivre && (texto.trim() || anexo)) {
-        onEnviar();
-      }
+      dispararEnvio();
     }
   }
 
@@ -220,13 +236,13 @@ export function ChatComposer({
                     : "Escreva a resposta… (Enter envia)"
                 : "Janela fechada — use um template acima"
           }
-          disabled={disabled || !podeTextoLivre}
+          disabled={inputDisabled}
         />
         <Button
           icon="pi pi-send"
           className="!h-10 !w-10 shrink-0"
-          onClick={onEnviar}
-          disabled={disabled || !podeTextoLivre || (!texto.trim() && !anexo)}
+          onClick={dispararEnvio}
+          disabled={inputDisabled || loading || (!texto.trim() && !anexo)}
           loading={loading}
           aria-label="Enviar mensagem"
         />

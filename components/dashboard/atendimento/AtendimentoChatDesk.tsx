@@ -403,23 +403,26 @@ export function AtendimentoChatDesk() {
   }
 
   async function enviar() {
-    if (!selectedId || !podeTextoLivre) return;
+    if (!selectedId || !podeTextoLivre || loading) return;
     if (!texto.trim() && !anexo) return;
+    const corpo = texto.trim();
+    const arquivo = anexo;
+    const replyToSnapshot = replyTo;
+    const replyId = replyTo?.id ?? null;
+    setTexto("");
+    limparAnexo();
+    setReplyTo(null);
     setLoading(true);
     setErro(null);
-    const replyId = replyTo?.id ?? null;
     try {
-      const msg = anexo
+      const msg = arquivo
         ? await atendimentoChatService.responderAnexo(
             selectedId,
-            anexo,
-            texto.trim() || undefined,
+            arquivo,
+            corpo || undefined,
             replyId,
           )
-        : await atendimentoChatService.responder(selectedId, texto.trim(), replyId);
-      setTexto("");
-      limparAnexo();
-      setReplyTo(null);
+        : await atendimentoChatService.responder(selectedId, corpo, replyId);
       setMensagens((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -429,6 +432,9 @@ export function AtendimentoChatDesk() {
       await carregarConversas();
       requestTwilioSaldoRefresh();
     } catch (e) {
+      setTexto(corpo);
+      if (arquivo) setAnexo(arquivo);
+      if (replyToSnapshot) setReplyTo(replyToSnapshot);
       setErro(e instanceof Error ? e.message : "Falha ao enviar");
     } finally {
       setLoading(false);
@@ -635,7 +641,7 @@ export function AtendimentoChatDesk() {
             })}
           </div>
           <ChatComposer
-            disabled={!selected || loading}
+            disabled={!selected}
             podeTextoLivre={podeTextoLivre}
             janelaFechando={estadoSelected === "FECHANDO"}
             texto={texto}

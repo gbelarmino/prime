@@ -22,20 +22,41 @@ export function SmsComposer({
   hasSelected,
 }: Props) {
   const textoRef = useRef<HTMLTextAreaElement | null>(null);
+  const keepFocusAfterSendRef = useRef(false);
   const charCount = texto.length;
+
+  function focusTexto() {
+    const el = textoRef.current;
+    if (!el || el.disabled) return;
+    el.focus();
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
+  }
 
   useEffect(() => {
     if (disabled || !hasSelected) return;
-    const id = window.requestAnimationFrame(() => {
-      textoRef.current?.focus();
-    });
+    const id = window.requestAnimationFrame(focusTexto);
     return () => window.cancelAnimationFrame(id);
   }, [disabled, hasSelected]);
+
+  useEffect(() => {
+    if (loading || !keepFocusAfterSendRef.current || disabled) return;
+    keepFocusAfterSendRef.current = false;
+    const id = window.requestAnimationFrame(focusTexto);
+    return () => window.cancelAnimationFrame(id);
+  }, [loading, disabled]);
+
+  function dispararEnvio() {
+    if (disabled || loading || !texto.trim()) return;
+    keepFocusAfterSendRef.current = true;
+    onEnviar();
+    window.requestAnimationFrame(focusTexto);
+  }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!disabled && texto.trim()) onEnviar();
+      dispararEnvio();
     }
   }
 
@@ -72,8 +93,8 @@ export function SmsComposer({
         <Button
           icon="pi pi-send"
           className="!h-10 !w-10 shrink-0"
-          onClick={onEnviar}
-          disabled={disabled || !texto.trim()}
+          onClick={dispararEnvio}
+          disabled={disabled || loading || !texto.trim()}
           loading={loading}
           aria-label="Enviar SMS"
         />
