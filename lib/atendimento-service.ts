@@ -140,9 +140,10 @@ export const atendimentoService = {
     size = 20,
     filters: AtendimentoBuscaFilters,
     sort?: AtendimentoBuscaSort,
+    options?: { skipLoading?: boolean },
   ): Promise<SpringPage<AtendimentoBuscaItem>> {
     const url = getAtendimentoBuscaUrl(page, size, filters, sort);
-    const res = await apiFetch(url);
+    const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
   },
 
