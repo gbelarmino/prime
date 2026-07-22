@@ -170,6 +170,59 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
     }
   }, []);
 
+  /** Cancela busca em voo e remove o vínculo contrato↔filtros (evita o debounce reaplicar). */
+  function invalidarMatchContrato() {
+    contratoBuscaSeqRef.current += 1;
+    setBuscandoContrato(false);
+    setContratoMatch(null);
+    setContratoFiltro("");
+    setErro(null);
+  }
+
+  function onEmpreendimentoChange(value: string | null | undefined) {
+    const next = value == null || value === "" ? null : value;
+    if (!next) {
+      invalidarMatchContrato();
+      setEmpreendimento(null);
+      setQuadra(null);
+      setLote(null);
+      return;
+    }
+    invalidarMatchContrato();
+    setEmpreendimento(next);
+    setQuadra(null);
+    setLote(null);
+  }
+
+  function onQuadraChange(value: string | null | undefined) {
+    const next = value == null || value === "" ? null : value;
+    if (!next) {
+      invalidarMatchContrato();
+      setQuadra(null);
+      setLote(null);
+      return;
+    }
+    invalidarMatchContrato();
+    setQuadra(next);
+    setLote(null);
+  }
+
+  function onLoteChange(value: number | null | undefined) {
+    const next = value == null || (typeof value === "number" && Number.isNaN(value)) ? null : value;
+    if (next == null) {
+      invalidarMatchContrato();
+      setLote(null);
+      return;
+    }
+    // Mantém emp/quadra; limpa só o nº do contrato até o efeito de lote reaplicar o match
+    contratoBuscaSeqRef.current += 1;
+    setBuscandoContrato(false);
+    setContratoMatch(null);
+    setContratoFiltro("");
+    setErro(null);
+    setLote(next);
+  }
+
   const buscarPorFiltros = useCallback(
     async (filters: {
       contrato?: string;
@@ -353,7 +406,7 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 sm:col-span-2">
+          <div className="flex flex-col gap-1 sm:col-span-2">
             <span className={FORM_LABEL_CLASS}>Contrato</span>
             <InputText
               value={contratoFiltro}
@@ -364,19 +417,14 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
               placeholder="Número do contrato"
               className={FORM_INPUT_CLASS}
             />
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1 sm:col-span-2">
+          <div className="flex flex-col gap-1 sm:col-span-2">
             <span className={FORM_LABEL_CLASS}>Empreendimento</span>
             <Dropdown
               value={empreendimento}
               options={empreendimentos.map((emp) => ({ label: emp, value: emp }))}
-              onChange={(e) => {
-                setEmpreendimento(e.value ?? null);
-                setQuadra(null);
-                setLote(null);
-                setContratoMatch(null);
-              }}
+              onChange={(e) => onEmpreendimentoChange(e.value as string | null)}
               placeholder="Selecione"
               filter
               showClear
@@ -384,35 +432,28 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
               className="w-full"
               pt={DROPDOWN_PT}
             />
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
             <span className={FORM_LABEL_CLASS}>Quadra</span>
             <Dropdown
               value={quadra}
               options={quadras.map((q) => ({ label: `Quadra ${q}`, value: q }))}
-              onChange={(e) => {
-                setQuadra(e.value ?? null);
-                setLote(null);
-                setContratoMatch(null);
-              }}
+              onChange={(e) => onQuadraChange(e.value as string | null)}
               placeholder={empreendimento ? "Selecione" : "Empreendimento primeiro"}
               showClear
               disabled={!empreendimento || quadrasLoading}
               className="w-full"
               pt={DROPDOWN_PT}
             />
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
             <span className={FORM_LABEL_CLASS}>Lote</span>
             <Dropdown
               value={lote}
               options={lotes.map((n) => ({ label: `Lote ${n}`, value: n }))}
-              onChange={(e) => {
-                setLote(e.value ?? null);
-                setContratoMatch(null);
-              }}
+              onChange={(e) => onLoteChange(e.value as number | null)}
               placeholder={
                 !empreendimento
                   ? "Empreendimento primeiro"
@@ -425,7 +466,7 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
               className="w-full"
               pt={DROPDOWN_PT}
             />
-          </label>
+          </div>
         </div>
 
         {buscandoContrato ? (
