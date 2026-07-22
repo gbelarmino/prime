@@ -1005,10 +1005,11 @@ export function TitulosList({
     tituloId: string,
     urlBoleto?: string | null,
     rowStatus?: TituloCobranca["status"],
+    temArquivoBoleto?: boolean,
   ) => {
     setActionLoading(true);
     try {
-      await finService.downloadPdf(tituloId, urlBoleto, rowStatus);
+      await finService.downloadPdf(tituloId, urlBoleto, rowStatus, temArquivoBoleto);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF.");
     } finally {
@@ -1523,11 +1524,13 @@ export function TitulosList({
     if (podeBaixarPdfBoleto(row.status)) {
       items.push(
         dashboardActionMenuItem({
-          label: row.urlBoleto?.trim() ? "Abrir boleto" : "Baixar PDF",
+          label:
+            row.temArquivoBoleto || !row.urlBoleto?.trim() ? "Baixar PDF" : "Abrir boleto",
           icon: (
             <Download size={16} className="text-amber-400 transition-transform group-hover:scale-110" />
           ),
-          onClick: () => void baixarPdf(row.id, row.urlBoleto, row.status),
+          onClick: () =>
+            void baixarPdf(row.id, row.urlBoleto, row.status, row.temArquivoBoleto),
           disabled: actionLoading,
         }),
       );

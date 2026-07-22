@@ -46,6 +46,7 @@ import {
   getFinTituloHistoricoUrl,
   getFinTituloLiquidarUrl,
   getFinTituloPdfUrl,
+  getFinTituloBoletoArquivoUrl,
   getFinTituloRegistrarUrl,
   getFinTituloWhatsAppCobrancaParcelaUrl,
   getFinTituloSmsReguaPreviewUrl,
@@ -123,6 +124,7 @@ export interface TituloCobranca {
   pixCopiaCola?: string | null;
   idExternoBanco?: string | null;
   urlBoleto?: string | null;
+  temArquivoBoleto?: boolean;
   codigoInstrucaoBaixa?: string | null;
   status: TituloCobrancaStatus;
   valorNominal: number;
@@ -1412,8 +1414,31 @@ export const finService = {
     id: string,
     urlBoleto?: string | null,
     status?: TituloCobrancaStatus,
+    temArquivoBoleto?: boolean,
   ): Promise<void> {
-    await baixarBoletoPdf(id, { urlBoleto, pdfUrl: getFinTituloPdfUrl(id), status });
+    await baixarBoletoPdf(id, {
+      urlBoleto,
+      temArquivoBoleto,
+      pdfUrl: getFinTituloPdfUrl(id),
+      status,
+    });
+  },
+
+  async uploadBoletoArquivo(id: string, file: File): Promise<TituloCobranca> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await apiFetch(getFinTituloBoletoArquivoUrl(id), {
+      method: "POST",
+      body: form,
+    });
+    return parseJson(res);
+  },
+
+  async removerBoletoArquivo(id: string): Promise<TituloCobranca> {
+    const res = await apiFetch(getFinTituloBoletoArquivoUrl(id), {
+      method: "DELETE",
+    });
+    return parseJson(res);
   },
 
   async downloadPdfLote(tituloIds: string[]): Promise<TituloPdfLoteDownload> {

@@ -183,10 +183,15 @@ export const atendimentoService = {
 
   async downloadPdf(
     tituloId: string,
-    options?: { urlBoleto?: string | null; status?: string },
+    options?: {
+      urlBoleto?: string | null;
+      temArquivoBoleto?: boolean;
+      status?: string;
+    },
   ): Promise<void> {
     await baixarBoletoPdf(tituloId, {
       urlBoleto: options?.urlBoleto,
+      temArquivoBoleto: options?.temArquivoBoleto,
       status: options?.status,
       pdfUrl: getAtendimentoCobrancaPdfUrl(tituloId),
     });

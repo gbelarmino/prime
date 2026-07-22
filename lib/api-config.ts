@@ -1318,6 +1318,10 @@ export function getFinTituloPdfUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/pdf`;
 }
 
+export function getFinTituloBoletoArquivoUrl(id: string): string {
+  return `${getFinTituloByIdUrl(id)}/boleto-arquivo`;
+}
+
 export function getFinConveniosUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finConvenios);
 }

@@ -113,6 +113,10 @@ export function TituloLegadoManualDialog({
   const [codigoBarras, setCodigoBarras] = useState("");
   const [idExternoBanco, setIdExternoBanco] = useState("");
   const [urlBoleto, setUrlBoleto] = useState("");
+  const [boletoModo, setBoletoModo] = useState<"url" | "arquivo">("url");
+  const [arquivoBoleto, setArquivoBoleto] = useState<File | null>(null);
+  const [temArquivoBoleto, setTemArquivoBoleto] = useState(false);
+  const [removerArquivoBoleto, setRemoverArquivoBoleto] = useState(false);
   const [valorPago, setValorPago] = useState<number | null>(null);
   const [dataPagamento, setDataPagamento] = useState<Date | null>(null);
   const [valorJuros, setValorJuros] = useState<number | null>(null);
@@ -138,6 +142,10 @@ export function TituloLegadoManualDialog({
     setCodigoBarras("");
     setIdExternoBanco("");
     setUrlBoleto("");
+    setBoletoModo("url");
+    setArquivoBoleto(null);
+    setTemArquivoBoleto(false);
+    setRemoverArquivoBoleto(false);
     setValorPago(null);
     setDataPagamento(null);
     setValorJuros(null);
@@ -174,6 +182,10 @@ export function TituloLegadoManualDialog({
           setCodigoBarras(t.codigoBarras ?? "");
           setIdExternoBanco(t.idExternoBanco ?? "");
           setUrlBoleto(t.urlBoleto ?? "");
+          setTemArquivoBoleto(Boolean(t.temArquivoBoleto));
+          setRemoverArquivoBoleto(false);
+          setArquivoBoleto(null);
+          setBoletoModo(t.temArquivoBoleto ? "arquivo" : "url");
           setValorPago(t.valorPago ?? null);
           setDataPagamento(parseDataPagamento(t.dataPagamento));
           setValorJuros(t.valorJuros ?? null);
@@ -272,7 +284,8 @@ export function TituloLegadoManualDialog({
       linhaDigitavel: linhaDigitavel.trim() || undefined,
       codigoBarras: codigoBarras.trim() || undefined,
       idExternoBanco: idExternoBanco.trim() || undefined,
-      urlBoleto: urlBoleto.trim() || undefined,
+      urlBoleto:
+        boletoModo === "url" ? urlBoleto.trim() || undefined : undefined,
       observacao: observacao.trim() || undefined,
     };
     if (statusFinal === "PAGO" && valorPago != null && dataPagamento) {
@@ -286,6 +299,18 @@ export function TituloLegadoManualDialog({
     return body;
   };
 
+  async function sincronizarArquivoBoleto(tituloSalvo: TituloCobranca): Promise<TituloCobranca> {
+    if (boletoModo === "arquivo") {
+      if (arquivoBoleto) {
+        return finService.uploadBoletoArquivo(tituloSalvo.id, arquivoBoleto);
+      }
+      if (removerArquivoBoleto && temArquivoBoleto) {
+        return finService.removerBoletoArquivo(tituloSalvo.id);
+      }
+    }
+    return tituloSalvo;
+  }
+
   const salvar = async () => {
     if (!vencimento || numeroParcela == null || valorNominal == null) {
       toast.error("Preencha parcela, valor e vencimento.");
@@ -295,28 +320,33 @@ export function TituloLegadoManualDialog({
       toast.error(contexto.avisoConvenio);
       return;
     }
+    if (boletoModo === "arquivo" && arquivoBoleto && !arquivoBoleto.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Envie um arquivo PDF.");
+      return;
+    }
     setSaving(true);
     try {
       if (isEditMode && tituloId) {
-        const atualizado = await finService.atualizarTituloLegadoManual(tituloId, buildPayloadBase());
+        let atualizado = await finService.atualizarTituloLegadoManual(tituloId, buildPayloadBase());
+        atualizado = await sincronizarArquivoBoleto(atualizado);
         toast.success(`Título legado atualizado (parcela ${atualizado.numeroParcela}, ${atualizado.status}).`);
         handleHide();
         onCreated?.(atualizado);
         return;
-      } else {
-        if (!contexto) {
-          toast.error("Selecione o lote do contrato.");
-          return;
-        }
-        const body: TituloLegadoManualCreate = {
-          ...buildPayloadBase(),
-          contratoId: contexto.contratoId,
-        };
-        const criado = await finService.criarTituloLegadoManual(body);
-        toast.success(`Título legado criado (parcela ${criado.numeroParcela}, ${criado.status}).`);
       }
+      if (!contexto) {
+        toast.error("Selecione o lote do contrato.");
+        return;
+      }
+      const body: TituloLegadoManualCreate = {
+        ...buildPayloadBase(),
+        contratoId: contexto.contratoId,
+      };
+      let criado = await finService.criarTituloLegadoManual(body);
+      criado = await sincronizarArquivoBoleto(criado);
+      toast.success(`Título legado criado (parcela ${criado.numeroParcela}, ${criado.status}).`);
       handleHide();
-      onCreated?.();
+      onCreated?.(criado);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar título legado.");
     } finally {
@@ -541,13 +571,79 @@ export function TituloLegadoManualDialog({
           />
         </div>
         <div className="flex flex-col gap-2 sm:col-span-2">
-          <label className={FORM_LABEL_CLASS}>URL do boleto</label>
-          <InputText
-            value={urlBoleto}
-            onChange={(e) => setUrlBoleto(e.target.value)}
-            className={FORM_INPUT_CLASS}
-            placeholder="https://…"
-          />
+          <span className={FORM_LABEL_CLASS}>Boleto</span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setBoletoModo("url");
+                setArquivoBoleto(null);
+                setRemoverArquivoBoleto(false);
+              }}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
+                boletoModo === "url"
+                  ? "bg-amber-600 text-white"
+                  : "border border-white/10 bg-white/[0.04] text-white/55 hover:text-white"
+              }`}
+            >
+              URL
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBoletoModo("arquivo");
+                setUrlBoleto("");
+              }}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
+                boletoModo === "arquivo"
+                  ? "bg-amber-600 text-white"
+                  : "border border-white/10 bg-white/[0.04] text-white/55 hover:text-white"
+              }`}
+            >
+              Arquivo PDF
+            </button>
+          </div>
+          {boletoModo === "url" ? (
+            <InputText
+              value={urlBoleto}
+              onChange={(e) => setUrlBoleto(e.target.value)}
+              className={FORM_INPUT_CLASS}
+              placeholder="https://…"
+            />
+          ) : (
+            <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              {temArquivoBoleto && !removerArquivoBoleto && !arquivoBoleto ? (
+                <div className="flex items-center justify-between gap-2 text-sm text-emerald-200/90">
+                  <span>PDF anexado</span>
+                  <button
+                    type="button"
+                    className="text-xs font-bold uppercase tracking-wider text-rose-300/90 hover:text-rose-200"
+                    onClick={() => setRemoverArquivoBoleto(true)}
+                  >
+                    Remover
+                  </button>
+                </div>
+              ) : null}
+              {removerArquivoBoleto && !arquivoBoleto ? (
+                <p className="text-xs text-amber-200/80">
+                  O PDF anexado será removido ao guardar. Escolha outro ficheiro para substituir.
+                </p>
+              ) : null}
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                className="block w-full text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-600 file:px-3 file:py-1.5 file:text-xs file:font-bold file:uppercase file:tracking-wider file:text-white"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setArquivoBoleto(f);
+                  if (f) setRemoverArquivoBoleto(false);
+                }}
+              />
+              {arquivoBoleto ? (
+                <span className="truncate text-xs text-white/50">{arquivoBoleto.name}</span>
+              ) : null}
+            </div>
+          )}
         </div>
 
         {statusFinal === "PAGO" ? (

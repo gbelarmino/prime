@@ -249,10 +249,16 @@ export function TituloDetalhe({
       if (isAtendimentoView) {
         await atendimentoService.downloadPdf(tituloId, {
           urlBoleto: titulo?.urlBoleto,
+          temArquivoBoleto: titulo?.temArquivoBoleto,
           status: titulo?.status,
         });
       } else {
-        await finService.downloadPdf(tituloId, titulo?.urlBoleto, titulo?.status);
+        await finService.downloadPdf(
+          tituloId,
+          titulo?.urlBoleto,
+          titulo?.status,
+          titulo?.temArquivoBoleto,
+        );
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF.");
@@ -352,7 +358,7 @@ export function TituloDetalhe({
           )}
           {podePdf && (
             <ActionButton
-              label={labelAcaoBoletoPdf(titulo?.urlBoleto)}
+              label={labelAcaoBoletoPdf(titulo?.urlBoleto, titulo?.temArquivoBoleto)}
               icon={<Download size={14} />}
               disabled={actionLoading}
               onClick={() => void baixarPdf()}
