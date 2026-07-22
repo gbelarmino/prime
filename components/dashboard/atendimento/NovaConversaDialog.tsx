@@ -176,6 +176,10 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
     setBuscandoContrato(false);
     setContratoMatch(null);
     setContratoFiltro("");
+    setCliente(undefined);
+    setClientes([]);
+    setTelefonesCliente([]);
+    setTelefone("");
     setErro(null);
   }
 
@@ -214,12 +218,8 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
       setLote(null);
       return;
     }
-    // Mantém emp/quadra; limpa só o nº do contrato até o efeito de lote reaplicar o match
-    contratoBuscaSeqRef.current += 1;
-    setBuscandoContrato(false);
-    setContratoMatch(null);
-    setContratoFiltro("");
-    setErro(null);
+    // Mantém emp/quadra; limpa match/cliente até o efeito de lote reaplicar
+    invalidarMatchContrato();
     setLote(next);
   }
 
@@ -411,8 +411,16 @@ export function NovaConversaDialog({ visible, onHide, templates, onEnviar }: Pro
             <InputText
               value={contratoFiltro}
               onChange={(e) => {
-                setContratoFiltro(e.target.value);
+                const v = e.target.value;
+                setContratoFiltro(v);
                 setContratoMatch(null);
+                if (!v.trim()) {
+                  setCliente(undefined);
+                  setClientes([]);
+                  setTelefonesCliente([]);
+                  setTelefone("");
+                  setErro(null);
+                }
               }}
               placeholder="Número do contrato"
               className={FORM_INPUT_CLASS}
