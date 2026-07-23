@@ -41,6 +41,7 @@ import { whatsappService, type WhatsAppTemplate } from "@/lib/whatsapp-service";
 import { emailService, type EmailTemplate } from "@/lib/email-service";
 import { smsService, type SmsTemplate } from "@/lib/sms-service";
 import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
+import { formatDataPagamentoExibicao } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -336,7 +337,7 @@ export function CobrancaReguaConfig() {
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/50">
               {regua?.descricao ??
-                "Etapas relativas ao vencimento (D-3, D0, D+N). Títulos EMITIDO ou VENCIDO; PDF anexo quando activo."}
+                "Etapas relativas ao vencimento (D-3, D0, D+N). Títulos EMITIDO ou VENCIDO; PDF anexo quando activo. Job automático em dias úteis (01:15)."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -508,7 +509,9 @@ export function CobrancaReguaConfig() {
             />
             <Column
               header="Venc. ref."
-              body={(row: CobrancaReguaExecucao) => dashboardCellMono(row.referenciaVencimento)}
+              body={(row: CobrancaReguaExecucao) =>
+                dashboardCellMono(formatDataPagamentoExibicao(row.referenciaVencimento))
+              }
               style={{ width: "8rem" }}
             />
             <Column

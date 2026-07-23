@@ -207,9 +207,13 @@ export function TituloDetalhe({
     try {
       const atualizado = await finService.sincronizarStatus(tituloId);
       if (atualizado.status === "CANCELADO") {
-        toast.success("Baixa confirmada. Título cancelado.");
+        toast.success("Baixa confirmada na Unicred. Título cancelado no Aires.");
+      } else if (atualizado.status === "BAIXA_SOLICITADA") {
+        toast.info("Ainda aguardando confirmação da baixa na Unicred.");
       } else {
-        toast.info("Status atualizado no banco; ainda aguardando confirmação da baixa.");
+        toast.info(
+          `Unicred consultada; status no Aires permanece ${atualizado.status} (boleto ainda não baixado no banco).`,
+        );
       }
       void load();
     } catch (e) {
@@ -302,7 +306,12 @@ export function TituloDetalhe({
     titulo.status !== "PAGO" &&
     titulo.status !== "CANCELADO" &&
     titulo.status !== "BAIXA_SOLICITADA";
-  const podeSincronizar = titulo.status === "BAIXA_SOLICITADA";
+  const podeSincronizar =
+    Boolean(titulo.idExternoBanco?.trim()) &&
+    (titulo.status === "BAIXA_SOLICITADA" ||
+      titulo.status === "EMITIDO" ||
+      titulo.status === "REGISTRADO" ||
+      titulo.status === "VENCIDO");
   const podePdf = podeBaixarPdfBoleto(titulo.status);
 
   const contratoRef = formatContratoRef(titulo.numeroContrato, titulo.contratoId);

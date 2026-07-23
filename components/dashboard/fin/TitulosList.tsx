@@ -237,7 +237,18 @@ function tituloRegistravel(status: TituloCobranca["status"]): boolean {
 }
 
 function tituloElegivelWhatsApp(status: TituloCobranca["status"]): boolean {
-  return status === "EMITIDO";
+  return status === "EMITIDO" || status === "VENCIDO";
+}
+
+/** Consulta Unicred e, se já BAIXADO, cancela no Aires sem pedir baixa de novo. */
+function tituloPodeSincronizarUnicred(t: TituloCobranca): boolean {
+  if (!t.idExternoBanco?.trim()) return false;
+  return (
+    t.status === "BAIXA_SOLICITADA" ||
+    t.status === "EMITIDO" ||
+    t.status === "REGISTRADO" ||
+    t.status === "VENCIDO"
+  );
 }
 
 function tituloElegivelPdf(status: TituloCobranca["status"]): boolean {
@@ -1143,7 +1154,7 @@ export function TitulosList({
         { skipLoading: true },
       );
       if (total === 0) {
-        toast.info("Nenhum título emitido elegível para WhatsApp no filtro atual.");
+        toast.info("Nenhum título emitido ou vencido elegível para envio no filtro atual.");
         setSelectedTitulos([]);
         return;
       }
@@ -1181,7 +1192,7 @@ export function TitulosList({
 
   const abrirWhatsAppLote = () => {
     if (titulosWhatsAppSelecionados.length === 0) {
-      toast.info("Selecione títulos na situação Emitido.");
+      toast.info("Selecione títulos na situação Emitido ou Vencido.");
       return;
     }
     if (titulosWhatsAppSelecionados.length > LOTE_MAX) {
@@ -1228,7 +1239,7 @@ export function TitulosList({
 
   const abrirEmailLote = () => {
     if (titulosWhatsAppSelecionados.length === 0) {
-      toast.info("Selecione títulos na situação Emitido.");
+      toast.info("Selecione títulos na situação Emitido ou Vencido.");
       return;
     }
     if (titulosWhatsAppSelecionados.length > LOTE_MAX) {
@@ -1275,7 +1286,7 @@ export function TitulosList({
 
   const abrirSmsLote = () => {
     if (titulosWhatsAppSelecionados.length === 0) {
-      toast.info("Selecione títulos na situação Emitido.");
+      toast.info("Selecione títulos na situação Emitido ou Vencido.");
       return;
     }
     if (titulosWhatsAppSelecionados.length > LOTE_MAX) {
@@ -1487,9 +1498,13 @@ export function TitulosList({
     try {
       const atualizado = await finService.sincronizarStatus(tituloId);
       if (atualizado.status === "CANCELADO") {
-        toast.success("Baixa confirmada. Título cancelado.");
+        toast.success("Baixa confirmada na Unicred. Título cancelado no Aires.");
+      } else if (atualizado.status === "BAIXA_SOLICITADA") {
+        toast.info("Ainda aguardando confirmação da baixa na Unicred.");
       } else {
-        toast.info("Status atualizado no banco; ainda aguardando confirmação da baixa.");
+        toast.info(
+          `Unicred consultada; status no Aires permanece ${atualizado.status} (boleto ainda não baixado no banco).`,
+        );
       }
       void load(true);
     } catch (e) {
@@ -1568,7 +1583,7 @@ export function TitulosList({
       );
     }
 
-    if (row.status === "BAIXA_SOLICITADA") {
+    if (tituloPodeSincronizarUnicred(row)) {
       items.push(
         dashboardActionMenuItem({
           label: "Sincronizar status",
@@ -2021,7 +2036,7 @@ export function TitulosList({
                   disabled={actionLoading || selecionandoTodos}
                   className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/70 transition hover:bg-white/10 disabled:opacity-50"
                 >
-                  {selecionandoTodos ? "A carregar…" : "Emitidos (WhatsApp)"}
+                  {selecionandoTodos ? "A carregar…" : "Emitidos/vencidos (envio)"}
                 </button>
               ) : null}
               <button
