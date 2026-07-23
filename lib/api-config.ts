@@ -818,6 +818,14 @@ export function getWhatsAppTemplatesUrl(): string {
   return `${getWhatsAppUrl()}/templates`;
 }
 
+export function getWhatsAppTemplateClonarUrl(id: string): string {
+  return `${getWhatsAppTemplatesUrl()}/${encodeURIComponent(id)}/clonar`;
+}
+
+export function getWhatsAppTemplateAtivoUrl(id: string, ativo: boolean): string {
+  return `${getWhatsAppTemplatesUrl()}/${encodeURIComponent(id)}/ativo?ativo=${ativo ? "true" : "false"}`;
+}
+
 export function getWhatsAppTwilioConfigUrl(): string {
   return `${getWhatsAppUrl()}/twilio/config`;
 }

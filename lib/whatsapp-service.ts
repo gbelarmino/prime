@@ -6,6 +6,8 @@ import {
   getWhatsAppLogoutUrl,
   getWhatsAppRecreateUrl,
   getWhatsAppTemplatesUrl,
+  getWhatsAppTemplateAtivoUrl,
+  getWhatsAppTemplateClonarUrl,
   getWhatsAppTwilioConfigUrl,
   getWhatsAppTwilioTesteUrl,
   getWhatsAppTwilioTemplatesUrl,
@@ -39,6 +41,8 @@ export interface WhatsAppTemplate {
   anexoUrl?: string;
   tipoAnexo?: string;
   dataCadastro?: string;
+  /** Soft-disable: false = não usar em régua/gatilhos. */
+  ativo?: boolean;
   /** Preenchido por GET /templates (status Twilio embutido). */
   twilioStatus?: string | null;
   twilioContentSid?: string | null;
@@ -266,6 +270,24 @@ export const whatsappService = {
     const res = await apiFetch(`${getWhatsAppTemplatesUrl()}/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Erro ao excluir modelo do WhatsApp");
     return true;
+  },
+
+  async clonarTemplate(id: string): Promise<WhatsAppTemplate> {
+    const res = await apiFetch(getWhatsAppTemplateClonarUrl(id), { method: "POST" });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(err.message ?? "Erro ao clonar modelo");
+    }
+    return res.json();
+  },
+
+  async setTemplateAtivo(id: string, ativo: boolean): Promise<WhatsAppTemplate> {
+    const res = await apiFetch(getWhatsAppTemplateAtivoUrl(id, ativo), { method: "PATCH" });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(err.message ?? "Erro ao atualizar estado do modelo");
+    }
+    return res.json();
   },
 
   async getTwilioConfig(): Promise<WhatsAppTwilioConfig | null> {

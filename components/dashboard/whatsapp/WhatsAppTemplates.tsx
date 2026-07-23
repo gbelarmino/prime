@@ -39,9 +39,16 @@ export function WhatsAppTemplates() {
   const [placeholdersRef, setPlaceholdersRef] = useState<EventoPlaceholderCatalogo[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<WhatsAppTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [filtroAtivo, setFiltroAtivo] = useState<"todos" | "ativos" | "inativos">("todos");
 
   const defaultCodigoEvento = () =>
     eventosCatalogo.length > 0 ? eventosCatalogo[0].codigo : "CONTRATO_CRIADO";
+
+  const templatesFiltrados = templates.filter((t) => {
+    if (filtroAtivo === "ativos") return t.ativo !== false;
+    if (filtroAtivo === "inativos") return t.ativo === false;
+    return true;
+  });
 
   const descricaoEvento = (codigo: string | null | undefined) => {
     if (!codigo) return "—";
@@ -214,6 +221,7 @@ export function WhatsAppTemplates() {
       nome: "",
       conteudo: "",
       codigoEventoCatalogo: defaultCodigoEvento(),
+      ativo: true,
     });
     setShowDialog(true);
   };
@@ -234,6 +242,32 @@ export function WhatsAppTemplates() {
     }
     setCurrentTemplate(next);
     setShowDialog(true);
+  };
+
+  const handleClonar = async (template: WhatsAppTemplate) => {
+    if (!template.id) return;
+    try {
+      const clone = await whatsappService.clonarTemplate(template.id);
+      toast.success(`Clone criado: ${clone.nome}. Edite e submeta à Twilio quando estiver pronto.`);
+      void fetchTemplates();
+      if (clone.id) {
+        await handleEdit(clone);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao clonar modelo");
+    }
+  };
+
+  const handleToggleAtivo = async (template: WhatsAppTemplate) => {
+    if (!template.id) return;
+    const nextAtivo = template.ativo === false;
+    try {
+      await whatsappService.setTemplateAtivo(template.id, nextAtivo);
+      toast.success(nextAtivo ? "Modelo reativado" : "Modelo desativado");
+      void fetchTemplates();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar modelo");
+    }
   };
 
   const confirmDeleteTemplate = async () => {
@@ -310,6 +344,25 @@ export function WhatsAppTemplates() {
       },
     },
     {
+      label: "Clonar",
+      icon: "pi pi-copy",
+      template: (item: MenuItem) => (
+        <button
+          type="button"
+          onClick={(e) => runMenuCommand(e, item)}
+          className="group flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
+        >
+          <i className="pi pi-copy text-sky-400 transition-transform group-hover:scale-110" />
+          <span className="whitespace-nowrap text-left text-xs font-bold uppercase tracking-widest text-white/70">
+            {item.label}
+          </span>
+        </button>
+      ),
+      command: () => {
+        if (selectedRow) void handleClonar(selectedRow);
+      },
+    },
+    {
       label: "Criar/submeter Twilio",
       icon: "pi pi-send",
       template: (item: MenuItem) => (
@@ -345,6 +398,29 @@ export function WhatsAppTemplates() {
       ),
       command: () => {
         if (selectedRow) void handleSyncTwilio(selectedRow);
+      },
+    },
+    {
+      label: selectedRow?.ativo === false ? "Reativar" : "Desativar",
+      icon: selectedRow?.ativo === false ? "pi pi-check-circle" : "pi pi-ban",
+      template: (item: MenuItem) => (
+        <button
+          type="button"
+          onClick={(e) => runMenuCommand(e, item)}
+          className="group flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
+        >
+          <i
+            className={`${
+              selectedRow?.ativo === false ? "pi pi-check-circle text-emerald-400" : "pi pi-ban text-amber-400"
+            } transition-transform group-hover:scale-110`}
+          />
+          <span className="whitespace-nowrap text-left text-xs font-bold uppercase tracking-widest text-white/70">
+            {item.label}
+          </span>
+        </button>
+      ),
+      command: () => {
+        if (selectedRow) void handleToggleAtivo(selectedRow);
       },
     },
     { separator: true },
@@ -391,11 +467,33 @@ export function WhatsAppTemplates() {
         title="Modelos de mensagem"
         description={
           tenantSlug
-            ? `Textos reutilizáveis com variáveis. Status Twilio reflete o tenant ativo (${tenantSlug}). Use o menu para criar/submeter na Twilio.`
-            : "Textos reutilizáveis com variáveis (ex.: nome do cliente). Use o menu de ações para criar o Content Template na Twilio e submeter à aprovação da Meta."
+            ? `Textos reutilizáveis com variáveis. Status Twilio reflete o tenant ativo (${tenantSlug}). Para nova versão na Meta, clone o modelo aprovado, edite e submeta.`
+            : "Textos reutilizáveis com variáveis. Para alterar um modelo já aprovado na Meta, clone, edite e use Criar/submeter Twilio."
         }
         actions={
           <div className="flex flex-wrap gap-2">
+            <div className="inline-flex overflow-hidden rounded-2xl border border-white/15">
+              {(
+                [
+                  ["todos", "Todos"],
+                  ["ativos", "Ativos"],
+                  ["inativos", "Inativos"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFiltroAtivo(value)}
+                  className={`px-3 py-3 text-[10px] font-bold uppercase tracking-[0.15em] transition ${
+                    filtroAtivo === value
+                      ? "bg-white/15 text-white"
+                      : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => void handleSyncAllTwilio()}
@@ -417,7 +515,7 @@ export function WhatsAppTemplates() {
       >
         <div className="-mx-3 overflow-x-auto border-b border-white/10 bg-white/5 sm:-mx-4">
             <DataTable
-              value={templates}
+              value={templatesFiltrados}
               loading={false}
               className="p-datatable-custom min-w-0 border-none bg-transparent"
               tableStyle={{ width: "100%", tableLayout: "auto" }}
@@ -461,7 +559,22 @@ export function WhatsAppTemplates() {
                 field="nome"
                 header="Nome"
                 headerClassName="text-left"
-                bodyClassName="font-semibold text-white/85"
+                body={(r: WhatsAppTemplate) => (
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span
+                      className={`font-semibold ${
+                        r.ativo === false ? "text-white/45 line-through" : "text-white/85"
+                      }`}
+                    >
+                      {r.nome}
+                    </span>
+                    {r.ativo === false ? (
+                      <span className="w-fit rounded border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/50">
+                        Inativo
+                      </span>
+                    ) : null}
+                  </div>
+                )}
               />
               <Column
                 field="descricao"

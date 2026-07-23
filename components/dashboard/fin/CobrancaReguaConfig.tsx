@@ -172,6 +172,7 @@ export function CobrancaReguaConfig() {
   const wppOptions = useMemo(
     () =>
       wppTemplates
+        .filter((t) => t.ativo !== false)
         .filter((t) => !t.codigoEventoCatalogo || t.codigoEventoCatalogo === "REGUA_COBRANCA")
         .map((t) => ({ label: t.nome, value: t.id! })),
     [wppTemplates],
@@ -413,9 +414,21 @@ export function CobrancaReguaConfig() {
             />
             <Column
               header="Modelo WA"
-              body={(row: CobrancaReguaEtapa) =>
-                dashboardCellText(row.templateWhatsAppNome ?? "—")
-              }
+              body={(row: CobrancaReguaEtapa) => {
+                const nome = row.templateWhatsAppNome ?? "—";
+                const inativo =
+                  row.templateWhatsAppId != null && row.templateWhatsAppAtivo === false;
+                return (
+                  <div className="flex min-w-0 flex-col gap-1">
+                    {dashboardCellText(nome)}
+                    {inativo ? (
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/90">
+                        Modelo inativo — escolha outro
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              }}
             />
             <Column
               header="Modelo e-mail"
@@ -626,6 +639,20 @@ export function CobrancaReguaConfig() {
                 filter
                 pt={DROPDOWN_PT}
               />
+              {form.templateWhatsAppId &&
+              (() => {
+                const sel = wppTemplates.find((t) => t.id === form.templateWhatsAppId);
+                const inativo =
+                  sel?.ativo === false ||
+                  (sel == null &&
+                    editingEtapa?.templateWhatsAppId === form.templateWhatsAppId &&
+                    editingEtapa.templateWhatsAppAtivo === false);
+                return inativo ? (
+                  <p className="text-xs text-amber-400/90">
+                    O modelo actual está inactivo. Escolha outro modelo activo na lista.
+                  </p>
+                ) : null;
+              })()}
             </div>
           ) : null}
 

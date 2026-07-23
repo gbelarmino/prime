@@ -63,7 +63,7 @@ export function CrmFunilGatilhos() {
         fetchFunilEtapas(),
       ]);
       setRows(gatilhos.map(toRow));
-      setWppTemplates(wppTpl);
+      setWppTemplates(wppTpl.filter((t) => t.ativo !== false));
       setSmsTemplates(smsTpl);
       setEtapas(etapasList.map((e) => ({ label: e.nome, value: e.id })));
     } catch {

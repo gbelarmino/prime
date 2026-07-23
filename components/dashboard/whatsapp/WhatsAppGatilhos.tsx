@@ -32,13 +32,15 @@ export function WhatsAppGatilhos() {
         whatsappService.listLinhas(),
       ]);
       setGatilhos(gData);
-      setTemplates(tData);
+      setTemplates(tData.filter((t) => t.ativo !== false));
       setLinhas(lData.filter((l) => l.ativo));
       setEventosCatalogo(
-        catData.map((e) => ({
-          label: e.descricao,
-          value: e.codigo,
-        })),
+        catData
+          .filter((e) => e.codigo !== "REGUA_COBRANCA")
+          .map((e) => ({
+            label: e.descricao,
+            value: e.codigo,
+          })),
       );
     } catch {
       toast.error("Erro ao carregar dados");
@@ -103,7 +105,7 @@ export function WhatsAppGatilhos() {
       surface="plain"
       eyebrow="Automação"
       title="Gatilhos por evento"
-      description="Ligue cada evento do sistema a um modelo e à linha WhatsApp de envio. Sem linha explícita, usa a linha marcada como padrão na página Conexão."
+      description="Ligue cada evento do sistema a um modelo e à linha WhatsApp de envio. Sem linha explícita, usa a linha marcada como padrão na página Conexão. Modelos e linha da régua de cobrança configuram-se em Financeiro → Régua (modelos por etapa) e no gatilho Cobrança de Parcela (linha)."
       actions={
         <button
           type="button"
@@ -116,17 +118,34 @@ export function WhatsAppGatilhos() {
         </button>
       }
       footer={
-        <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] px-5 py-4 sm:px-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10">
-              <Zap className="h-5 w-5 text-emerald-400" />
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-sky-500/15 bg-sky-500/[0.06] px-5 py-4 sm:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sky-500/25 bg-sky-500/10">
+                <Zap className="h-5 w-5 text-sky-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Régua de cobrança</h3>
+                <p className="mt-1 text-xs leading-relaxed text-white/45">
+                  Não há gatilho &ldquo;Régua de Cobrança&rdquo; aqui: os modelos WhatsApp por etapa ficam em{" "}
+                  <span className="text-white/70">Financeiro → Régua</span>; a linha de envio usa o gatilho{" "}
+                  <span className="text-white/70">Cobrança de Parcela</span>.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white">Gravação imediata</h3>
-              <p className="mt-1 text-xs leading-relaxed text-white/45">
-                Cada mudança no modelo ou em &ldquo;Ativo&rdquo; envia o gatilho para a API de imediato. Confirme que existem
-                modelos na página anterior antes de ativar.
-              </p>
+          </div>
+          <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] px-5 py-4 sm:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10">
+                <Zap className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Gravação imediata</h3>
+                <p className="mt-1 text-xs leading-relaxed text-white/45">
+                  Cada mudança no modelo ou em &ldquo;Ativo&rdquo; envia o gatilho para a API de imediato. Confirme que existem
+                  modelos na página anterior antes de ativar.
+                </p>
+              </div>
             </div>
           </div>
         </div>

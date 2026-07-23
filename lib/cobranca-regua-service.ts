@@ -47,6 +47,7 @@ export interface CobrancaReguaEtapa {
   canais: CobrancaReguaCanal[];
   templateWhatsAppId?: string | null;
   templateWhatsAppNome?: string | null;
+  templateWhatsAppAtivo?: boolean;
   templateEmailId?: string | null;
   templateEmailNome?: string | null;
   templateSmsId?: string | null;
