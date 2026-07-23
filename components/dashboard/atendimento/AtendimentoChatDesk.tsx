@@ -47,7 +47,10 @@ function replyPreviewLabel(r: WhatsAppMensagemReplyTo): string {
 }
 
 function replyAuthorLabel(r: WhatsAppMensagemReplyTo, bubbleOut: boolean): string {
-  if (r.direcao === "OUT") return bubbleOut ? "Você" : "Agente";
+  if (r.direcao === "OUT") {
+    if (r.autor === "SISTEMA") return "Sistema";
+    return bubbleOut ? "Você" : "Agente";
+  }
   if (r.autor === "CLIENTE") return "Cliente";
   return r.autor?.trim() || "Mensagem";
 }
@@ -629,6 +632,9 @@ export function AtendimentoChatDesk() {
                       }`}
                       title={fullWhen || undefined}
                     >
+                      {out && m.autor === "SISTEMA" ? (
+                        <span className="mr-0.5 truncate opacity-80">Sistema</span>
+                      ) : null}
                       {!out && m.autor ? (
                         <span className="mr-0.5 truncate opacity-80">{m.autor}</span>
                       ) : null}
