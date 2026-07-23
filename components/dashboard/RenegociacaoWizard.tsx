@@ -46,6 +46,7 @@ import {
   efetivarRenegociacao,
   listarOperacoesEfetivacao,
   documentosRenegociacaoCompletos,
+  gerarDocumentosRenegociacao,
   gerarPropostaRenegociacao,
   modalidadeEfetivaNoWizard,
   modalidadeUsaMotorCondicoes,
@@ -635,6 +636,11 @@ export function RenegociacaoWizard({
         await submeterAprovacao(contratoId, procId);
       }
       setWorkflowOk(true);
+      try {
+        await gerarDocumentosRenegociacao(contratoId, procId);
+      } catch {
+        /* slots serão criados ao abrir o passo Documentos */
+      }
       toast.success("Proposta registrada e fluxo de aprovação concluído.");
       setStep(5);
     } catch (e) {
@@ -1323,7 +1329,8 @@ export function RenegociacaoWizard({
                 (step === 0 && !contratoApi) ||
                 (step === 1 && !modalidade) ||
                 (step === 3 && !simulacao) ||
-                (step >= 4 && (renegociacaoId == null || renegociacaoId <= 0))
+                (step >= 4 && (renegociacaoId == null || renegociacaoId <= 0)) ||
+                (step === 5 && !documentosOk && !processoJaEfetivado)
               }
               className="rounded-full border-0 bg-violet-600 px-6 font-black uppercase tracking-widest"
             />
