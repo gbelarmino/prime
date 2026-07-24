@@ -42,13 +42,12 @@ export function RenegociacaoDocumentosStep({
     Partial<Record<TipoDocumentoRenegociacao, File>>
   >({});
   const inputRefs = useRef<Partial<Record<TipoDocumentoRenegociacao, HTMLInputElement | null>>>({});
+  const onDocumentosChangeRef = useRef(onDocumentosChange);
+  onDocumentosChangeRef.current = onDocumentosChange;
 
-  const notificar = useCallback(
-    (lista: DocumentoRenegociacao[]) => {
-      onDocumentosChange?.(lista, documentosRenegociacaoCompletos(lista));
-    },
-    [onDocumentosChange],
-  );
+  const notificar = useCallback((lista: DocumentoRenegociacao[]) => {
+    onDocumentosChangeRef.current?.(lista, documentosRenegociacaoCompletos(lista));
+  }, []);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
