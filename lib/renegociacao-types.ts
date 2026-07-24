@@ -226,6 +226,11 @@ export function renegociacaoEstaAtiva(status: StatusRenegociacao): boolean {
   return !STATUS_RENEGOCIACAO_TERMINAIS.includes(status);
 }
 
+/** Processo encerrado — só visualização (sem wizard). */
+export function renegociacaoEstaFechada(status: StatusRenegociacao): boolean {
+  return STATUS_RENEGOCIACAO_TERMINAIS.includes(status);
+}
+
 export const STATUS_RENEGOCIACAO_LABEL: Record<StatusRenegociacao, string> = {
   RASCUNHO: "Rascunho",
   SIMULACAO: "Em simulação",

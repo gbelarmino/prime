@@ -16,6 +16,7 @@ import { RenegociacaoCancelarDialog } from "@/components/dashboard/RenegociacaoC
 import { usePaginatedSpringList } from "@/hooks/use-paginated-spring-list";
 import { getRenegociacoesConsultaUrl, isApiConfigured } from "@/lib/api-config";
 import {
+  DASHBOARD_ACTIONS_BUTTON_CLASS,
   DASHBOARD_DATATABLE_CLASS,
   DASHBOARD_SEARCH_ICON_HEADER_CLASS,
   DASHBOARD_SEARCH_INPUT_HEADER_CLASS,
@@ -33,7 +34,11 @@ import { formatBusinessDateTime } from "@/lib/format-datetime";
 import { buildRenegociacaoDashboardUrl } from "@/lib/renegociacao-routes";
 import { cancelarRenegociacao } from "@/lib/renegociacao-service";
 import type { RenegociacaoConsultaItem } from "@/lib/renegociacao-types";
-import { MODALIDADE_OPTIONS, renegociacaoPodeSerCancelada } from "@/lib/renegociacao-types";
+import {
+  MODALIDADE_OPTIONS,
+  renegociacaoEstaFechada,
+  renegociacaoPodeSerCancelada,
+} from "@/lib/renegociacao-types";
 
 const PAGE_SIZE = 10;
 
@@ -86,7 +91,7 @@ export function RenegociacoesConsultaList() {
   };
 
   const buildActionItems = (row: RenegociacaoConsultaItem | null): MenuItem[] => {
-    if (!row) return [];
+    if (!row || renegociacaoEstaFechada(row.status)) return [];
     const items: MenuItem[] = [
       dashboardActionMenuItem({
         label: "Abrir renegociação",
@@ -153,11 +158,30 @@ export function RenegociacoesConsultaList() {
     </div>
   );
 
-  const actionBody = (row: RenegociacaoConsultaItem) =>
-    dashboardRowActionsCell((e) => {
+  const actionBody = (row: RenegociacaoConsultaItem) => {
+    if (renegociacaoEstaFechada(row.status)) {
+      return (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            rounded
+            text
+            className={DASHBOARD_ACTIONS_BUTTON_CLASS}
+            aria-label="Visualizar"
+            tooltip="Visualizar"
+            tooltipOptions={{ position: "left" }}
+            onClick={() => abrirRenegociacao(row)}
+          >
+            <Eye size={18} aria-hidden />
+          </Button>
+        </div>
+      );
+    }
+    return dashboardRowActionsCell((e) => {
       setSelectedRow(row);
       menuRef.current?.toggle(e);
     });
+  };
 
   const tablePt = {
     ...dashboardDataTablePt(),

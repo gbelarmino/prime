@@ -55,10 +55,10 @@ export function RenegociacaoDocumentosStep({
     setErroCarga(null);
     try {
       let lista = await listarDocumentosRenegociacao(contratoId, renegociacaoId);
-      if (lista.length === 0) {
+      if (lista.length === 0 && !somenteLeitura) {
         lista = await gerarDocumentosRenegociacao(contratoId, renegociacaoId);
       }
-      if (lista.length === 0) {
+      if (lista.length === 0 && !somenteLeitura) {
         setErroCarga("Nenhum instrumento foi gerado para este processo.");
       }
       setDocumentos(lista);
@@ -66,13 +66,15 @@ export function RenegociacaoDocumentosStep({
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Falha ao carregar documentos";
       setErroCarga(msg);
-      toast.error(msg);
+      if (!somenteLeitura) {
+        toast.error(msg);
+      }
       setDocumentos([]);
       notificar([]);
     } finally {
       setCarregando(false);
     }
-  }, [contratoId, renegociacaoId, notificar]);
+  }, [contratoId, renegociacaoId, somenteLeitura, notificar]);
 
   useEffect(() => {
     void carregar();
@@ -154,18 +156,24 @@ export function RenegociacaoDocumentosStep({
   const lista: DocumentoRenegociacao[] =
     documentos.length > 0
       ? documentos
-      : tiposFallback.map((tipo, index) => ({
-          id: -(index + 1),
-          tipo,
-          statusAssinatura: "PENDENTE",
-          nomeArquivo: null,
-          arquivoEnviado: false,
-        }));
+      : somenteLeitura
+        ? []
+        : tiposFallback.map((tipo, index) => ({
+            id: -(index + 1),
+            tipo,
+            statusAssinatura: "PENDENTE",
+            nomeArquivo: null,
+            arquivoEnviado: false,
+          }));
 
   if (lista.length === 0) {
     return (
-      <div className="space-y-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-5 text-sm text-amber-100/90">
-        <p>{erroCarga ?? "Nenhum instrumento jurídico exigido para esta modalidade."}</p>
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-5 text-sm text-white/55">
+        <p>
+          {somenteLeitura
+            ? "Nenhum documento anexado a este processo."
+            : (erroCarga ?? "Nenhum instrumento jurídico exigido para esta modalidade.")}
+        </p>
         {!somenteLeitura ? (
           <Button
             type="button"
@@ -196,9 +204,7 @@ export function RenegociacaoDocumentosStep({
       ) : null}
 
       {somenteLeitura ? (
-        <p className="text-sm text-white/45">
-          Processo efetivado ou encerrado — upload indisponível.
-        </p>
+        <p className="text-sm text-white/45">Documentos anexados ao processo.</p>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">

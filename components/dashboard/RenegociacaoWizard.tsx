@@ -78,6 +78,7 @@ import { RenegociacaoEfetivacaoResultado } from "@/components/dashboard/renegoci
 import {
   MODALIDADE_OPTIONS,
   STATUS_RENEGOCIACAO_LABEL,
+  renegociacaoEstaFechada,
   type ModalidadeRenegociacao,
   type RenegociacaoSimulacaoResponse,
   type EfetivarRenegociacaoResultado,
@@ -182,6 +183,14 @@ export function RenegociacaoWizard({
 
   const processoJaEfetivado =
     statusProcesso === "EFETIVADO" || efetivacaoResultado?.concluida === true;
+  const processoFechado =
+    statusProcesso != null && renegociacaoEstaFechada(statusProcesso);
+
+  useEffect(() => {
+    if (processoFechado && step !== 6) {
+      setStep(6);
+    }
+  }, [processoFechado, step]);
 
   useEffect(() => {
     fetchBoletoEncargosConfig()
@@ -317,8 +326,10 @@ export function RenegociacaoWizard({
               /* simulação indisponível */
             });
         }
-        if (det.status === "EFETIVACAO_PARCIAL" || det.status === "EFETIVADO") {
+        if (renegociacaoEstaFechada(det.status) || det.status === "EFETIVACAO_PARCIAL") {
           setStep(6);
+        }
+        if (det.status === "EFETIVACAO_PARCIAL" || det.status === "EFETIVADO") {
           listarOperacoesEfetivacao(contratoId, id)
             .then((operacoes) => {
               if (cancelled) return;
@@ -348,6 +359,15 @@ export function RenegociacaoWizard({
                 operacoes: [],
               });
             });
+        } else if (renegociacaoEstaFechada(det.status)) {
+          setEfetivacaoResultado({
+            renegociacaoId: id,
+            versaoPublicadaId: det.versaoPublicadaId ?? null,
+            status: det.status,
+            concluida: false,
+            mensagemResumo: `Processo ${STATUS_RENEGOCIACAO_LABEL[det.status] ?? det.status}.`,
+            operacoes: [],
+          });
         }
       })
       .catch(() => {
@@ -705,6 +725,7 @@ export function RenegociacaoWizard({
   };
 
   const avancar = async () => {
+    if (processoFechado) return;
     if (step === 0) {
       if (!contratoApi) {
         toast.error("Aguarde o carregamento do contrato.");
@@ -747,7 +768,10 @@ export function RenegociacaoWizard({
     if (step < LAST_STEP) setStep((s) => s + 1);
   };
 
-  const voltar = () => setStep((s) => Math.max(0, s - 1));
+  const voltar = () => {
+    if (processoFechado) return;
+    setStep((s) => Math.max(0, s - 1));
+  };
 
   return (
     <div>
@@ -776,7 +800,24 @@ export function RenegociacaoWizard({
         </div>
       )}
 
-      <RenegociacaoWorkflowStepper activeStep={step} onStepClick={(i) => i < step && setStep(i)} />
+      {processoFechado ? (
+        <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/70">
+          Visualização do processo{" "}
+          <span className="font-mono font-semibold text-white">#{renegociacaoId}</span>
+          {statusProcesso ? (
+            <>
+              {" "}
+              · {STATUS_RENEGOCIACAO_LABEL[statusProcesso] ?? statusProcesso}
+            </>
+          ) : null}
+          . Navegação do wizard desabilitada.
+        </div>
+      ) : (
+        <RenegociacaoWorkflowStepper
+          activeStep={step}
+          onStepClick={(i) => i < step && setStep(i)}
+        />
+      )}
 
       <AnimatePresence mode="wait">
         {step === 0 && (
@@ -1201,8 +1242,12 @@ export function RenegociacaoWizard({
         {step === 6 && (
           <motion.div key="e" {...STEP_MOTION}>
             <FormSection
-              title="Efetivação"
-              description="Revise o resumo abaixo e conclua apenas se estiver de acordo com a simulação aprovada."
+              title={processoFechado ? "Efetivação (visualização)" : "Efetivação"}
+              description={
+                processoFechado
+                  ? "Resumo e resultado do processo encerrado. Não é possível alterar ou navegar nas etapas anteriores."
+                  : "Revise o resumo abaixo e conclua apenas se estiver de acordo com a simulação aprovada."
+              }
               contentClassName="!grid-cols-1 !gap-6 w-full min-w-0"
             >
               <RenegociacaoEfetivacaoResumo
@@ -1222,8 +1267,9 @@ export function RenegociacaoWizard({
                   contratoId={contratoId}
                   loading={loading}
                   onRetentar={
-                    efetivacaoResultado.status === "EFETIVACAO_PARCIAL" ||
-                    !efetivacaoResultado.concluida
+                    !processoFechado &&
+                    (efetivacaoResultado.status === "EFETIVACAO_PARCIAL" ||
+                      !efetivacaoResultado.concluida)
                       ? processarEfetivacao
                       : undefined
                   }
@@ -1232,8 +1278,26 @@ export function RenegociacaoWizard({
               {modalidade === "T1_PARCELAS_VENCIDAS" && simulacao && (
                 <T1AcordoDetalheCard simulacao={simulacao} />
               )}
+              {renegociacaoId != null && renegociacaoId > 0 ? (
+                <section className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 sm:px-5">
+                  <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-white/45">
+                    Documentos anexados
+                  </h3>
+                  <RenegociacaoDocumentosStep
+                    contratoId={contratoId}
+                    renegociacaoId={renegociacaoId}
+                    tiposEsperados={simulacao?.instrumentosSugeridos}
+                    somenteLeitura={processoFechado || processoJaEfetivado}
+                    onDocumentosChange={(lista, completos) => {
+                      setDocumentosProcesso(lista);
+                      setDocumentosOk(completos);
+                    }}
+                  />
+                </section>
+              ) : null}
               <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-end">
-                {modalidadeEfetivaNoWizard(modalidade) &&
+                {!processoFechado &&
+                modalidadeEfetivaNoWizard(modalidade) &&
                 renegociacaoId != null &&
                 renegociacaoId > 0 &&
                 !processoJaEfetivado ? (
@@ -1244,7 +1308,7 @@ export function RenegociacaoWizard({
                     className="rounded-full border-0 bg-emerald-600 px-6 py-3 text-xs font-black uppercase tracking-widest"
                     label="Efetivar"
                   />
-                ) : modalidade === "T6_JUDICIAL" ? (
+                ) : !processoFechado && modalidade === "T6_JUDICIAL" ? (
                   <Link href={`/dashboard/atendimento/painel?id=${contratoId}`}>
                     <Button
                       type="button"
@@ -1260,12 +1324,13 @@ export function RenegociacaoWizard({
         )}
       </AnimatePresence>
 
-      {step === 1 && !modalidade && (
+      {step === 1 && !modalidade && !processoFechado && (
         <p className="mt-6 text-center text-sm text-amber-200/90">
           Selecione a modalidade acima para avançar ao passo de parâmetros.
         </p>
       )}
 
+      {!processoFechado ? (
       <div
         className={cn(
           "mt-8 flex flex-wrap items-center gap-4 border-t border-white/10 pt-6",
@@ -1337,6 +1402,7 @@ export function RenegociacaoWizard({
           )}
         </div>
       </div>
+      ) : null}
 
       {renegociacaoId != null && renegociacaoId > 0 && (
         <p className="mt-4 text-center font-mono text-[10px] text-white/25">

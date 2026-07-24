@@ -42,6 +42,7 @@ import { emailService, type EmailTemplate } from "@/lib/email-service";
 import { smsService, type SmsTemplate } from "@/lib/sms-service";
 import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
 import { formatDataPagamentoExibicao } from "@/lib/fin-vencimento";
+import { formatBusinessDateTime } from "@/lib/format-datetime";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
 const FORM_INPUT_CLASS =
@@ -519,6 +520,15 @@ export function CobrancaReguaConfig() {
                 dashboardStatusBadge(row.status, EXEC_STATUS_TONES)
               }
               style={{ width: "9rem" }}
+            />
+            <Column
+              header="Inclusão"
+              body={(row: CobrancaReguaExecucao) =>
+                dashboardCellMono(
+                  row.cadastroEm ? formatBusinessDateTime(row.cadastroEm) : "—",
+                )
+              }
+              style={{ width: "10rem" }}
             />
             <Column
               header="Venc. ref."
