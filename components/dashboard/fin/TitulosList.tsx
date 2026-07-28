@@ -9,6 +9,7 @@ import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
 import { InputNumber } from "primereact/inputnumber";
 import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
+import { MultiSelect } from "primereact/multiselect";
 import { InputText } from "primereact/inputtext";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
@@ -39,6 +40,7 @@ import {
   dashboardRowActionsCell,
   dashboardStatusBadge,
 } from "@/lib/dashboard-datatable";
+import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
 import { TituloPdfLoteDialog } from "@/components/dashboard/fin/TituloPdfLoteDialog";
@@ -109,7 +111,6 @@ import {
 } from "@/lib/titulos-list-query";
 
 const STATUS_OPTIONS = [
-  { label: "Todos", value: "" },
   { label: "Rascunho", value: "RASCUNHO" },
   { label: "Emitido", value: "EMITIDO" },
   { label: "Pago", value: "PAGO" },
@@ -117,6 +118,8 @@ const STATUS_OPTIONS = [
   { label: "Cancelado", value: "CANCELADO" },
   { label: "Baixa solicitada", value: "BAIXA_SOLICITADA" },
 ];
+
+const STATUS_MULTISELECT_PT = dashboardMultiSelectPt();
 
 const STATUS_TONES: Record<string, string> = {
   RASCUNHO: "border-white/10 bg-white/10 text-white/50",
@@ -303,7 +306,7 @@ export function TitulosList({
   );
   const [selectedRow, setSelectedRow] = useState<TituloCobranca | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState(initialQuery?.status ?? "");
+  const [statusFilter, setStatusFilter] = useState<string[]>(initialQuery?.status ?? []);
   const [filterContrato, setFilterContrato] = useState(initialQuery?.contrato ?? "");
   const [filterNome, setFilterNome] = useState(initialQuery?.nome ?? "");
   const [filterCpf, setFilterCpf] = useState(initialQuery?.cpf ?? "");
@@ -422,23 +425,29 @@ export function TitulosList({
   }, []);
 
   const buildListFilters = useCallback(
-    (statusOverride?: string) => ({
-      status: (statusOverride ?? statusFilter) || undefined,
-      imovelId,
-      empreendimento: filterEmpreendimento.trim() || undefined,
-      quadra: filterQuadra.trim() || undefined,
-      lote: filterLote ?? undefined,
-      contrato: filterContrato.trim() || undefined,
-      nome: filterNome.trim() || undefined,
-      cpf: filterCpf.trim() || undefined,
-      nossoNumero: filterNossoNumero.trim() || undefined,
-      vencimentoDe: filterVencimentoDe || undefined,
-      vencimentoAte: filterVencimentoAte || undefined,
-      cadastroDe: filterEmissaoDe || undefined,
-      cadastroAte: filterEmissaoAte || undefined,
-      pagamentoDe: filterPagamentoDe || undefined,
-      pagamentoAte: filterPagamentoAte || undefined,
-    }),
+    (statusOverride?: string | string[]) => {
+      const statuses = statusOverride != null
+        ? (Array.isArray(statusOverride) ? statusOverride : [statusOverride])
+        : statusFilter;
+      const status = statuses.filter(Boolean);
+      return {
+        status: status.length > 0 ? status : undefined,
+        imovelId,
+        empreendimento: filterEmpreendimento.trim() || undefined,
+        quadra: filterQuadra.trim() || undefined,
+        lote: filterLote ?? undefined,
+        contrato: filterContrato.trim() || undefined,
+        nome: filterNome.trim() || undefined,
+        cpf: filterCpf.trim() || undefined,
+        nossoNumero: filterNossoNumero.trim() || undefined,
+        vencimentoDe: filterVencimentoDe || undefined,
+        vencimentoAte: filterVencimentoAte || undefined,
+        cadastroDe: filterEmissaoDe || undefined,
+        cadastroAte: filterEmissaoAte || undefined,
+        pagamentoDe: filterPagamentoDe || undefined,
+        pagamentoAte: filterPagamentoAte || undefined,
+      };
+    },
     [
       statusFilter,
       imovelId,
@@ -461,7 +470,7 @@ export function TitulosList({
   const load = useCallback(
     async (
       background = false,
-      overrides?: { page?: number; status?: string },
+      overrides?: { page?: number; status?: string | string[] },
     ) => {
       const pageToLoad = overrides?.page ?? page;
       const skipLoading = background || hasLoadedRef.current;
@@ -682,7 +691,7 @@ export function TitulosList({
     setFilterEmpreendimento(FILTRO_TODOS);
     setFilterQuadra(FILTRO_TODOS);
     setFilterLote(null);
-    setStatusFilter("");
+    setStatusFilter([]);
     setFilterVencimentoDe("");
     setFilterVencimentoAte("");
     setFilterEmissaoDe("");
@@ -692,7 +701,7 @@ export function TitulosList({
   };
 
   const temFiltrosAtivos =
-    !!statusFilter ||
+    statusFilter.length > 0 ||
     !!filterContrato.trim() ||
     !!filterNome.trim() ||
     !!filterCpf.trim() ||
@@ -1666,10 +1675,10 @@ export function TitulosList({
         dataPrimeiraParcela: formatIsoDate(dataPrimeiraParcela),
       });
       setPage(0);
-      setStatusFilter("RASCUNHO");
+      setStatusFilter(["RASCUNHO"]);
       onShowNovoChange?.(false);
       resetNovoForm();
-      await load(true, { page: 0, status: "RASCUNHO" });
+      await load(true, { page: 0, status: ["RASCUNHO"] });
       toast.success(
         `${resultado.quantidadeCriada} título(s) criado(s) em rascunho (parcelas ${resultado.parcelaInicial}–${resultado.parcelaFinal}).`,
       );
@@ -1975,20 +1984,22 @@ export function TitulosList({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className={FILTER_LABEL_CLASS}>
+              <label htmlFor="titulo-status" className={FILTER_LABEL_CLASS}>
                 Status
               </label>
-              <select
+              <MultiSelect
+                inputId="titulo-status"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className={FILTER_DATE_CLASS}
-              >
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value || "all"} value={o.value} className="bg-[#020817]">
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                options={STATUS_OPTIONS}
+                optionLabel="label"
+                optionValue="value"
+                onChange={(e) => setStatusFilter((e.value as string[] | null) ?? [])}
+                placeholder="Todos"
+                display="chip"
+                showClear
+                className="w-full"
+                pt={STATUS_MULTISELECT_PT}
+              />
             </div>
           </div>
 

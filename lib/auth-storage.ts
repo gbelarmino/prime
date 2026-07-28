@@ -25,6 +25,7 @@ const ADMINISTRATIVO_ALLOWED_PREFIXES = [
   ATENDIMENTO_PATH_PREFIX,
   FINANCEIRO_PATH_PREFIX,
   "/dashboard/whatsapp/fila",
+  "/dashboard/whatsapp/modelos",
   "/dashboard/email/fila",
   "/dashboard/sms/fila",
 ] as const;

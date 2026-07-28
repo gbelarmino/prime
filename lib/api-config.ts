@@ -1085,7 +1085,7 @@ export function getFinTitulosIdsElegiveisRegistroUrl(opts?: FinTitulosListFilter
 }
 
 export type FinTitulosListFilters = {
-  status?: string;
+  status?: string | string[];
   contratoId?: number;
   imovelId?: number;
   vencimentoDe?: string;
@@ -1107,7 +1107,10 @@ function appendFinTitulosListFilterParams(
   params: URLSearchParams,
   opts?: FinTitulosListFilters,
 ): void {
-  if (opts?.status) params.set("status", opts.status);
+  const statuses = normalizeTitulosStatusFilter(opts?.status);
+  for (const s of statuses) {
+    params.append("status", s);
+  }
   if (opts?.contratoId != null) params.set("contratoId", String(opts.contratoId));
   if (opts?.imovelId != null) params.set("imovelId", String(opts.imovelId));
   if (opts?.vencimentoDe) params.set("vencimentoDe", opts.vencimentoDe);
@@ -1123,6 +1126,12 @@ function appendFinTitulosListFilterParams(
   if (opts?.nome?.trim()) params.set("nome", opts.nome.trim());
   if (opts?.cpf?.trim()) params.set("cpf", opts.cpf.trim());
   if (opts?.nossoNumero?.trim()) params.set("nossoNumero", opts.nossoNumero.trim());
+}
+
+function normalizeTitulosStatusFilter(status?: string | string[]): string[] {
+  if (status == null) return [];
+  const raw = Array.isArray(status) ? status : [status];
+  return [...new Set(raw.map((s) => s.trim()).filter(Boolean))];
 }
 
 export type FinTitulosListSort = {

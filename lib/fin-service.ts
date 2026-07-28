@@ -965,7 +965,7 @@ export const finService = {
     page = 0,
     size = 20,
     filters?: {
-      status?: string;
+      status?: string | string[];
       contratoId?: number;
       imovelId?: number;
       vencimentoDe?: string;
@@ -1227,7 +1227,7 @@ export const finService = {
 
   async listTitulosIdsElegiveisRegistro(
     filters?: {
-      status?: string;
+      status?: string | string[];
       contratoId?: number;
       imovelId?: number;
       vencimentoDe?: string;
@@ -1305,7 +1305,7 @@ export const finService = {
 
   async listTitulosIdsElegiveisWhatsApp(
     filters?: {
-      status?: string;
+      status?: string | string[];
       contratoId?: number;
       imovelId?: number;
       vencimentoDe?: string;

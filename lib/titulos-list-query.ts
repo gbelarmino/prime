@@ -1,7 +1,7 @@
 /** Query string da lista de títulos (preservar ao ir/voltar do detalhe). */
 
 export type TitulosListQueryState = {
-  status: string;
+  status: string[];
   contrato: string;
   nome: string;
   cpf: string;
@@ -23,6 +23,18 @@ export type TitulosListQueryState = {
 export const TITULOS_LIST_DEFAULT_SORT_FIELD = "cadastroEm";
 export const TITULOS_LIST_DEFAULT_SORT_ORDER = -1;
 
+function parseStatusList(raw: string | null): string[] {
+  if (raw == null || !raw.trim()) return [];
+  return [
+    ...new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
 export function parseTitulosListQuery(
   params: URLSearchParams | { get(name: string): string | null },
 ): TitulosListQueryState {
@@ -39,8 +51,12 @@ export function parseTitulosListQuery(
   if (sortOrderRaw === "1" || sortOrderRaw === "-1") {
     sortOrder = Number(sortOrderRaw);
   }
+  const statusFromMulti =
+    "getAll" in params && typeof params.getAll === "function"
+      ? params.getAll("status").flatMap((s) => parseStatusList(s))
+      : parseStatusList(params.get("status"));
   return {
-    status: params.get("status") ?? "",
+    status: [...new Set(statusFromMulti)],
     contrato: params.get("contrato") ?? "",
     nome: params.get("nome") ?? "",
     cpf: params.get("cpf") ?? "",
@@ -69,7 +85,9 @@ export function buildTitulosListQuery(state: TitulosListQueryState): string {
     params.set(key, s);
   };
 
-  set("status", state.status);
+  if (state.status.length > 0) {
+    set("status", state.status.join(","));
+  }
   set("contrato", state.contrato);
   set("nome", state.nome);
   set("cpf", state.cpf);
