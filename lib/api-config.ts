@@ -35,6 +35,7 @@ const API_PATHS = {
   finIndicesIpca: "/api/fin/indices/ipca",
   finIndicesIgpm: "/api/fin/indices/igpm",
   finReajusteSimular: "/api/fin/reajuste/simular",
+  finReajustes: "/api/fin/reajustes",
   finCobrancaRegua: "/api/fin/cobranca-regua",
   finCobrancaGrupos: "/api/fin/cobranca-grupos",
   atendimento: "/api/atendimento",
@@ -1413,6 +1414,29 @@ export function getFinIndicesIgpmSincronizarUrl(): string {
 
 export function getFinReajusteSimularUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finReajusteSimular);
+}
+
+export function getFinReajustesUrl(opts?: {
+  ano: number;
+  mes: number;
+  empreendimento?: string;
+  status?: string;
+  tipoIndice?: string;
+  page?: number;
+  size?: number;
+}): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.finReajustes);
+  if (!base || !opts) return base;
+  const params = new URLSearchParams({
+    ano: String(opts.ano),
+    mes: String(opts.mes),
+    page: String(opts.page ?? 0),
+    size: String(opts.size ?? 50),
+  });
+  if (opts.empreendimento?.trim()) params.set("empreendimento", opts.empreendimento.trim());
+  if (opts.status?.trim()) params.set("status", opts.status.trim());
+  if (opts.tipoIndice?.trim()) params.set("tipoIndice", opts.tipoIndice.trim());
+  return `${base}?${params.toString()}`;
 }
 
 export function getFinCobrancaReguaUrl(): string {

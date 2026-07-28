@@ -19,6 +19,7 @@ import {
   getFinIndicesIgpmUltimoUrl,
   getFinIndicesIgpmUrl,
   getFinReajusteSimularUrl,
+  getFinReajustesUrl,
   getFinLancamentoByIdUrl,
   getFinLancamentosListUrl,
   getFinPlanoContasSaldosUrl,
@@ -333,6 +334,32 @@ export interface ReajusteSimulacaoResponse {
     variacaoMensal: number | null;
     variacao12Meses: number | null;
   }[];
+}
+
+export type ReajusteFilaStatus = "PRONTO" | "AGUARDANDO_INDICE" | "BLOQUEADO";
+
+export interface ReajusteFilaItem {
+  contratoId: number;
+  numeroContrato: string | null;
+  nomeCliente: string | null;
+  imovelId: number | null;
+  empreendimento: string | null;
+  quadra: string | null;
+  lote: number | null;
+  diaAniversario: number;
+  dataAniversarioCiclo: string;
+  proximaParcela: number;
+  parcelaFinalCiclo: number;
+  quantidadeParcelasCiclo: number;
+  tipoIndice: string;
+  mesCorte: string;
+  indiceDisponivel: boolean;
+  percentualIndice: number | null;
+  percentualTotal: number | null;
+  valorParcelaAnterior: number | null;
+  valorParcelaReajustada: number | null;
+  status: ReajusteFilaStatus;
+  mensagemAviso: string | null;
 }
 
 export interface IndiceEconomicoSyncResult {
@@ -1810,6 +1837,22 @@ export const finService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    return parseJson(res);
+  },
+
+  async listReajustesFila(
+    opts: {
+      ano: number;
+      mes: number;
+      empreendimento?: string;
+      status?: string;
+      tipoIndice?: string;
+      page?: number;
+      size?: number;
+    },
+    options?: FinFetchOptions,
+  ): Promise<SpringPage<ReajusteFilaItem>> {
+    const res = await apiFetch(getFinReajustesUrl(opts), { skipLoading: options?.skipLoading });
     return parseJson(res);
   },
 

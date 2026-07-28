@@ -26,6 +26,7 @@ import {
   Send,
   RefreshCw,
   TrendingUp,
+  CalendarClock,
   UserSquare,
   Users,
   Zap,
@@ -203,6 +204,7 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     prefix: "/dashboard/financeiro",
     children: [
       { id: "fin-titulos", href: "/dashboard/financeiro/titulos", label: "Títulos", icon: Receipt },
+      { id: "fin-reajustes", href: "/dashboard/financeiro/reajustes", label: "Reajustes", icon: CalendarClock },
       { id: "fin-regua-cobranca", href: "/dashboard/financeiro/regua-cobranca", label: "Régua de cobrança", icon: ListOrdered },
       { id: "fin-titulos-avulso", href: "/dashboard/financeiro/titulos-avulso", label: "Título avulso", icon: FilePlus },
       { id: "fin-titulos-balao", href: "/dashboard/financeiro/titulos-balao", label: "Título balão", icon: CircleDot },
