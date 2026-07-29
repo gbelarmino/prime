@@ -34,6 +34,8 @@ import type { SpringPage } from "@/lib/spring-page";
 const PAGE_SIZE = 20;
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
 const MULTISELECT_PT = dashboardMultiSelectPt();
+/** Persistência da consulta ao ir/voltar do painel (aba da sessão). */
+const BUSCA_STORAGE_KEY = "aires.atendimento.busca.v1";
 
 type AtendimentoSortField =
   | "contratoId"
@@ -61,6 +63,51 @@ const ATENDIMENTO_SORT_FIELDS = new Set<string>([
 
 function isAtendimentoSortField(value: string): value is AtendimentoSortField {
   return ATENDIMENTO_SORT_FIELDS.has(value);
+}
+
+type PersistedAtendimentoBusca = {
+  filters: AtendimentoBuscaFilters;
+  applied: AtendimentoBuscaFilters;
+  page: number;
+  sortField: AtendimentoSortField;
+  sortOrder: 1 | -1 | 0 | null | undefined;
+  searched: boolean;
+};
+
+function readPersistedBusca(): PersistedAtendimentoBusca | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(BUSCA_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedAtendimentoBusca;
+    if (!parsed || typeof parsed !== "object") return null;
+    const sortField =
+      typeof parsed.sortField === "string" && isAtendimentoSortField(parsed.sortField)
+        ? parsed.sortField
+        : DEFAULT_SORT_FIELD;
+    return {
+      filters: parsed.filters && typeof parsed.filters === "object" ? parsed.filters : {},
+      applied: parsed.applied && typeof parsed.applied === "object" ? parsed.applied : {},
+      page: typeof parsed.page === "number" && parsed.page >= 0 ? parsed.page : 0,
+      sortField,
+      sortOrder:
+        parsed.sortOrder === 1 || parsed.sortOrder === -1 || parsed.sortOrder === 0
+          ? parsed.sortOrder
+          : DEFAULT_SORT_ORDER,
+      searched: Boolean(parsed.searched),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePersistedBusca(state: PersistedAtendimentoBusca): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(BUSCA_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // quota / private mode — ignora
+  }
 }
 
 const FILTER_INPUT_CLASS = "w-full rounded-xl border-white/10 bg-white/5 text-white";
@@ -92,6 +139,7 @@ function imovelLabel(row: AtendimentoBuscaItem): string {
 
 export function AtendimentoBusca() {
   const router = useRouter();
+  const [ready, setReady] = useState(false);
   const [filters, setFilters] = useState<AtendimentoBuscaFilters>({});
   const [applied, setApplied] = useState<AtendimentoBuscaFilters>({});
   const [page, setPage] = useState(0);
@@ -111,6 +159,24 @@ export function AtendimentoBusca() {
   const selectedQuadras = filters.quadras ?? [];
 
   useEffect(() => {
+    const saved = readPersistedBusca();
+    if (saved) {
+      setFilters(saved.filters);
+      setApplied(saved.applied);
+      setPage(saved.page);
+      setSortField(saved.sortField);
+      setSortOrder(saved.sortOrder);
+      setSearched(saved.searched);
+    }
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    writePersistedBusca({ filters, applied, page, sortField, sortOrder, searched });
+  }, [ready, filters, applied, page, sortField, sortOrder, searched]);
+
+  useEffect(() => {
     setEmpreendimentosLoading(true);
     void finService
       .listEmpreendimentos({ skipLoading: true })
@@ -123,6 +189,7 @@ export function AtendimentoBusca() {
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
     if (selectedEmpreendimentos.length === 0) {
       setQuadras([]);
       return;
@@ -148,9 +215,10 @@ export function AtendimentoBusca() {
         setQuadras([]);
       })
       .finally(() => setQuadrasLoading(false));
-  }, [selectedEmpreendimentos.join("|")]);
+  }, [ready, selectedEmpreendimentos.join("|")]);
 
   useEffect(() => {
+    if (!ready) return;
     if (selectedEmpreendimentos.length === 0 || selectedQuadras.length === 0) {
       setLotes([]);
       return;
@@ -175,14 +243,14 @@ export function AtendimentoBusca() {
         setLotes([]);
       })
       .finally(() => setLotesLoading(false));
-  }, [selectedEmpreendimentos.join("|"), selectedQuadras.join("|")]);
+  }, [ready, selectedEmpreendimentos.join("|"), selectedQuadras.join("|")]);
 
   const empreendimentoOptions = empreendimentos.map((emp) => ({ label: emp, value: emp }));
   const quadraOptions = quadras.map((q) => ({ label: `Quadra ${q}`, value: q }));
   const loteOptions = lotes.map((n) => ({ label: `Lote ${n}`, value: n }));
 
   const load = useCallback(async () => {
-    if (!searched) return;
+    if (!ready || !searched) return;
     setLoading(true);
     try {
       const data = await atendimentoService.buscar(page, PAGE_SIZE, applied, {
@@ -196,7 +264,7 @@ export function AtendimentoBusca() {
     } finally {
       setLoading(false);
     }
-  }, [page, applied, sortField, sortOrder, searched]);
+  }, [ready, page, applied, sortField, sortOrder, searched]);
 
   useEffect(() => {
     void load();
@@ -220,6 +288,11 @@ export function AtendimentoBusca() {
     setPage(0);
   };
 
+  const openPainel = (contratoId: number) => {
+    writePersistedBusca({ filters, applied, page, sortField, sortOrder, searched });
+    router.push(`/dashboard/atendimento/painel?id=${contratoId}`);
+  };
+
   const rows = pageData?.content ?? [];
   const totalRecords = pageData?.totalElements ?? 0;
   const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
@@ -228,6 +301,14 @@ export function AtendimentoBusca() {
     return (
       <div className="mx-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-8 text-center text-amber-200">
         A API não está configurada.
+      </div>
+    );
+  }
+
+  if (!ready) {
+    return (
+      <div className="flex flex-col gap-6 px-4">
+        <div className="h-48 animate-pulse rounded-[2rem] bg-white/5" />
       </div>
     );
   }
@@ -502,9 +583,7 @@ export function AtendimentoBusca() {
                 <button
                   type="button"
                   className="inline-flex items-center gap-2 rounded-lg border-none bg-white/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-blue-600"
-                  onClick={() =>
-                    router.push(`/dashboard/atendimento/painel?id=${row.contratoId}`)
-                  }
+                  onClick={() => openPainel(row.contratoId)}
                 >
                   <Eye size={14} />
                   Painel
