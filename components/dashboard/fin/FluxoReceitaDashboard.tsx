@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Banknote,
   BarChart3,
+  Layers,
   Minus,
   Percent,
   Plus,
@@ -21,8 +22,21 @@ import {
   FLUXO_RECEITA_SERIES,
   FluxoReceitaGroupedChart,
   formatMesLabel,
+  type FluxoReceitaSerie,
 } from "@/components/dashboard/fin/FluxoReceitaGroupedChart";
 import { finService, type FinFluxoReceita, type FinFluxoReceitaMes } from "@/lib/fin-service";
+
+type FluxoReceitaGraficoItem = {
+  id: string;
+  empreendimento: string;
+  consolidado?: boolean;
+  mesInicial: string;
+  mesFinal: string;
+  mesesAtivos: FinFluxoReceitaMes[];
+  labels: string[];
+  series: FluxoReceitaSerie[];
+  totais: ReturnType<typeof totaisMes>;
+};
 
 function formatMoney(v: number): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -64,6 +78,73 @@ function mesesComMovimento(meses: FinFluxoReceitaMes[]): FinFluxoReceitaMes[] {
       Math.abs(m.taxas ?? 0);
     return total > 0.000_001;
   });
+}
+
+function somarMesesPorChave(mesesLists: FinFluxoReceitaMes[][]): FinFluxoReceitaMes[] {
+  const byMes = new Map<string, FinFluxoReceitaMes>();
+  for (const meses of mesesLists) {
+    for (const m of meses) {
+      const cur = byMes.get(m.mes) ?? {
+        mes: m.mes,
+        recebidoLiquido: 0,
+        emitido: 0,
+        inadimplencia: 0,
+        taxas: 0,
+      };
+      cur.recebidoLiquido += m.recebidoLiquido ?? 0;
+      cur.emitido += m.emitido ?? 0;
+      cur.inadimplencia += m.inadimplencia ?? 0;
+      cur.taxas += m.taxas ?? 0;
+      byMes.set(m.mes, cur);
+    }
+  }
+  return [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
+}
+
+function buildGraficoItem(
+  id: string,
+  empreendimento: string,
+  meses: FinFluxoReceitaMes[],
+  mesAtual: string,
+  consolidado = false,
+): FluxoReceitaGraficoItem | null {
+  const mesesAtivos = mesesComMovimento(meses);
+  if (mesesAtivos.length === 0) return null;
+  const mesesGrafico = mesesAtivos.map((m) => ({
+    ...m,
+    emitido: m.mes < mesAtual ? 0 : (m.emitido ?? 0),
+  }));
+  const mesInicial = mesesGrafico[0]!.mes;
+  const mesFinal = mesesGrafico[mesesGrafico.length - 1]!.mes;
+  const labels = mesesGrafico.map((m) => m.mes);
+  const series = FLUXO_RECEITA_SERIES.map((def) => ({
+    ...def,
+    values: mesesGrafico.map((m) => {
+      switch (def.key) {
+        case "recebidoLiquido":
+          return m.recebidoLiquido ?? 0;
+        case "emitido":
+          return m.emitido ?? 0;
+        case "inadimplencia":
+          return m.inadimplencia ?? 0;
+        case "taxas":
+          return m.taxas ?? 0;
+        default:
+          return 0;
+      }
+    }),
+  }));
+  return {
+    id,
+    empreendimento,
+    consolidado,
+    mesInicial,
+    mesFinal,
+    mesesAtivos: mesesGrafico,
+    labels,
+    series,
+    totais: totaisMes(mesesGrafico),
+  };
 }
 
 const FLUXO_METRIC_ICONS: Record<
@@ -128,53 +209,29 @@ export function FluxoReceitaDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [accordionIndex, setAccordionIndex] = useState<number[]>([]);
 
-  const empreendimentosGrafico = useMemo(() => {
+  const graficos = useMemo(() => {
     if (!data?.empreendimentos.length) return [];
     const mesAtual = mesReferenciaAtual();
-    return data.empreendimentos
-      .map((emp) => {
-        const mesesAtivos = mesesComMovimento(emp.meses);
-        if (mesesAtivos.length === 0) return null;
-        const mesesGrafico = mesesAtivos.map((m) => ({
-          ...m,
-          emitido: m.mes < mesAtual ? 0 : (m.emitido ?? 0),
-        }));
-        const mesInicial = mesesGrafico[0]!.mes;
-        const mesFinal = mesesGrafico[mesesGrafico.length - 1]!.mes;
-        const labels = mesesGrafico.map((m) => m.mes);
-        const series = FLUXO_RECEITA_SERIES.map((def) => ({
-          ...def,
-          values: mesesGrafico.map((m) => {
-            switch (def.key) {
-              case "recebidoLiquido":
-                return m.recebidoLiquido ?? 0;
-              case "emitido":
-                return m.emitido ?? 0;
-              case "inadimplencia":
-                return m.inadimplencia ?? 0;
-              case "taxas":
-                return m.taxas ?? 0;
-              default:
-                return 0;
-            }
-          }),
-        }));
-        return {
-          empreendimento: emp.empreendimento,
-          mesInicial,
-          mesFinal,
-          mesesAtivos: mesesGrafico,
-          labels,
-          series,
-          totais: totaisMes(mesesGrafico),
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => item != null);
+    const porEmpreendimento = data.empreendimentos
+      .map((emp) => buildGraficoItem(emp.empreendimento, emp.empreendimento, emp.meses, mesAtual))
+      .filter((item): item is FluxoReceitaGraficoItem => item != null);
+
+    if (porEmpreendimento.length === 0) return [];
+
+    const consolidado = buildGraficoItem(
+      "__todos__",
+      "Todos os empreendimentos",
+      somarMesesPorChave(data.empreendimentos.map((emp) => emp.meses)),
+      mesAtual,
+      true,
+    );
+
+    return consolidado ? [consolidado, ...porEmpreendimento] : porEmpreendimento;
   }, [data]);
 
   useEffect(() => {
-    setAccordionIndex(empreendimentosGrafico.map((_, i) => i));
-  }, [empreendimentosGrafico]);
+    setAccordionIndex(graficos.map((_, i) => i));
+  }, [graficos]);
 
   const load = useCallback(async (background = false) => {
     const skipLoading = background || hasLoadedRef.current;
@@ -221,8 +278,8 @@ export function FluxoReceitaDashboard() {
           <div>
             <p className="text-sm text-white/50">
               {data.empreendimentos.length}{" "}
-              {data.empreendimentos.length === 1 ? "empreendimento" : "empreendimentos"} · cada
-              gráfico com seu próprio período
+              {data.empreendimentos.length === 1 ? "empreendimento" : "empreendimentos"} ·
+              consolidado do tenant + um gráfico por empreendimento
             </p>
             <p className="mt-1 text-xs text-white/30">
               Recebido líquido = caixa (mês do pagamento) · A vencer = vencimento a partir de{" "}
@@ -269,52 +326,62 @@ export function FluxoReceitaDashboard() {
         collapseIcon={<Minus size={18} strokeWidth={2} className="text-white/50" />}
         pt={FLUXO_ACCORDION_PT}
       >
-        {empreendimentosGrafico.map((item) => (
-          <AccordionTab
-            key={item.empreendimento}
-            header={
-              <div className="flex w-full min-w-0 items-center gap-3 pr-2">
-                <div className="rounded-lg bg-white/5 p-2 text-blue-400">
-                  <BarChart3 size={18} />
+        {graficos.map((item) => {
+          const isConsolidado = !!item.consolidado;
+          const Icon = isConsolidado ? Layers : BarChart3;
+          return (
+            <AccordionTab
+              key={item.id}
+              header={
+                <div className="flex w-full min-w-0 items-center gap-3 pr-2">
+                  <div
+                    className={cn(
+                      "rounded-lg bg-white/5 p-2",
+                      isConsolidado ? "text-emerald-400" : "text-blue-400",
+                    )}
+                  >
+                    <Icon size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1 text-left">
+                    <span className="block truncate font-[family-name:var(--font-playfair)] text-lg font-bold text-white">
+                      {item.empreendimento}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-normal text-white/35">
+                      {isConsolidado ? "Soma de todos os empreendimentos · " : ""}
+                      {formatMesRange(item.mesInicial, item.mesFinal)} · {item.mesesAtivos.length}{" "}
+                      {item.mesesAtivos.length === 1 ? "mês" : "meses"} com movimento
+                    </span>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1 text-left">
-                  <span className="block truncate font-[family-name:var(--font-playfair)] text-lg font-bold text-white">
-                    {item.empreendimento}
-                  </span>
-                  <span className="mt-0.5 block text-xs font-normal text-white/35">
-                    {formatMesRange(item.mesInicial, item.mesFinal)} · {item.mesesAtivos.length}{" "}
-                    {item.mesesAtivos.length === 1 ? "mês" : "meses"} com movimento
-                  </span>
-                </div>
+              }
+            >
+              <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {FLUXO_RECEITA_SERIES.map((s) => {
+                  const meta = FLUXO_METRIC_ICONS[s.key];
+                  const valor =
+                    s.key === "recebidoLiquido"
+                      ? item.totais.recebidoLiquido
+                      : s.key === "emitido"
+                        ? item.totais.emitido
+                        : s.key === "inadimplencia"
+                          ? item.totais.inadimplencia
+                          : item.totais.taxas;
+                  return (
+                    <DashboardResumoCard
+                      key={s.key}
+                      label={s.label}
+                      value={formatMoney(valor)}
+                      icon={meta.icon}
+                      iconClassName={meta.color}
+                    />
+                  );
+                })}
               </div>
-            }
-          >
-            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {FLUXO_RECEITA_SERIES.map((s) => {
-                const meta = FLUXO_METRIC_ICONS[s.key];
-                const valor =
-                  s.key === "recebidoLiquido"
-                    ? item.totais.recebidoLiquido
-                    : s.key === "emitido"
-                      ? item.totais.emitido
-                      : s.key === "inadimplencia"
-                        ? item.totais.inadimplencia
-                        : item.totais.taxas;
-                return (
-                  <DashboardResumoCard
-                    key={s.key}
-                    label={s.label}
-                    value={formatMoney(valor)}
-                    icon={meta.icon}
-                    iconClassName={meta.color}
-                  />
-                );
-              })}
-            </div>
 
-            <FluxoReceitaGroupedChart labels={item.labels} series={item.series} />
-          </AccordionTab>
-        ))}
+              <FluxoReceitaGroupedChart labels={item.labels} series={item.series} />
+            </AccordionTab>
+          );
+        })}
       </Accordion>
     </div>
   );
