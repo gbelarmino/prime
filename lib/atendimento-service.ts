@@ -41,6 +41,8 @@ export interface AtendimentoTituloResumo {
   status: string;
   valorNominal: number;
   vencimento: string;
+  tipoParcela?: "MENSAL" | "FRACIONADA" | "BALAO" | string;
+  numeroBalao?: number | null;
 }
 
 export interface AtendimentoResumoFinanceiro {
@@ -65,6 +67,8 @@ export interface AtendimentoResumoFinanceiro {
   percentualQuitacao: number;
   parcelasPagas: number;
   parcelasTotal: number;
+  baloesPagas?: number;
+  baloesTotal?: number;
   parcelasEmAtraso: number;
   proximoVencimento: string | null;
   statusFinanceiro: AtendimentoStatusFinanceiro;

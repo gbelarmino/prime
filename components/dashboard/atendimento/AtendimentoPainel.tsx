@@ -85,6 +85,17 @@ function imovelTitulo(p: AtendimentoResumoFinanceiro): string {
   return parts.join(" · ");
 }
 
+function rotuloTituloAtendimento(row: AtendimentoTituloResumo): string {
+  if (row.tipoParcela === "BALAO") {
+    const n = row.numeroBalao ?? row.numeroParcela;
+    return n != null ? `Balão ${n}` : "Balão";
+  }
+  if (row.tipoParcela === "FRACIONADA") {
+    return row.numeroParcela != null ? `Frac. ${row.numeroParcela}` : "Fracionada";
+  }
+  return row.numeroParcela != null ? `Parcela ${row.numeroParcela}` : "Parcela";
+}
+
 function ResumoCard({
   label,
   value,
@@ -490,12 +501,17 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
               />
               <ResumoCard
                 label="Quitação"
-                value={`${painel.percentualQuitacao}% (${painel.parcelasPagas}/${painel.parcelasTotal})`}
+                value={`${painel.percentualQuitacao}% (${(painel.parcelasPagas ?? 0) + (painel.baloesPagas ?? 0)}/${(painel.parcelasTotal ?? 0) + (painel.baloesTotal ?? 0)})`}
                 icon={Percent}
               />
               <ResumoCard
                 label="Parcelas"
-                value={`${painel.parcelasPagas} / ${painel.parcelasTotal}`}
+                value={`${painel.parcelasPagas ?? 0} / ${painel.parcelasTotal ?? 0}`}
+                icon={Receipt}
+              />
+              <ResumoCard
+                label="Balões"
+                value={`${painel.baloesPagas ?? 0} / ${painel.baloesTotal ?? 0}`}
                 icon={Receipt}
               />
               <ResumoCard label="Em atraso" value={String(painel.parcelasEmAtraso)} icon={Receipt} />
@@ -511,9 +527,9 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
             header={
               <span className="flex w-full flex-wrap items-center justify-end gap-2">
                 <Receipt size={16} className="text-blue-400" />
-                Parcelas do contrato
+                Parcelas e balões
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/45">
-                  {titulosPendentes.length} aberto · {titulosPagos.length} pagas
+                  {titulosPendentes.length} aberto · {titulosPagos.length} pagos
                 </span>
               </span>
             }
@@ -550,9 +566,9 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
               >
                 <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
                 <Column
-                  header="Parcela"
+                  header="Título"
                   body={(row: AtendimentoTituloResumo) =>
-                    dashboardCellMono(String(row.numeroParcela), { size: "parcela" })
+                    dashboardCellMono(rotuloTituloAtendimento(row), { size: "parcela" })
                   }
                 />
                 <Column
@@ -588,7 +604,7 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
             </TabPanel>
             <TabPanel
               header={dashboardTabHeader(
-                "Parcelas pagas",
+                "Pagos",
                 titulosPagos.length,
                 <CheckCircle2 />,
               )}
@@ -603,12 +619,12 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
                 currentPageReportTemplate="{first}–{last} de {totalRecords}"
                 className={DASHBOARD_DATATABLE_CLASS}
                 pt={TABLE_PT}
-                emptyMessage="Nenhuma parcela paga registrada."
+                emptyMessage="Nenhuma parcela ou balão pago."
               >
                 <Column
-                  header="Parcela"
+                  header="Título"
                   body={(row: AtendimentoTituloResumo) =>
-                    dashboardCellMono(String(row.numeroParcela), { size: "parcela" })
+                    dashboardCellMono(rotuloTituloAtendimento(row), { size: "parcela" })
                   }
                 />
                 <Column

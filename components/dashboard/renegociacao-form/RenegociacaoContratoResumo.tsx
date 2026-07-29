@@ -25,6 +25,17 @@ import { cn } from "@/lib/utils";
 
 const TABLE_PT = dashboardDataTablePt({ density: "compact", paginator: true });
 
+function rotuloTituloAtendimento(row: AtendimentoTituloResumo): string {
+  if (row.tipoParcela === "BALAO") {
+    const n = row.numeroBalao ?? row.numeroParcela;
+    return n != null ? `Balão ${n}` : "Balão";
+  }
+  if (row.tipoParcela === "FRACIONADA") {
+    return row.numeroParcela != null ? `Frac. ${row.numeroParcela}` : "Fracionada";
+  }
+  return row.numeroParcela != null ? `Parcela ${row.numeroParcela}` : "Parcela";
+}
+
 const STATUS_CONTRATO_LABEL: Record<string, string> = {
   "1": "Rascunho",
   "2": "Pendente",
@@ -163,11 +174,15 @@ export function RenegociacaoContratoResumo({ contrato, financeiro, financeiroCar
         },
         {
           label: "Quitação",
-          value: `${financeiro.percentualQuitacao}% (${financeiro.parcelasPagas}/${financeiro.parcelasTotal} parc.)`,
+          value: `${financeiro.percentualQuitacao}% (${(financeiro.parcelasPagas ?? 0) + (financeiro.baloesPagas ?? 0)}/${(financeiro.parcelasTotal ?? 0) + (financeiro.baloesTotal ?? 0)})`,
         },
         {
-          label: "Parcelas pagas",
-          value: `${financeiro.parcelasPagas} / ${financeiro.parcelasTotal}`,
+          label: "Parcelas",
+          value: `${financeiro.parcelasPagas ?? 0} / ${financeiro.parcelasTotal ?? 0}`,
+        },
+        {
+          label: "Balões",
+          value: `${financeiro.baloesPagas ?? 0} / ${financeiro.baloesTotal ?? 0}`,
         },
         { label: "Parcelas em atraso", value: String(financeiro.parcelasEmAtraso) },
         {
@@ -244,9 +259,9 @@ export function RenegociacaoContratoResumo({ contrato, financeiro, financeiroCar
         )}
       </SectionBlock>
 
-      <SectionBlock title={`Parcelas pagas${titulosPagos.length > 0 ? ` (${titulosPagos.length})` : ""}`}>
+      <SectionBlock title={`Parcelas e balões pagos${titulosPagos.length > 0 ? ` (${titulosPagos.length})` : ""}`}>
         {financeiroCarregando && !financeiro ? (
-          <p className="text-sm text-white/40">Carregando parcelas…</p>
+          <p className="text-sm text-white/40">Carregando títulos…</p>
         ) : (
           <DashboardDataTableShell className={DASHBOARD_DATATABLE_INSET_SHELL_CLASS}>
             <DataTable
@@ -259,14 +274,14 @@ export function RenegociacaoContratoResumo({ contrato, financeiro, financeiroCar
               currentPageReportTemplate="{first}–{last} de {totalRecords}"
               className={cn(DASHBOARD_DATATABLE_CLASS, "w-full")}
               pt={TABLE_PT}
-              emptyMessage="Nenhuma parcela paga registrada neste contrato."
+              emptyMessage="Nenhuma parcela ou balão pago neste contrato."
             >
               <Column
-                header="Parc."
+                header="Título"
                 body={(row: AtendimentoTituloResumo) =>
-                  dashboardCellMono(String(row.numeroParcela), { size: "parcela" })
+                  dashboardCellMono(rotuloTituloAtendimento(row), { size: "parcela" })
                 }
-                style={{ width: "5rem" }}
+                style={{ width: "7rem" }}
               />
               <Column
                 header="Vencimento"
