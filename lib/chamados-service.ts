@@ -4,6 +4,7 @@ import {
   getChamadoAnexoUrl,
   getChamadoByIdUrl,
   getChamadoMensagensUrl,
+  getChamadosAbertosContagemUrl,
   getChamadosUrl,
 } from "./api-config";
 
@@ -79,6 +80,16 @@ export async function listarChamados(status?: ChamadoStatus | null, q?: string):
   const url = getChamadosUrl(status ?? undefined, q);
   if (!url) throw new Error("API não configurada");
   const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function contagemChamadosAbertos(options?: {
+  skipLoading?: boolean;
+}): Promise<{ abertos: number }> {
+  const url = getChamadosAbertosContagemUrl();
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url, { skipLoading: options?.skipLoading });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }

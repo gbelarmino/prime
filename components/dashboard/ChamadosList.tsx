@@ -17,6 +17,7 @@ import {
   type ChamadoListItem,
   type ChamadoStatus,
 } from "@/lib/chamados-service";
+import { notifyChamadosAbertosChanged } from "@/hooks/use-chamados-abertos";
 import {
   DASHBOARD_DATATABLE_CLASS,
   DASHBOARD_SEARCH_ICON_HEADER_CLASS,
@@ -58,6 +59,7 @@ export function ChamadosList() {
       const data = await listarChamados(status, q);
       setRows(data);
       setPage(0);
+      notifyChamadosAbertosChanged();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível carregar os chamados.");
       setRows([]);

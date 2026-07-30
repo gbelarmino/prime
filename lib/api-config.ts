@@ -1975,6 +1975,11 @@ export function getChamadosUrl(status?: string, q?: string): string {
   return qs ? `${base}?${qs}` : base;
 }
 
+export function getChamadosAbertosContagemUrl(): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.chamados);
+  return base ? `${base}/abertos/contagem` : "";
+}
+
 export function getChamadoByIdUrl(id: string): string {
   const base = withBase(getApiBaseUrl(), API_PATHS.chamados);
   return base ? `${base}/${id}` : "";

@@ -23,6 +23,7 @@ import { canAccessChamados } from "@/lib/auth-storage";
 import { dashboardStatusBadge } from "@/lib/dashboard-datatable";
 import { formatBusinessDateTime } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
+import { notifyChamadosAbertosChanged } from "@/hooks/use-chamados-abertos";
 
 const STATUS_OPTIONS: { label: string; value: ChamadoStatus }[] = [
   { label: "Aberto", value: "ABERTO" },
@@ -78,6 +79,7 @@ export function ChamadoDetalhePanel() {
     try {
       setDetalhe(await atualizarStatusChamado(id, status));
       toast.success("Status atualizado");
+      notifyChamadosAbertosChanged();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao atualizar status");
     } finally {
@@ -101,6 +103,7 @@ export function ChamadoDetalhePanel() {
       setFiles([]);
       setInterno(false);
       toast.success(interno ? "Nota interna registrada" : "Resposta enviada ao cliente");
+      notifyChamadosAbertosChanged();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao enviar");
     } finally {

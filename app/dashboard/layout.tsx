@@ -44,9 +44,14 @@ import {
   FIN_UNICRED_WEBHOOKS_PATH,
   useUnicredWebhookPendentes,
 } from "@/hooks/use-unicred-webhook-pendentes";
+import {
+  ATENDIMENTO_CHAMADOS_PATH,
+  useChamadosAbertos,
+} from "@/hooks/use-chamados-abertos";
 import { useRealtimeSocketKeeper } from "@/hooks/use-realtime-socket-keeper";
 import { useCrmFunilEnabled } from "@/hooks/use-crm-funil-enabled";
 import {
+  ATENDIMENTO_MENU_PREFIX,
   DASHBOARD_MENU_ITEMS,
   filterVisibleMenuChildren,
   menuChildVisible,
@@ -114,6 +119,7 @@ function SidebarNavGroup({
   onNavigate,
   role,
   unicredWebhookPendentes = 0,
+  chamadosAbertos = 0,
 }: {
   item: MenuGroupItem;
   expanded: boolean;
@@ -122,6 +128,7 @@ function SidebarNavGroup({
   onNavigate: () => void;
   role: string | null;
   unicredWebhookPendentes?: number;
+  chamadosAbertos?: number;
 }) {
   const [open, setOpen] = useState(() => pathname.startsWith(item.prefix));
   useEffect(() => {
@@ -135,6 +142,13 @@ function SidebarNavGroup({
   const firstHref = visibleChildren[0]?.href ?? item.prefix;
   const financeiroUnicredPendentes =
     item.prefix === "/dashboard/financeiro" ? unicredWebhookPendentes : 0;
+  const atendimentoChamadosAbertos =
+    item.prefix === ATENDIMENTO_MENU_PREFIX ? chamadosAbertos : 0;
+  const groupDotCount = financeiroUnicredPendentes + atendimentoChamadosAbertos;
+  const groupDotLabel =
+    atendimentoChamadosAbertos > 0
+      ? `${atendimentoChamadosAbertos} chamados abertos`
+      : `${financeiroUnicredPendentes} webhooks pendentes`;
 
   if (!labelsVisible) {
     return (
@@ -155,10 +169,10 @@ function SidebarNavGroup({
             )}
           >
             <ParentIcon size={20} />
-            {financeiroUnicredPendentes > 0 ? (
+            {groupDotCount > 0 ? (
               <span
                 className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-[#071C33] bg-rose-500"
-                aria-label={`${financeiroUnicredPendentes} webhooks pendentes`}
+                aria-label={groupDotLabel}
               />
             ) : null}
           </div>
@@ -181,6 +195,7 @@ function SidebarNavGroup({
           <ParentIcon size={20} />
         </div>
         <span className="font-medium flex-1">{item.label}</span>
+        {groupDotCount > 0 && !open ? <MenuDangerBadge count={groupDotCount} /> : null}
         <ChevronDown size={16} className={cn("shrink-0 text-white/40 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
@@ -189,10 +204,16 @@ function SidebarNavGroup({
             const active =
               item.prefix === RENEGOCIACAO_MENU_PREFIX
                 ? isRenegociacaoMenuChildActive(pathname, c.href)
-                : pathname === c.href;
+                : pathname === c.href ||
+                  (c.href === ATENDIMENTO_CHAMADOS_PATH &&
+                    pathname.startsWith(`${ATENDIMENTO_CHAMADOS_PATH}/`));
             const ChildIcon = c.icon;
             const badgeCount =
-              c.href === FIN_UNICRED_WEBHOOKS_PATH ? unicredWebhookPendentes : 0;
+              c.href === FIN_UNICRED_WEBHOOKS_PATH
+                ? unicredWebhookPendentes
+                : c.href === ATENDIMENTO_CHAMADOS_PATH
+                  ? chamadosAbertos
+                  : 0;
             return (
               <Link
                 key={c.id}
@@ -270,8 +291,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const isSidebarOpen = expanded || peeking;
   const homeHref = role ? getDefaultDashboardPath(role) : ADMIN_DASHBOARD_HOME;
   const finMenuEnabled = mounted && role === "ADMIN";
+  const chamadosMenuEnabled = mounted && (role === "ADMIN" || role === "ADMINISTRATIVO");
   const crmFunilEnabled = useCrmFunilEnabled(mounted && role === "ADMIN");
   const { pendentes: unicredWebhookPendentes } = useUnicredWebhookPendentes(finMenuEnabled);
+  const { abertos: chamadosAbertos } = useChamadosAbertos(chamadosMenuEnabled);
   useRealtimeSocketKeeper(mounted);
 
   useEffect(() => {
@@ -492,6 +515,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   onNavigate={() => setMobileMenuOpen(false)}
                   role={role}
                   unicredWebhookPendentes={unicredWebhookPendentes}
+                  chamadosAbertos={chamadosAbertos}
                 />
               ),
             )
