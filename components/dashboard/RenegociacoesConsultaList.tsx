@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type MouseEvent } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, GitCompareArrows, Eye, Ban, User } from "lucide-react";
@@ -16,7 +17,6 @@ import { RenegociacaoCancelarDialog } from "@/components/dashboard/RenegociacaoC
 import { usePaginatedSpringList } from "@/hooks/use-paginated-spring-list";
 import { getRenegociacoesConsultaUrl, isApiConfigured } from "@/lib/api-config";
 import {
-  DASHBOARD_ACTIONS_BUTTON_CLASS,
   DASHBOARD_DATATABLE_CLASS,
   DASHBOARD_SEARCH_ICON_HEADER_CLASS,
   DASHBOARD_SEARCH_INPUT_HEADER_CLASS,
@@ -50,6 +50,7 @@ export function RenegociacoesConsultaList() {
   const router = useRouter();
   const menuRef = useRef<Menu>(null);
   const [selectedRow, setSelectedRow] = useState<RenegociacaoConsultaItem | null>(null);
+  const [menuModel, setMenuModel] = useState<MenuItem[]>([]);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
 
@@ -90,8 +91,16 @@ export function RenegociacoesConsultaList() {
     );
   };
 
-  const buildActionItems = (row: RenegociacaoConsultaItem | null): MenuItem[] => {
-    if (!row || renegociacaoEstaFechada(row.status)) return [];
+  const buildActionItems = (row: RenegociacaoConsultaItem): MenuItem[] => {
+    if (renegociacaoEstaFechada(row.status)) {
+      return [
+        dashboardActionMenuItem({
+          label: "Visualizar",
+          onClick: () => abrirRenegociacao(row),
+          icon: <Eye size={16} className="text-emerald-400" />,
+        }),
+      ];
+    }
     const items: MenuItem[] = [
       dashboardActionMenuItem({
         label: "Abrir renegociação",
@@ -116,6 +125,15 @@ export function RenegociacoesConsultaList() {
     return items;
   };
 
+  const openActionsMenu = (e: MouseEvent<HTMLButtonElement>, row: RenegociacaoConsultaItem) => {
+    e.stopPropagation();
+    flushSync(() => {
+      setSelectedRow(row);
+      setMenuModel(buildActionItems(row));
+    });
+    menuRef.current?.toggle(e);
+  };
+
   const confirmarCancelamento = async (motivo: string) => {
     if (!selectedRow) return;
     setCancelLoading(true);
@@ -124,8 +142,8 @@ export function RenegociacoesConsultaList() {
       toast.success("Renegociação cancelada.");
       setCancelDialogOpen(false);
       await reload();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível cancelar.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível cancelar.");
     } finally {
       setCancelLoading(false);
     }
@@ -158,30 +176,8 @@ export function RenegociacoesConsultaList() {
     </div>
   );
 
-  const actionBody = (row: RenegociacaoConsultaItem) => {
-    if (renegociacaoEstaFechada(row.status)) {
-      return (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            rounded
-            text
-            className={DASHBOARD_ACTIONS_BUTTON_CLASS}
-            aria-label="Visualizar"
-            tooltip="Visualizar"
-            tooltipOptions={{ position: "left" }}
-            onClick={() => abrirRenegociacao(row)}
-          >
-            <Eye size={18} aria-hidden />
-          </Button>
-        </div>
-      );
-    }
-    return dashboardRowActionsCell((e) => {
-      setSelectedRow(row);
-      menuRef.current?.toggle(e);
-    });
-  };
+  const actionBody = (row: RenegociacaoConsultaItem) =>
+    dashboardRowActionsCell((e) => openActionsMenu(e, row));
 
   const tablePt = {
     ...dashboardDataTablePt(),
@@ -201,7 +197,7 @@ export function RenegociacoesConsultaList() {
         />
       </div>
       <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <div className="text-sm text-white/40 whitespace-nowrap">
+        <div className="text-sm whitespace-nowrap text-white/40">
           <span className="font-bold text-white">{totalRecords}</span> renegociações encontradas
         </div>
         <Link href="/dashboard/contratos/renegociacao" className="shrink-0">
@@ -269,11 +265,7 @@ export function RenegociacoesConsultaList() {
             header="Status"
             body={(row: RenegociacaoConsultaItem) => renegociacaoStatusBadge(row.status)}
           />
-          <Column
-            header="Criado por"
-            body={criadorBody}
-            className="min-w-[10rem]"
-          />
+          <Column header="Criado por" body={criadorBody} className="min-w-[10rem]" />
           <Column
             header="Versão"
             body={(row: RenegociacaoConsultaItem) =>
@@ -300,8 +292,9 @@ export function RenegociacoesConsultaList() {
       </DashboardDataTableShell>
 
       <Menu
-        model={buildActionItems(selectedRow)}
+        model={menuModel}
         popup
+        popupAlignment="right"
         ref={menuRef}
         pt={dashboardActionsMenuPt()}
       />
