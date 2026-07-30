@@ -13,6 +13,7 @@ export const TENANT_HEADER = "X-Tenant-Id";
 export const ADMIN_DASHBOARD_HOME = "/dashboard";
 export const WELCOME_DASHBOARD_PATH = "/dashboard/inicio";
 const ATENDIMENTO_PATH_PREFIX = "/dashboard/atendimento";
+const CHAMADOS_PATH_PREFIX = "/dashboard/atendimento/chamados";
 const FINANCEIRO_PATH_PREFIX = "/dashboard/financeiro";
 const WHATSAPP_CONEXAO_PATH = "/dashboard/whatsapp/conexao";
 
@@ -202,6 +203,16 @@ function isAtendimentoPath(pathname: string): boolean {
   return pathname === ATENDIMENTO_PATH_PREFIX || pathname.startsWith(`${ATENDIMENTO_PATH_PREFIX}/`);
 }
 
+function isChamadosPath(pathname: string): boolean {
+  return pathname === CHAMADOS_PATH_PREFIX || pathname.startsWith(`${CHAMADOS_PATH_PREFIX}/`);
+}
+
+/** Inbox de chamados do portal — só ADMIN e ADMINISTRATIVO. */
+export function canAccessChamados(): boolean {
+  const r = getUserRole();
+  return r === "ADMIN" || r === "ADMINISTRATIVO";
+}
+
 function isWhatsAppConexaoPath(pathname: string): boolean {
   return pathname === WHATSAPP_CONEXAO_PATH || pathname.startsWith(`${WHATSAPP_CONEXAO_PATH}/`);
 }
@@ -243,6 +254,7 @@ function isAdministrativoAllowedPath(pathname: string): boolean {
 export function canAccessDashboardPath(pathname: string, role?: string | null): boolean {
   const r = role ?? getUserRole();
   if (r === "ATENDIMENTO") {
+    if (isChamadosPath(pathname)) return false;
     return (
       isAtendimentoPath(pathname) ||
       isWhatsAppConexaoPath(pathname) ||

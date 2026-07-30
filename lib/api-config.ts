@@ -40,6 +40,7 @@ const API_PATHS = {
   finCobrancaGrupos: "/api/fin/cobranca-grupos",
   atendimento: "/api/atendimento",
   atendimentoSms: "/api/atendimento/sms",
+  chamados: "/api/chamados",
   auditoria: "/api/auditoria",
   tenantsMe: "/api/tenants/me",
   authSwitchTenant: "/api/auth/switch-tenant",
@@ -1962,4 +1963,29 @@ export function getCrmCaptacaoPublicUrl(): string {
 export function getTenantFeatureUrl(chave: string): string {
   const base = withBase(getApiBaseUrl(), API_PATHS.tenantsMeFeatures);
   return `${base}?chave=${encodeURIComponent(chave)}`;
+}
+
+export function getChamadosUrl(status?: string, q?: string): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.chamados);
+  if (!base) return "";
+  const params = new URLSearchParams();
+  if (status?.trim()) params.set("status", status.trim());
+  if (q?.trim()) params.set("q", q.trim());
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+export function getChamadoByIdUrl(id: string): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.chamados);
+  return base ? `${base}/${id}` : "";
+}
+
+export function getChamadoMensagensUrl(id: string): string {
+  const base = getChamadoByIdUrl(id);
+  return base ? `${base}/mensagens` : "";
+}
+
+export function getChamadoAnexoUrl(chamadoId: string, anexoId: string): string {
+  const base = getChamadoByIdUrl(chamadoId);
+  return base ? `${base}/anexos/${anexoId}` : "";
 }

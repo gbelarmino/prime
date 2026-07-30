@@ -27,6 +27,7 @@ import {
   RefreshCw,
   TrendingUp,
   CalendarClock,
+  Ticket,
   UserSquare,
   Users,
   Zap,
@@ -181,6 +182,13 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     prefix: ATENDIMENTO_MENU_PREFIX,
     children: [
       { id: "atendimento-consulta", href: "/dashboard/atendimento", label: "Consulta", icon: Search },
+      {
+        id: "atendimento-chamados",
+        href: "/dashboard/atendimento/chamados",
+        label: "Chamados",
+        icon: Ticket,
+        roles: ["ADMIN", "ADMINISTRATIVO"],
+      },
       {
         id: "atendimento-chat",
         href: "/dashboard/atendimento/chat",
