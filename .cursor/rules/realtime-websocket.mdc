@@ -1,0 +1,39 @@
+---
+description: Atualizações assíncronas via WebSocket partilhado (não polling)
+alwaysApply: true
+---
+
+# Realtime / WebSocket (padrão Aires)
+
+O dashboard e a API **já têm** um canal WebSocket partilhado. Atualizações assíncronas (badges, filas, contagens, listas live) **devem** usá-lo — **não** inventar `setInterval` / polling periódico.
+
+## Backend (`aires-api`)
+
+1. Definir tipo de evento estável (string), ex.: `CHAMADOS_ABERTOS`, `UNICRED_WEBHOOK_PENDENTES`.
+2. DTO/record do payload com `type`, `tenantId` e dados necessários.
+3. `*RealtimePublisher` que:
+   - calcula o estado após a mutação;
+   - agenda `broadcastToTenant` **após commit** (`TransactionSynchronization.afterCommit`), como `UnicredWebhookConciliacaoRealtimePublisher` / `ChamadoRealtimePublisher`;
+   - usa `NotificationWebSocketHandler.broadcastToTenant(tenantId, payload)`.
+4. Chamar o publisher nos pontos que alteram o estado (create/update/status).
+
+## Frontend (`prime`)
+
+1. Tipagem + guard em `lib/*-realtime.ts` (ver `unicred-webhook-realtime.ts`, `chamados-realtime.ts`).
+2. Hook:
+   - **fetch inicial** (bootstrap);
+   - `subscribeRealtime` filtrando o `type` + `tenantId`;
+   - evento `window` local (`notify*Changed`) para refrescar na mesma aba após ação do próprio utilizador.
+3. O layout já mantém a socket com `useRealtimeSocketKeeper` — novos hooks só se inscrevem.
+
+## Anti-padrões
+
+- Polling (`setInterval`) para badges/contagens.
+- Abrir um WebSocket novo por feature.
+- Atualizar UI só na mesma aba e ignorar outros utilizadores/tenants (falta broadcast na API).
+
+## Referências
+
+- API: `UnicredWebhookConciliacaoRealtimePublisher`, `ChamadoRealtimePublisher`
+- UI: `hooks/use-unicred-webhook-pendentes.ts`, `hooks/use-chamados-abertos.ts`
+- Socket: `lib/realtime-socket.ts`

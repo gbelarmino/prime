@@ -31,8 +31,8 @@ import { formatBusinessDateTime } from "@/lib/format-datetime";
 
 const PAGE_SIZE = 10;
 
-const STATUS_OPTIONS: { label: string; value: ChamadoStatus | null }[] = [
-  { label: "Todos", value: null },
+const STATUS_OPTIONS: { label: string; value: ChamadoStatus | "" }[] = [
+  { label: "Todos", value: "" },
   { label: "Aberto", value: "ABERTO" },
   { label: "Em análise", value: "EM_ANALISE" },
   { label: "Concluído", value: "CONCLUIDO" },
@@ -45,7 +45,7 @@ export function ChamadosList() {
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState("");
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<ChamadoStatus | null>(null);
+  const [status, setStatus] = useState<ChamadoStatus | "">("");
   const [page, setPage] = useState(0);
 
   const load = useCallback(async () => {
@@ -56,7 +56,7 @@ export function ChamadosList() {
     }
     setLoading(true);
     try {
-      const data = await listarChamados(status, q);
+      const data = await listarChamados(status || null, q);
       setRows(data);
       setPage(0);
       notifyChamadosAbertosChanged();
@@ -101,7 +101,19 @@ export function ChamadosList() {
         <Dropdown
           value={status}
           options={STATUS_OPTIONS}
-          onChange={(e) => setStatus(e.value as ChamadoStatus | null)}
+          onChange={(e) => {
+            const next = e.value;
+            setStatus(
+              typeof next === "string" &&
+                (next === "" ||
+                  next === "ABERTO" ||
+                  next === "EM_ANALISE" ||
+                  next === "CONCLUIDO" ||
+                  next === "CANCELADO")
+                ? next
+                : "",
+            );
+          }}
           placeholder="Status"
           className="w-full md:w-52"
           pt={{

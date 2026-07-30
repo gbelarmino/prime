@@ -1969,8 +1969,10 @@ export function getChamadosUrl(status?: string, q?: string): string {
   const base = withBase(getApiBaseUrl(), API_PATHS.chamados);
   if (!base) return "";
   const params = new URLSearchParams();
-  if (status?.trim()) params.set("status", status.trim());
-  if (q?.trim()) params.set("q", q.trim());
+  const st = typeof status === "string" ? status.trim() : "";
+  const term = typeof q === "string" ? q.trim() : "";
+  if (st) params.set("status", st);
+  if (term) params.set("q", term);
   const qs = params.toString();
   return qs ? `${base}?${qs}` : base;
 }

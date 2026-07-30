@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { getTenantId } from "@/lib/auth-storage";
 import { contagemChamadosAbertos } from "@/lib/chamados-service";
+import { isChamadosAbertosEvent } from "@/lib/chamados-realtime";
+import { subscribeRealtime } from "@/lib/realtime-socket";
 
 export const ATENDIMENTO_CHAMADOS_PATH = "/dashboard/atendimento/chamados";
 
@@ -14,6 +17,11 @@ export function notifyChamadosAbertosChanged(): void {
   }
 }
 
+/**
+ * Contagem de chamados abertos no menu.
+ * Fetch inicial + WebSocket `CHAMADOS_ABERTOS` + evento local na mesma aba.
+ * Não usar polling — ver `.cursor/rules/realtime-websocket.mdc`.
+ */
 export function useChamadosAbertos(enabled: boolean) {
   const [abertos, setAbertos] = useState(0);
 
@@ -41,11 +49,16 @@ export function useChamadosAbertos(enabled: boolean) {
     const onLocalRefresh = () => void refresh();
     window.addEventListener(CHAMADOS_ABERTOS_EVENT, onLocalRefresh);
 
-    const interval = window.setInterval(() => void refresh(), 60_000);
+    const unsubscribeWs = subscribeRealtime((data) => {
+      if (!isChamadosAbertosEvent(data)) return;
+      const localTenantId = getTenantId();
+      if (localTenantId != null && data.tenantId !== localTenantId) return;
+      setAbertos(data.abertos);
+    });
 
     return () => {
       window.removeEventListener(CHAMADOS_ABERTOS_EVENT, onLocalRefresh);
-      window.clearInterval(interval);
+      unsubscribeWs();
     };
   }, [enabled, refresh]);
 

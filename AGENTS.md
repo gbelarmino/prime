@@ -22,3 +22,7 @@ Para **novas listas/tabelas** no painel (`app/dashboard/**`), usar o padrão cen
 ## MultiSelect do dashboard
 
 Para filtros com `MultiSelect`, usar `dashboardMultiSelectPt()` de `lib/dashboard-multiselect.tsx`. O espaçamento entre checkbox e rótulo nos itens do painel é global em `app/globals.css` (`--aires-multiselect-checkbox-gap`).
+
+## Realtime / WebSocket
+
+Atualizações assíncronas (badges, contagens, filas) usam o WebSocket partilhado — **não** polling. Ver `.cursor/rules/realtime-websocket.mdc`. Padrão: publisher na API após commit + `subscribeRealtime` no hook (ex.: `use-chamados-abertos`, `use-unicred-webhook-pendentes`).
