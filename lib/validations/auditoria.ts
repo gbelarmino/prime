@@ -33,6 +33,7 @@ export const MODULO_AUDITORIA_OPTIONS = [
   { label: "Atendimento", value: "ATENDIMENTO" },
   { label: "Organização", value: "TENANT" },
   { label: "CRM", value: "CRM" },
+  { label: "Portal", value: "PORTAL" },
 ] as const;
 
 export const ACAO_AUDITORIA_LABELS: Record<string, string> = {
@@ -58,6 +59,7 @@ export const ACAO_AUDITORIA_LABELS: Record<string, string> = {
   "TITULO.CANCELAR": "Título cancelado",
   "TITULO.LIQUIDAR": "Título liquidado",
   "ATENDIMENTO.RENEGOCIAR": "Renegociação",
+  "CONTRATANTE.EDITAR_PORTAL": "Cadastro editado no portal",
 };
 
 export function labelAcaoAuditoria(acao: string): string {
