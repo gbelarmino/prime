@@ -86,6 +86,31 @@ function formatDate(iso: string | null | undefined): string {
   return `${day}/${m}/${y}`;
 }
 
+const MES_CORTE_CURTO = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
+] as const;
+
+/** API envia YearMonth (`2025-05`). */
+function formatMesCorte(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const m = /^(\d{4})-(\d{2})$/.exec(raw.trim());
+  if (!m) return raw;
+  const mes = Number(m[2]);
+  if (mes < 1 || mes > 12) return raw;
+  return `${MES_CORTE_CURTO[mes - 1]}/${m[1]}`;
+}
+
 function yearOptions(around: number): { label: string; value: number }[] {
   const years: { label: string; value: number }[] = [];
   for (let y = around - 1; y <= around + 2; y++) {
@@ -291,9 +316,11 @@ export function ReajustesFilaList() {
           />
           <Column
             header="Índice"
-            body={(row: ReajusteFilaItem) =>
-              dashboardCellText(`${row.tipoIndice} · corte ${row.mesCorte}`)
-            }
+            body={(row: ReajusteFilaItem) => dashboardCellText(row.tipoIndice || "—")}
+          />
+          <Column
+            header="Mês de corte"
+            body={(row: ReajusteFilaItem) => dashboardCellMono(formatMesCorte(row.mesCorte))}
           />
           <Column
             header="% total"
@@ -375,6 +402,10 @@ export function ReajustesFilaList() {
                 <span className="font-mono text-white">
                   {formatDate(confirmRow.dataAniversarioCiclo)}
                 </span>
+              </li>
+              <li>
+                Mês de corte{" "}
+                <span className="font-mono text-white">{formatMesCorte(confirmRow.mesCorte)}</span>
               </li>
               <li>
                 {confirmRow.tipoIndice}: índice {pct(confirmRow.percentualIndice)} · total{" "}
