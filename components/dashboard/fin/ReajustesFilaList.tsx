@@ -201,7 +201,7 @@ export function ReajustesFilaList() {
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div className="flex flex-col gap-1.5">
-            <label className={FILTER_LABEL}>Mês aniversário</label>
+            <label className={FILTER_LABEL}>Mês de aniversário</label>
             <Dropdown
               value={mes}
               options={MES_OPTIONS}
@@ -253,8 +253,9 @@ export function ReajustesFilaList() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-white/45">
-            Contratos cuja próxima parcela é de reajuste (13, 25, 37…) no mês selecionado.
-            Gere o ciclo só quando o índice dos 12 meses anteriores estiver fechado.
+            Filtra contratos cuja 1ª parcela do novo ciclo (13, 25, 37…) vence no mês selecionado.
+            O mês de corte do índice é o mês anterior; Gerar ciclo só libera quando esse índice
+            estiver publicado.
           </p>
           <button
             type="button"
@@ -303,7 +304,7 @@ export function ReajustesFilaList() {
             }
           />
           <Column
-            header="Aniversário"
+            header="Venc. 1ª parcela"
             body={(row: ReajusteFilaItem) =>
               dashboardCellMono(`dia ${row.diaAniversario} · ${formatDate(row.dataAniversarioCiclo)}`)
             }
@@ -355,8 +356,13 @@ export function ReajustesFilaList() {
                 <button
                   type="button"
                   disabled={row.status !== "PRONTO"}
+                  title={
+                    row.status === "PRONTO"
+                      ? "Gerar ciclo de reajuste"
+                      : (row.mensagemAviso ?? "Índice do mês de corte indisponível")
+                  }
                   onClick={() => setConfirmRow(row)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/90 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white disabled:pointer-events-none disabled:opacity-30"
+                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/90 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <Play className="h-3.5 w-3.5" />
                   Gerar ciclo
@@ -398,7 +404,7 @@ export function ReajustesFilaList() {
                 ({confirmRow.quantidadeParcelasCiclo} títulos)
               </li>
               <li>
-                Aniversário{" "}
+                Venc. 1ª parcela do ciclo{" "}
                 <span className="font-mono text-white">
                   {formatDate(confirmRow.dataAniversarioCiclo)}
                 </span>
