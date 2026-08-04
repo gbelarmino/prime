@@ -320,6 +320,8 @@ export function WhatsAppTemplates() {
     // Evita double-fire: botão do template + handler nativo do Menu.
     e.preventDefault();
     e.stopPropagation();
+    // stopPropagation impede o hide automático do popup — fechar manualmente.
+    menuRef.current?.hide(e);
     item.command?.({ originalEvent: e, item });
   };
 
