@@ -35,6 +35,45 @@ export function formatHoraRelativaLista(
   });
 }
 
+/** Chave de calendário local (YYYY-MM-DD) para agrupar bolhas do mesmo dia. */
+export function chatDayKey(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Rótulo do separador de dia no thread (Hoje / Ontem / weekday / dd/MM/yyyy). */
+export function formatChatDaySeparator(
+  iso: string | null | undefined,
+  nowMs = Date.now(),
+): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const startOf = (ms: number) => {
+    const x = new Date(ms);
+    x.setHours(0, 0, 0, 0);
+    return x.getTime();
+  };
+  const diffDays = Math.round((startOf(nowMs) - startOf(d.getTime())) / 86_400_000);
+
+  if (diffDays === 0) return "Hoje";
+  if (diffDays === 1) return "Ontem";
+  if (diffDays > 1 && diffDays < 7) {
+    return d.toLocaleDateString("pt-BR", { weekday: "long" });
+  }
+  return d.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 export function janelaAvatarRingClass(estado: string | null | undefined): string {
   const e = (estado ?? "SEM_INBOUND").toUpperCase();
   if (e === "ABERTA") return "wa-desk__avatar-ring--aberta";

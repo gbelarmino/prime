@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "primereact/button";
 import { useConversaRealtime } from "@/hooks/use-conversa-realtime";
@@ -19,6 +19,7 @@ import {
 import { requestTwilioSaldoRefresh } from "@/lib/twilio-saldo-events";
 import { WHATSAPP_INBOUND_ALERT_EVENT } from "@/lib/whatsapp-inbound-alert";
 import { WhatsAppDeliveryTicks } from "@/lib/whatsapp-message-ticks";
+import { chatDayKey, formatChatDaySeparator } from "@/lib/whatsapp-desk-ui";
 import { ConversaInboxColumn } from "./ConversaInboxColumn";
 import { ChatComposer } from "./ChatComposer";
 import { NovaConversaDialog } from "./NovaConversaDialog";
@@ -590,59 +591,78 @@ export function AtendimentoChatDesk() {
               </div>
             ) : null}
 
-            {mensagens.map((m) => {
+            {mensagens.map((m, index) => {
               const out = m.direcao === "OUT";
               const when = m.dataCadastro ? new Date(m.dataCadastro) : null;
               const timeLabel = when
                 ? when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
                 : "";
               const fullWhen = when ? when.toLocaleString("pt-BR") : "";
+              const prevKey =
+                index > 0 ? chatDayKey(mensagens[index - 1]?.dataCadastro) : null;
+              const currKey = chatDayKey(m.dataCadastro);
+              const dayLabel =
+                currKey && currKey !== prevKey
+                  ? formatChatDaySeparator(m.dataCadastro)
+                  : null;
               return (
-                <div
-                  key={m.id}
-                  id={`wa-msg-${m.id}`}
-                  className={`group flex ${out ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`relative max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                      out
-                        ? "bg-blue-600/80 text-white"
-                        : "bg-white/10 text-white/90"
-                    }`}
-                  >
-                    {podeTextoLivre ? (
-                      <button
-                        type="button"
-                        className={`absolute -top-2 rounded-full border border-white/15 bg-[#0b1220] p-1 text-white/55 opacity-0 shadow transition-opacity hover:text-white group-hover:opacity-100 ${
-                          out ? "-left-2" : "-right-2"
-                        }`}
-                        title="Responder"
-                        aria-label="Responder a esta mensagem"
-                        onClick={() => setReplyTo(toReplyDraft(m))}
-                      >
-                        <i className="pi pi-reply text-[10px]" />
-                      </button>
-                    ) : null}
-                    {m.replyTo ? <MensagemQuote replyTo={m.replyTo} out={out} /> : null}
-                    <MensagemAnexo m={m} />
-                    {m.corpo ? <MensagemCorpo corpo={m.corpo} /> : null}
+                <Fragment key={m.id}>
+                  {dayLabel ? (
                     <div
-                      className={`mt-1 flex items-center gap-1 text-[10px] opacity-60 ${
-                        out ? "justify-end" : "justify-start"
-                      }`}
-                      title={fullWhen || undefined}
+                      className="flex justify-center py-2"
+                      role="separator"
+                      aria-label={`Mensagens de ${dayLabel}`}
                     >
-                      {out && m.autor === "SISTEMA" ? (
-                        <span className="mr-0.5 truncate opacity-80">Sistema</span>
+                      <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-[11px] font-medium capitalize tracking-wide text-white/55 shadow-sm">
+                        {dayLabel}
+                      </span>
+                    </div>
+                  ) : null}
+                  <div
+                    id={`wa-msg-${m.id}`}
+                    className={`group flex ${out ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`relative max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                        out
+                          ? "bg-blue-600/80 text-white"
+                          : "bg-white/10 text-white/90"
+                      }`}
+                    >
+                      {podeTextoLivre ? (
+                        <button
+                          type="button"
+                          className={`absolute -top-2 rounded-full border border-white/15 bg-[#0b1220] p-1 text-white/55 opacity-0 shadow transition-opacity hover:text-white group-hover:opacity-100 ${
+                            out ? "-left-2" : "-right-2"
+                          }`}
+                          title="Responder"
+                          aria-label="Responder a esta mensagem"
+                          onClick={() => setReplyTo(toReplyDraft(m))}
+                        >
+                          <i className="pi pi-reply text-[10px]" />
+                        </button>
                       ) : null}
-                      {!out && m.autor ? (
-                        <span className="mr-0.5 truncate opacity-80">{m.autor}</span>
-                      ) : null}
-                      {timeLabel ? <span>{timeLabel}</span> : null}
-                      {out ? <WhatsAppDeliveryTicks status={m.status} /> : null}
+                      {m.replyTo ? <MensagemQuote replyTo={m.replyTo} out={out} /> : null}
+                      <MensagemAnexo m={m} />
+                      {m.corpo ? <MensagemCorpo corpo={m.corpo} /> : null}
+                      <div
+                        className={`mt-1 flex items-center gap-1 text-[10px] opacity-60 ${
+                          out ? "justify-end" : "justify-start"
+                        }`}
+                        title={fullWhen || undefined}
+                      >
+                        {out && m.autor === "SISTEMA" ? (
+                          <span className="mr-0.5 truncate opacity-80">Sistema</span>
+                        ) : null}
+                        {!out && m.autor ? (
+                          <span className="mr-0.5 truncate opacity-80">{m.autor}</span>
+                        ) : null}
+                        {timeLabel ? <span>{timeLabel}</span> : null}
+                        {out ? <WhatsAppDeliveryTicks status={m.status} /> : null}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Fragment>
               );
             })}
           </div>
