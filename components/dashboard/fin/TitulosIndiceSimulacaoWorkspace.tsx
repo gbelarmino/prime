@@ -7,6 +7,7 @@ import { Calculator, RefreshCw, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SimulacaoIndiceParcelaDetalhes } from "@/components/dashboard/fin/SimulacaoIndiceParcelaDetalhes";
 import {
+  listarTitulosDoLote,
   periodoIndiceParaSimulacao,
   resolverParcelaLimiteMesAtual,
   resolverParcelaLimiteSimulacao,
@@ -85,27 +86,6 @@ function formatDate(iso: string | null | undefined): string {
   } catch {
     return iso;
   }
-}
-
-async function listarTitulosDoLote(
-  empreendimento: string,
-  quadra: string,
-  lote: number,
-): Promise<TituloCobranca[]> {
-  const size = 200;
-  let page = 0;
-  const todos: TituloCobranca[] = [];
-  for (;;) {
-    const res = await finService.listTitulos(page, size, {
-      empreendimento,
-      quadra,
-      lote,
-    });
-    todos.push(...(res.content ?? []));
-    if (res.number >= res.totalPages - 1 || (res.content?.length ?? 0) < size) break;
-    page += 1;
-  }
-  return todos.sort((a, b) => a.numeroParcela - b.numeroParcela);
 }
 
 function FilterField({ label, children }: { label: string; children: ReactNode }) {

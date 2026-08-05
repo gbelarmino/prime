@@ -3,9 +3,11 @@ import { isParcelaReajuste } from "@/lib/fin-parcela-reajuste";
 import {
   calcularVencimentosComPrimeiraParcelaDetalhe,
   calcularVencimentosParcelasDetalhe,
+  calcularProximoVencimento,
   formatIsoDate,
   isVencimentoFuturo,
   parseIsoDate,
+  primeiroDiaMesSeguinte,
 } from "@/lib/fin-vencimento";
 import {
   acumularVariacaoFraction,
@@ -407,22 +409,28 @@ function listarIndices(
     : finService.listIndicesIgpm(periodo);
 }
 
+/** Teto real da API (`spring.data.web.pageable.max-page-size=100`). */
+const TITULOS_LOTE_PAGE_SIZE = 100;
+
 export async function listarTitulosDoLote(
   empreendimento: string,
   quadra: string,
   lote: number,
 ): Promise<TituloCobranca[]> {
-  const size = 200;
+  const size = TITULOS_LOTE_PAGE_SIZE;
   let page = 0;
   const todos: TituloCobranca[] = [];
   for (;;) {
-    const res = await finService.listTitulos(page, size, {
-      empreendimento,
-      quadra,
-      lote,
-    });
-    todos.push(...(res.content ?? []));
-    if (res.number >= res.totalPages - 1 || (res.content?.length ?? 0) < size) break;
+    const res = await finService.listTitulos(
+      page,
+      size,
+      { empreendimento, quadra, lote },
+      { field: "numeroParcela", direction: "asc" },
+    );
+    const content = res.content ?? [];
+    todos.push(...content);
+    // Não usar content.length < size: a API pode clampiar o size pedido.
+    if (content.length === 0 || res.number >= res.totalPages - 1) break;
     page += 1;
   }
   return todos.sort((a, b) => a.numeroParcela - b.numeroParcela);
@@ -547,7 +555,9 @@ function titulosEfetivosParaVencimento(titulos: TituloCobranca[]): TituloCobranc
 }
 
 /**
- * Cronograma mensal a partir da parcela 1 (ajuste de fim de semana), com override dos títulos emitidos.
+ * Cronograma parcela a parcela (espelha TituloVencimentoPorParcelaCalculo):
+ * títulos emitidos/informados sobrescrevem; demais projetadas a partir da última
+ * parcela emitida imediatamente anterior (quando existir), senão desde a 1ª.
  */
 export function buildVencimentoPorParcelaCalculo(opts: {
   titulos: TituloCobranca[];
@@ -557,28 +567,18 @@ export function buildVencimentoPorParcelaCalculo(opts: {
   vencimentosInformados?: Map<number, Date>;
 }): (parcela: number) => Date {
   const titulosCalculo = titulosEfetivosParaVencimento(opts.titulos);
-  const tituloPorParcela = new Map(
-    [...titulosCalculo]
-      .sort((a, b) => a.numeroParcela - b.numeroParcela)
-      .map((t) => [t.numeroParcela, t] as const),
-  );
-  const tituloP1 = tituloPorParcela.get(1);
-  const primeiraData = tituloP1
-    ? parseIsoDate(tituloP1.vencimento)
-    : parseIsoDate(opts.dataPrimeiraParcelaContrato);
+  const vencimentosConhecidos = new Map<number, Date>();
+  for (const t of titulosCalculo) {
+    vencimentosConhecidos.set(t.numeroParcela, parseIsoDate(t.vencimento));
+  }
+  if (opts.vencimentosInformados) {
+    for (const [parcela, venc] of opts.vencimentosInformados) {
+      vencimentosConhecidos.set(parcela, venc);
+    }
+  }
 
-  const maxParcela = Math.max(
-    opts.parcelaMaxima,
-    ...titulosCalculo.map((t) => t.numeroParcela),
-    ...Array.from(opts.vencimentosInformados?.keys() ?? []),
-    1,
-  );
-
-  const detalhes = calcularVencimentosComPrimeiraParcelaDetalhe(
-    primeiraData,
-    opts.diaVencimentoMensal,
-    maxParcela,
-  );
+  const primeiraData =
+    vencimentosConhecidos.get(1) ?? parseIsoDate(opts.dataPrimeiraParcelaContrato);
 
   const cache = new Map<number, Date>();
 
@@ -588,38 +588,37 @@ export function buildVencimentoPorParcelaCalculo(opts: {
       return hit;
     }
 
-    let vencimento: Date;
-    const informado = opts.vencimentosInformados?.get(parcela);
-    if (informado) {
-      vencimento = informado;
-    } else {
-      const emitido = tituloPorParcela.get(parcela);
-      if (emitido) {
-        vencimento = parseIsoDate(emitido.vencimento);
-      } else {
-        const projetado = detalhes[parcela - 1]?.vencimento;
-        if (projetado) {
-          vencimento = projetado;
-        } else if (detalhes.length > 0) {
-          const ultimo = detalhes[detalhes.length - 1]!.vencimento;
-          const offset = parcela - detalhes.length;
-          vencimento = calcularVencimentosParcelasDetalhe(
-            opts.diaVencimentoMensal,
-            ultimo,
-            offset,
-          ).at(-1)!.vencimento;
-        } else {
-          vencimento = vencimentoProjetadoParcela(
-            parcela,
-            primeiraData,
-            opts.diaVencimentoMensal,
-          );
-        }
+    const conhecido = vencimentosConhecidos.get(parcela);
+    if (conhecido) {
+      cache.set(parcela, conhecido);
+      return conhecido;
+    }
+
+    // Encadear a partir da última emitida/informada anterior (legado com P1 contaminada).
+    for (let p = parcela - 1; p >= 1; p--) {
+      const anterior = vencimentosConhecidos.get(p);
+      if (!anterior) {
+        continue;
+      }
+      let cursor = primeiroDiaMesSeguinte(anterior);
+      let venc: Date | null = null;
+      for (let i = p + 1; i <= parcela; i++) {
+        venc = calcularProximoVencimento(opts.diaVencimentoMensal, cursor);
+        cursor = primeiroDiaMesSeguinte(venc);
+      }
+      if (venc) {
+        cache.set(parcela, venc);
+        return venc;
       }
     }
 
-    cache.set(parcela, vencimento);
-    return vencimento;
+    const projetado = vencimentoProjetadoParcela(
+      parcela,
+      primeiraData,
+      opts.diaVencimentoMensal,
+    );
+    cache.set(parcela, projetado);
+    return projetado;
   };
 }
 

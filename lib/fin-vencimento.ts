@@ -46,6 +46,11 @@ export type VencimentoParcelaDetalhe = {
   ajustadoPorDiaUtil: boolean;
 };
 
+/** 1º dia do mês seguinte (espelha YearMonth.from(d).plusMonths(1).atDay(1)). */
+export function primeiroDiaMesSeguinte(data: Date): Date {
+  return new Date(data.getFullYear(), data.getMonth() + 1, 1);
+}
+
 export function calcularVencimentosParcelasDetalhe(
   diaVencimento: number,
   referencia: Date,
@@ -62,7 +67,9 @@ export function calcularVencimentosParcelasDetalhe(
       vencimentoBruto: bruto,
       ajustadoPorDiaUtil: formatIsoDate(bruto) !== formatIsoDate(venc),
     });
-    cursor = new Date(venc.getFullYear(), venc.getMonth(), venc.getDate() + 1);
+    // Avança pelo 1º dia do mês seguinte — evita duas parcelas no mesmo mês
+    // quando o ajuste de fim de semana empurra o vencimento para o mês seguinte.
+    cursor = primeiroDiaMesSeguinte(venc);
   }
   return vencimentos;
 }
@@ -86,11 +93,7 @@ export function calcularVencimentosComPrimeiraParcelaDetalhe(
     vencimentoBruto: brutoPrimeira,
     ajustadoPorDiaUtil: formatIsoDate(brutoPrimeira) !== formatIsoDate(vencPrimeira),
   });
-  let cursor = new Date(
-    vencPrimeira.getFullYear(),
-    vencPrimeira.getMonth(),
-    vencPrimeira.getDate() + 1,
-  );
+  let cursor = primeiroDiaMesSeguinte(vencPrimeira);
   for (let i = 1; i < quantidade; i++) {
     const bruto = calcularProximoVencimentoBruto(diaVencimento, cursor);
     const venc = ajustarParaProximoDiaUtil(bruto);
@@ -99,7 +102,7 @@ export function calcularVencimentosComPrimeiraParcelaDetalhe(
       vencimentoBruto: bruto,
       ajustadoPorDiaUtil: formatIsoDate(bruto) !== formatIsoDate(venc),
     });
-    cursor = new Date(venc.getFullYear(), venc.getMonth(), venc.getDate() + 1);
+    cursor = primeiroDiaMesSeguinte(venc);
   }
   return vencimentos;
 }
