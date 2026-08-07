@@ -16,6 +16,7 @@ import {
 } from "@/lib/dashboard-datatable";
 import { cn } from "@/lib/utils";
 import { finService, formatContratoRef, type LancamentoContabil, type LancamentoLinha } from "@/lib/fin-service";
+import { formatBusinessDate } from "@/lib/format-datetime";
 
 const STATUS_TONES: Record<string, string> = {
   CONFIRMADO: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
@@ -25,15 +26,6 @@ const STATUS_TONES: Record<string, string> = {
 
 const LABEL_CLASS = "mb-1 block text-[10px] font-bold uppercase tracking-widest text-white/30";
 const VALUE_CLASS = "font-medium text-white";
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
-}
 
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -114,7 +106,7 @@ export function LancamentoDetalhe({ lancamentoId }: { lancamentoId: string }) {
               Lançamento contábil
             </div>
             <h1 className="font-[family-name:var(--font-playfair)] text-3xl font-bold text-white">
-              {formatDate(lancamento.competencia)}
+              {formatBusinessDate(lancamento.competencia)}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/45">{lancamento.historico}</p>
           </div>
@@ -128,7 +120,7 @@ export function LancamentoDetalhe({ lancamentoId }: { lancamentoId: string }) {
           <dl className="grid gap-4 sm:grid-cols-2">
             <div>
               <dt className={LABEL_CLASS}>Competência</dt>
-              <dd className={VALUE_CLASS}>{formatDate(lancamento.competencia)}</dd>
+              <dd className={VALUE_CLASS}>{formatBusinessDate(lancamento.competencia)}</dd>
             </div>
             <div>
               <dt className={LABEL_CLASS}>Cadastro</dt>

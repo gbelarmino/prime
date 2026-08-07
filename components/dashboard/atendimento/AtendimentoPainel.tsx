@@ -60,22 +60,13 @@ import {
 } from "@/lib/dashboard-datatable";
 import { TituloVencidoMemorialModal } from "@/components/dashboard/atendimento/TituloVencidoMemorialModal";
 import { formatCpfDisplay } from "@/lib/format-cpf";
-import { formatBusinessDateTime } from "@/lib/format-datetime";
+import { formatBusinessDate, formatBusinessDateTime } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
 import { addDiasIso, hojeNegocioIso } from "@/lib/app-business-date";
 
 function formatMoney(v: number | null | undefined): string {
   if (v == null) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
 }
 
 function imovelTitulo(p: AtendimentoResumoFinanceiro): string {
@@ -517,7 +508,7 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
               <ResumoCard label="Em atraso" value={String(painel.parcelasEmAtraso)} icon={Receipt} />
               <ResumoCard
                 label="Próximo vencimento"
-                value={formatDate(painel.proximoVencimento)}
+                value={formatBusinessDate(painel.proximoVencimento)}
                 icon={Calendar}
               />
             </div>
@@ -574,7 +565,7 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
                 <Column
                   header="Vencimento"
                   body={(row: AtendimentoTituloResumo) =>
-                    dashboardCellMono(formatDate(row.vencimento))
+                    dashboardCellMono(formatBusinessDate(row.vencimento))
                   }
                 />
                 <Column
@@ -630,7 +621,7 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
                 <Column
                   header="Vencimento"
                   body={(row: AtendimentoTituloResumo) =>
-                    dashboardCellMono(formatDate(row.vencimento))
+                    dashboardCellMono(formatBusinessDate(row.vencimento))
                   }
                 />
                 <Column

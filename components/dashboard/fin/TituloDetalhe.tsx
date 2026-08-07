@@ -35,6 +35,7 @@ import {
   type TituloHistoricoItem,
 } from "@/lib/fin-service";
 import { titulosListHref } from "@/lib/titulos-list-query";
+import { formatBusinessDate } from "@/lib/format-datetime";
 
 const STATUS_TONES: Record<string, string> = {
   RASCUNHO: "border-white/10 bg-white/10 text-white/50",
@@ -51,15 +52,6 @@ const STATUS_TONES: Record<string, string> = {
 
 const LABEL_CLASS = "mb-1 block text-[10px] font-bold uppercase tracking-widest text-white/30";
 const VALUE_CLASS = "font-medium text-white";
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
-}
 
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -427,7 +419,7 @@ export function TituloDetalhe({
           </div>
           <div>
             <span className={LABEL_CLASS}>Vencimento</span>
-            <p className={VALUE_CLASS}>{formatDate(titulo.vencimento)}</p>
+            <p className={VALUE_CLASS}>{formatBusinessDate(titulo.vencimento)}</p>
           </div>
           {titulo.valorPago != null && (
             <div>

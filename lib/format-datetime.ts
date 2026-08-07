@@ -60,3 +60,33 @@ export function formatBusinessDateTime(
 export function formatBusinessDateTimeWithSeconds(iso: string | null | undefined): string {
   return formatBusinessDateTime(iso, { second: "2-digit" });
 }
+
+/**
+ * Dia civil (vencimento, data de assinatura, data-base) para exibição.
+ *
+ * `LocalDate` da API chega como "2026-10-12" — dia civil sem hora. `new Date("2026-10-12")`
+ * interpreta a string como meia-noite **UTC**, e em São Paulo (UTC−3) isso exibe o dia anterior.
+ * Aqui a data pura é formatada direto da string, sem passar por `Date`. Strings com hora caem
+ * em {@link parseBusinessDateTime} e são reduzidas ao dia civil do fuso de negócio.
+ */
+export function formatBusinessDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const trimmed = iso.trim();
+  const dataPura = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dataPura) {
+    const [, ano, mes, dia] = dataPura;
+    return `${dia}/${mes}/${ano}`;
+  }
+  try {
+    const data = parseBusinessDateTime(trimmed);
+    if (Number.isNaN(data.getTime())) return trimmed;
+    return data.toLocaleDateString("pt-BR", {
+      timeZone: BUSINESS_TIMEZONE,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch {
+    return trimmed;
+  }
+}

@@ -6,19 +6,11 @@ import { toast } from "sonner";
 import { ArrowLeft, Banknote, BookOpen, Calendar, Home, Receipt } from "lucide-react";
 import { finService, type FinImovelResumo } from "@/lib/fin-service";
 import { TitulosList } from "@/components/dashboard/fin/TitulosList";
+import { formatBusinessDate } from "@/lib/format-datetime";
 
 function formatMoney(v: number | null | undefined): string {
   if (v == null) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
 }
 
 function imovelTitulo(resumo: FinImovelResumo): string {
@@ -101,8 +93,8 @@ export function ImovelFinanceiroDetalhe({ imovelId }: { imovelId: number }) {
   const periodo =
     resumo.primeiraCompetencia || resumo.ultimaCompetencia
       ? resumo.primeiraCompetencia === resumo.ultimaCompetencia
-        ? formatDate(resumo.primeiraCompetencia)
-        : `${formatDate(resumo.primeiraCompetencia)} – ${formatDate(resumo.ultimaCompetencia)}`
+        ? formatBusinessDate(resumo.primeiraCompetencia)
+        : `${formatBusinessDate(resumo.primeiraCompetencia)} – ${formatBusinessDate(resumo.ultimaCompetencia)}`
       : "—";
 
   return (

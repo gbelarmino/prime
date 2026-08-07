@@ -21,6 +21,7 @@ import {
   dashboardCellText,
 } from "@/lib/dashboard-datatable";
 import { TituloBalaoCorrecaoDetalhe } from "@/components/dashboard/fin/TituloBalaoCorrecaoDetalhe";
+import { formatBusinessDate } from "@/lib/format-datetime";
 import {
   inicioDoDiaHoje,
   isVencimentoFuturo,
@@ -34,15 +35,6 @@ const FORM_INPUT_CLASS =
 const DROPDOWN_PT = {
   input: { className: FORM_INPUT_CLASS },
 };
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
-}
 
 function formatDateIso(d: Date): string {
   const y = d.getFullYear();
@@ -422,7 +414,7 @@ export function TituloBalaoEmitirWorkspace() {
                 <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">
                   Vencimento (cronograma)
                 </dt>
-                <dd className="mt-1">{dashboardCellText(formatDate(preview.vencimento))}</dd>
+                <dd className="mt-1">{dashboardCellText(formatBusinessDate(preview.vencimento))}</dd>
               </div>
               {preview.jaEmitido ? (
                 <div className="col-span-2 text-amber-200/90">

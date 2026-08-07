@@ -1,18 +1,10 @@
 import { formatPercentualIndice } from "@/lib/fin-indice-simulacao";
 import type { BalaoCorrecaoCicloDetalhe, BalaoValorNominalCalculoDetalhe } from "@/lib/fin-service";
+import { formatBusinessDate } from "@/lib/format-datetime";
 
 function formatMoney(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
 }
 
 function CicloCorrecao({
@@ -26,7 +18,7 @@ function CicloCorrecao({
     <div className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2.5 text-xs leading-relaxed text-white/70">
       <p className="font-semibold text-white/85">
         Reajuste na parcela {ciclo.parcelaReajuste}
-        <span className="font-normal text-white/45"> · venc. {formatDate(ciclo.vencimentoReajuste)}</span>
+        <span className="font-normal text-white/45"> · venc. {formatBusinessDate(ciclo.vencimentoReajuste)}</span>
       </p>
       {!ciclo.indiceDisponivel ? (
         <p className="mt-1 text-amber-200/90">

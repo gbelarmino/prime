@@ -26,6 +26,7 @@ import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTab
 import { finService, type LancamentoContabil } from "@/lib/fin-service";
 import { springPageDisplayRange } from "@/lib/spring-page";
 import type { SpringPage } from "@/lib/spring-page";
+import { formatBusinessDate } from "@/lib/format-datetime";
 
 const STATUS_TONES: Record<string, string> = {
   CONFIRMADO: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
@@ -42,15 +43,6 @@ const FILTER_INPUT_CLASS =
 function formatMoney(v: number | null | undefined): string {
   if (v == null) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
 }
 
 export function LancamentosList({
@@ -279,7 +271,7 @@ export function LancamentosList({
         >
           <Column
             header="Competência"
-            body={(row: LancamentoContabil) => dashboardCellMono(formatDate(row.competencia))}
+            body={(row: LancamentoContabil) => dashboardCellMono(formatBusinessDate(row.competencia))}
             style={{ width: "10%" }}
           />
           <Column

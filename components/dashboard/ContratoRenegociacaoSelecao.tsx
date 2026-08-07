@@ -30,6 +30,7 @@ import {
 } from "@/lib/dashboard-datatable";
 import { springPageDisplayRange } from "@/lib/spring-page";
 import type { ContratoListItem } from "@/components/dashboard/ContratosList";
+import { formatBusinessDate } from "@/lib/format-datetime";
 import { buildRenegociacaoDashboardUrl } from "@/lib/renegociacao-routes";
 import type { ModalidadeRenegociacao } from "@/lib/renegociacao-types";
 import { cn } from "@/lib/utils";
@@ -261,9 +262,7 @@ export function ContratoRenegociacaoSelecao({ modalidadeInicial }: Props) {
                 {dashboardCellMono(row.numeroContrato ?? `#${row.id}`, { truncate: true })}
                 <div className="mt-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/35">
                   <Calendar size={10} aria-hidden />
-                  {row.dataAssinatura
-                    ? new Date(row.dataAssinatura).toLocaleDateString("pt-BR")
-                    : "—"}
+                  {row.dataAssinatura ? formatBusinessDate(row.dataAssinatura) : "—"}
                 </div>
               </div>
             )}

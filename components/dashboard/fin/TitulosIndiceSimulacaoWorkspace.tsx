@@ -25,6 +25,7 @@ import {
   type TituloContextoLote,
 } from "@/lib/fin-service";
 import { dashboardStatusBadge } from "@/lib/dashboard-datatable";
+import { formatBusinessDate } from "@/lib/format-datetime";
 
 const FILTER_DROPDOWN_PT = {
   input: {
@@ -77,15 +78,6 @@ function listarIndices(
 function formatMoney(v: number | null | undefined): string {
   if (v == null) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
 }
 
 function FilterField({ label, children }: { label: string; children: ReactNode }) {
@@ -144,7 +136,7 @@ function ListaTitulosEmitidos({ titulos }: { titulos: TituloCobranca[] }) {
         {titulos.map((t) => (
           <tr key={t.id} className="bg-white/[0.02] hover:bg-white/[0.04]">
             <td className="px-4 py-2.5 font-mono">{t.numeroParcela}</td>
-            <td className="px-4 py-2.5">{formatDate(t.vencimento)}</td>
+            <td className="px-4 py-2.5">{formatBusinessDate(t.vencimento)}</td>
             <td className="px-4 py-2.5 text-right">{formatMoney(t.valorNominal)}</td>
             <td className="px-4 py-2.5">
               {dashboardStatusBadge(t.status, STATUS_TONES)}
@@ -186,7 +178,7 @@ function LinhaSimulacao({
         <div className="font-mono">{item.parcela}</div>
         <SimulacaoIndiceParcelaDetalhes item={item} labelIndice={labelIndice} />
       </td>
-      <td className="px-4 py-2.5">{formatDate(item.vencimento)}</td>
+      <td className="px-4 py-2.5">{formatBusinessDate(item.vencimento)}</td>
       <td className="px-4 py-2.5 text-right font-medium text-emerald-200/90">
         {formatMoney(item.valorSimulado)}
       </td>
@@ -235,7 +227,7 @@ function ListaSimulacaoIndice({
   return (
     <>
       <p className="mb-3 px-4 text-[11px] text-white/40">
-        {condicoesResumo} · 1º vencimento {formatDate(primeiraVencimento)} · até o mês atual ·
+        {condicoesResumo} · 1º vencimento {formatBusinessDate(primeiraVencimento)} · até o mês atual ·
         reajuste 6% + {labelIndice} se positivo (teto 12%; índice negativo → só 6%) nas parcelas 13, 25, 37… · índice = variação acumulada
         em 12 meses da série (coluna do BCB/IBGE no mês de corte), exceto 25ª com fracionado
         maior que 12 meses · linhas em azul = mês de corte do índice · linhas em roxo = reajuste aplicado

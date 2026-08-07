@@ -57,6 +57,7 @@ import { apiFetch } from "@/lib/api-fetch";
 import { ContratoTimeline } from "@/components/dashboard/ContratoTimeline";
 import { downloadContratoPdf, downloadContratoPdfAssinado } from "@/lib/download-contrato-pdf";
 import { openContratoHtmlInNewTab } from "@/lib/open-contrato-html";
+import { formatBusinessDate } from "@/lib/format-datetime";
 import { ContratoViewModal } from "@/components/dashboard/ContratoViewModal";
 
 export type ContratoListItem = {
@@ -659,7 +660,7 @@ export function ContratosList() {
         <span className="font-bold text-white tabular-nums">{rowData.numeroContrato || `ID #${rowData.id}`}</span>
         <div className="flex items-center gap-2 mt-1 text-[10px] text-white/40 font-bold uppercase tracking-widest">
           <Calendar size={10} />
-          {rowData.dataAssinatura ? new Date(rowData.dataAssinatura).toLocaleDateString('pt-BR') : '—'}
+          {rowData.dataAssinatura ? formatBusinessDate(rowData.dataAssinatura) : '—'}
         </div>
       </div>
     );

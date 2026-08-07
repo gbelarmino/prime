@@ -11,6 +11,7 @@ import {
   dashboardDataTablePt,
   dashboardStatusBadge,
 } from "@/lib/dashboard-datatable";
+import { formatBusinessDate } from "@/lib/format-datetime";
 import type { RenegociacaoSimulacaoResponse, TituloAfetado } from "@/lib/renegociacao-types";
 import { PAPEL_VENCIDA, PAPEL_VINCENDA_REEMITIDA } from "@/lib/renegociacao-t1-calculo";
 import type { T1PreviewResultado } from "@/lib/renegociacao-t1-calculo";
@@ -126,9 +127,7 @@ export function T1AcordoDetalheCard({ simulacao, preview, className }: Props) {
             <Column
               field="vencimento"
               header="Vencimento"
-              body={(r) =>
-                dashboardCellText(new Date(r.vencimento).toLocaleDateString("pt-BR"))
-              }
+              body={(r) => dashboardCellText(formatBusinessDate(r.vencimento))}
             />
             <Column
               field="valorNominal"
@@ -183,9 +182,7 @@ export function T1AcordoDetalheCard({ simulacao, preview, className }: Props) {
             <Column
               field="vencimento"
               header="Vencimento"
-              body={(r) =>
-                dashboardCellText(new Date(r.vencimento).toLocaleDateString("pt-BR"))
-              }
+              body={(r) => dashboardCellText(formatBusinessDate(r.vencimento))}
             />
             <Column
               header="Vigente"

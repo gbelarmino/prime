@@ -46,6 +46,7 @@ import {
   type TipoOrigemCondicoesVersao,
 } from "@/lib/contrato-condicoes-service";
 import { isAdmin } from "@/lib/auth-storage";
+import { formatBusinessDate } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
 import {
   condicoesToApiPayload,
@@ -119,11 +120,6 @@ const STEP_MOTION = {
 function formatBrl(n: number | null | undefined) {
   if (n == null) return "—";
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-BR");
 }
 
 function MetricTile({ label, value }: { label: string; value: string }) {
@@ -653,7 +649,7 @@ export function ContratoAditivoWizard({ contratoId }: Props) {
                               body={(row) => dashboardCellMono(String(row.numeroParcela))}
                               style={{ width: "5rem" }}
                             />
-                            <Column header="Vencimento" body={(row) => dashboardCellText(formatDate(row.vencimento))} />
+                            <Column header="Vencimento" body={(row) => dashboardCellText(formatBusinessDate(row.vencimento))} />
                             <Column
                               header="Valor nominal"
                               body={(row) => dashboardCellMono(formatBrl(row.valorNominal))}
@@ -692,7 +688,7 @@ export function ContratoAditivoWizard({ contratoId }: Props) {
                           body={(row) => dashboardCellMono(String(row.numeroParcela))}
                           style={{ width: "5rem" }}
                         />
-                        <Column header="Vencimento" body={(row) => dashboardCellText(formatDate(row.vencimento))} />
+                        <Column header="Vencimento" body={(row) => dashboardCellText(formatBusinessDate(row.vencimento))} />
                         <Column
                           header="Valor nominal"
                           body={(row) => dashboardCellMono(formatBrl(row.valorNominal))}

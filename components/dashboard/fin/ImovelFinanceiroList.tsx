@@ -26,6 +26,7 @@ import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTab
 import { finService, type FinImovelResumo } from "@/lib/fin-service";
 import { springPageDisplayRange } from "@/lib/spring-page";
 import type { SpringPage } from "@/lib/spring-page";
+import { formatBusinessDate } from "@/lib/format-datetime";
 
 const PAGE_SIZE = 20;
 const TABLE_PT = dashboardDataTablePt({ density: "default" });
@@ -46,21 +47,12 @@ function formatMoney(v: number | null | undefined): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
-}
-
 function periodoLabel(row: FinImovelResumo): string {
   if (!row.primeiraCompetencia && !row.ultimaCompetencia) return "—";
   if (row.primeiraCompetencia === row.ultimaCompetencia) {
-    return formatDate(row.primeiraCompetencia);
+    return formatBusinessDate(row.primeiraCompetencia);
   }
-  return `${formatDate(row.primeiraCompetencia)} – ${formatDate(row.ultimaCompetencia)}`;
+  return `${formatBusinessDate(row.primeiraCompetencia)} – ${formatBusinessDate(row.ultimaCompetencia)}`;
 }
 
 export function ImovelFinanceiroList() {

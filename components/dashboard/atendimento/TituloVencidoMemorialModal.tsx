@@ -13,6 +13,7 @@ import {
 } from "@/lib/fin-memorial-calculo";
 import { finService, type TituloCobranca } from "@/lib/fin-service";
 import type { AtendimentoTituloResumo } from "@/lib/atendimento-service";
+import { formatBusinessDate } from "@/lib/format-datetime";
 
 const DIALOG_PT = {
   header: {
@@ -26,14 +27,6 @@ const DIALOG_PT = {
 
 function formatMoney(v: number): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
 }
 
 function formatPercent(v: number): string {
@@ -159,8 +152,8 @@ export function TituloVencidoMemorialModal({
             </h3>
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4">
               <DetalheRow label="Valor do título" value={formatMoney(memorial.valorNominal)} />
-              <DetalheRow label="Vencimento original" value={formatDate(memorial.vencimento)} />
-              <DetalheRow label="Data do cálculo" value={formatDate(memorial.dataCalculo)} />
+              <DetalheRow label="Vencimento original" value={formatBusinessDate(memorial.vencimento)} />
+              <DetalheRow label="Data do cálculo" value={formatBusinessDate(memorial.dataCalculo)} />
               <DetalheRow
                 label="Dias em atraso"
                 value={memorial.diasAtraso > 0 ? String(memorial.diasAtraso) : "0"}

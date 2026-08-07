@@ -36,6 +36,7 @@ import { textoSaldoDevedorComMemoria } from "@/lib/atendimento-saldo-memoria";
 import { atendimentoService, type AtendimentoResumoFinanceiro } from "@/lib/atendimento-service";
 import { apiFetch } from "@/lib/api-fetch";
 import { getContratoHonorariosByIdUrl } from "@/lib/api-config";
+import { formatBusinessDate } from "@/lib/format-datetime";
 import {
   aprovarRenegociacao,
   condicoesSimulacaoParaRenegociacao,
@@ -1094,9 +1095,7 @@ export function RenegociacaoWizard({
                           <Column
                             field="vencimento"
                             header="Vencimento"
-                            body={(r) =>
-                              dashboardCellText(new Date(r.vencimento).toLocaleDateString("pt-BR"))
-                            }
+                            body={(r) => dashboardCellText(formatBusinessDate(r.vencimento))}
                           />
                           <Column
                             field="valorNominal"
@@ -1170,9 +1169,7 @@ export function RenegociacaoWizard({
                         <Column
                           field="vencimento"
                           header="Vencimento"
-                          body={(r) =>
-                            dashboardCellText(new Date(r.vencimento).toLocaleDateString("pt-BR"))
-                          }
+                          body={(r) => dashboardCellText(formatBusinessDate(r.vencimento))}
                         />
                         <Column
                           field="valorNominal"

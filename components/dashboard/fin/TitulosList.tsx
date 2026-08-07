@@ -102,6 +102,7 @@ import {
   listarTitulosDoLote,
 } from "@/lib/fin-indice-simulacao";
 import { springPageDisplayRange, type SpringPage } from "@/lib/spring-page";
+import { formatBusinessDate } from "@/lib/format-datetime";
 import {
   buildTitulosListQuery,
   parseTitulosListQuery,
@@ -224,15 +225,6 @@ function resolveUltimaParcelaEmitivel(ctx: TituloContextoLote): number {
 function formatMoney(v: number | null | undefined): string {
   if (v == null) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
 }
 
 function tituloRegistravel(status: TituloCobranca["status"]): boolean {
@@ -2208,7 +2200,7 @@ export function TitulosList({
               field="cadastroEm"
               header="Emissão"
               sortable
-              body={(row: TituloCobranca) => dashboardCellText(formatDate(row.cadastroEm))}
+              body={(row: TituloCobranca) => dashboardCellText(formatBusinessDate(row.cadastroEm))}
               style={{ width: "6rem", maxWidth: "6rem" }}
             />
             <Column
@@ -2231,7 +2223,7 @@ export function TitulosList({
               field="vencimento"
               header="Vencimento"
               sortable
-              body={(row: TituloCobranca) => dashboardCellText(formatDate(row.vencimento))}
+              body={(row: TituloCobranca) => dashboardCellText(formatBusinessDate(row.vencimento))}
               style={{ width: "6rem", maxWidth: "6rem" }}
             />
             <Column
@@ -2725,11 +2717,11 @@ export function TitulosList({
                                     "font-medium text-amber-100",
                                 )}
                               >
-                                {formatDate(item.vencimento)}
+                                {formatBusinessDate(item.vencimento)}
                               </span>
                               {!item.excedente && item.ajustadoPorDiaUtil ? (
                                 <span className="text-[10px] font-medium text-amber-300/90">
-                                  Seria {formatDate(item.vencimentoBruto)} (
+                                  Seria {formatBusinessDate(item.vencimentoBruto)} (
                                   {diaSemanaCurto(parseIsoDate(item.vencimentoBruto))}) — fim de semana
                                 </span>
                               ) : null}

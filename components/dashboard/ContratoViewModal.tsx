@@ -26,6 +26,7 @@ import { getContratoHonorariosByIdUrl } from "@/lib/api-config";
 import { cn } from "@/lib/utils";
 import type { ContratoHonorariosApiResponse } from "@/lib/validations/contrato-honorarios";
 import { canAccessContratoRenegociacao } from "@/lib/auth-storage";
+import { formatBusinessDate } from "@/lib/format-datetime";
 import {
   buildRenegociacaoDashboardUrl,
   MODALIDADE_ATALHO_ADITIVO,
@@ -63,11 +64,6 @@ export function ContratoViewModal({ contratoId, onClose }: Props) {
   const formatCurrency = (val: number | null | undefined) => {
     if (val == null) return "—";
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
-
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 
   const statusConfigs: Record<string, { bg: string, text: string }> = {
@@ -138,7 +134,7 @@ export function ContratoViewModal({ contratoId, onClose }: Props) {
             </div>
             <div className="p-6 rounded-[1.5rem] border border-white/5 bg-white/[0.02] flex flex-col gap-2">
               <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest leading-none">Data Assinatura</span>
-              <span className="text-lg font-bold text-white tabular-nums">{formatDate(data.dataAssinatura)}</span>
+              <span className="text-lg font-bold text-white tabular-nums">{formatBusinessDate(data.dataAssinatura)}</span>
             </div>
             <div className="p-6 rounded-[1.5rem] border border-white/5 bg-white/[0.02] flex flex-col gap-2">
               <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest leading-none">Localização</span>

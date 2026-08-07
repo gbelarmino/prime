@@ -1,4 +1,5 @@
 import type { AtendimentoResumoFinanceiro } from "./atendimento-service";
+import { formatBusinessDate } from "./format-datetime";
 import type { InadimplenciaPresenteAgregado } from "./renegociacao-inadimplencia-presente";
 import { totalQuitacaoAntesDesconto } from "./renegociacao-quitacao-calculo";
 import { modalidadeUsaMotorCondicoes } from "./renegociacao-service";
@@ -57,10 +58,8 @@ function resumoValoresT4(
     linhas.push(
       `Pagamento em ${parcelas.length} parcela(s): ${formatBrl(primeira.valorNominal)}` +
         (parcelas.length > 1 ? ` … ${formatBrl(ultima.valorNominal)}` : "") +
-        ` (venc. ${new Date(primeira.vencimento).toLocaleDateString("pt-BR")}` +
-        (parcelas.length > 1
-          ? ` a ${new Date(ultima.vencimento).toLocaleDateString("pt-BR")})`
-          : ")"),
+        ` (venc. ${formatBusinessDate(primeira.vencimento)}` +
+        (parcelas.length > 1 ? ` a ${formatBusinessDate(ultima.vencimento)})` : ")"),
     );
   }
   return linhas;
