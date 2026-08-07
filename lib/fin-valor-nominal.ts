@@ -191,12 +191,29 @@ export function vencimentoProjetadoParcela(
   return detalhes[numeroParcela - 1]!.vencimento;
 }
 
+/**
+ * Espelha TituloValorNominalService: se a última parcela do ciclo anterior foi emitida,
+ * usa esse valor como base do reajuste (evita divergência com legado, ex. 511,46 vs 511,21).
+ */
+function baseEmitidaCicloAnterior(
+  parcelaReajuste: number,
+  valoresEmitidosPorParcela?: Map<number, number>,
+): number | null {
+  if (valoresEmitidosPorParcela == null || parcelaReajuste < 13) {
+    return null;
+  }
+  const parcelaBase = parcelaReajuste - 1;
+  const base = valoresEmitidosPorParcela.get(parcelaBase);
+  return base != null && !Number.isNaN(base) ? base : null;
+}
+
 function valorNaParcelaReajuste(
   ch: CondicoesValorNominal,
   parcelaReajuste: number,
   vencimentoPorParcela: (n: number) => Date,
   lookup: IndiceMensalLookup,
   cache: Map<number, number>,
+  valoresEmitidosPorParcela?: Map<number, number>,
 ): number {
   const cached = cache.get(parcelaReajuste);
   if (cached != null) {
@@ -212,6 +229,16 @@ function valorNaParcelaReajuste(
   const indiceDisponivel =
     ch.tipoCorrecaoAnual !== "NENHUM" &&
     indiceDisponivelParaPeriodo(lookup, referenciaFim, mesesIpca);
+
+  const baseEmitida = baseEmitidaCicloAnterior(parcelaReajuste, valoresEmitidosPorParcela);
+  if (baseEmitida != null) {
+    const resultado = !indiceDisponivel
+      ? roundMoney(baseEmitida)
+      : aplicarReajuste(baseEmitida, vencimento, mesesIpca, lookup, ch.tipoCorrecaoAnual)
+          .valor;
+    cache.set(parcelaReajuste, resultado);
+    return resultado;
+  }
 
   let resultado: number;
   if (parcelaReajuste === 13) {
@@ -229,6 +256,7 @@ function valorNaParcelaReajuste(
       vencimentoPorParcela,
       lookup,
       cache,
+      valoresEmitidosPorParcela,
     );
     if (!indiceDisponivel) {
       resultado = base;
@@ -243,6 +271,7 @@ function valorNaParcelaReajuste(
       vencimentoPorParcela,
       lookup,
       cache,
+      valoresEmitidosPorParcela,
     );
     if (!indiceDisponivel) {
       resultado = base;
@@ -262,6 +291,7 @@ export function calcularValorNominalParcela(
   diaVencimento: number,
   lookup: IndiceMensalLookup,
   vencimentoPorParcelaOverride?: (numeroParcela: number) => Date,
+  valoresEmitidosPorParcela?: Map<number, number>,
 ): number {
   if (ch.valorParcela == null || Number.isNaN(ch.valorParcela)) {
     throw new Error("Contrato sem valor de parcela configurado.");
@@ -298,6 +328,7 @@ export function calcularValorNominalParcela(
     vencimentoPorParcela,
     lookup,
     cache,
+    valoresEmitidosPorParcela,
   );
 }
 
@@ -308,6 +339,7 @@ export function detalheReajusteParcela(
   diaVencimento: number,
   lookup: IndiceMensalLookup,
   vencimentoPorParcelaOverride?: (numeroParcela: number) => Date,
+  valoresEmitidosPorParcela?: Map<number, number>,
 ): {
   valorNominal: number;
   parcelaReajusteCiclo: number | null;
@@ -330,6 +362,7 @@ export function detalheReajusteParcela(
         diaVencimento,
         lookup,
         vencimentoPorParcelaOverride,
+        valoresEmitidosPorParcela,
       ),
       parcelaReajusteCiclo: null,
       mesesIpcaReferencia: null,
@@ -356,10 +389,17 @@ export function detalheReajusteParcela(
     vencimentoPorParcela,
     lookup,
     cache,
+    valoresEmitidosPorParcela,
   );
 
+  const baseEmitida = baseEmitidaCicloAnterior(
+    parcelaReajusteCiclo,
+    valoresEmitidosPorParcela,
+  );
   let base: number;
-  if (parcelaReajusteCiclo === 13) {
+  if (baseEmitida != null) {
+    base = baseEmitida;
+  } else if (parcelaReajusteCiclo === 13) {
     base =
       13 <= qtdFracionadas && ch.valorFracionadoVendedora != null
         ? ch.valorFracionadoVendedora
@@ -371,6 +411,7 @@ export function detalheReajusteParcela(
       vencimentoPorParcela,
       lookup,
       cache,
+      valoresEmitidosPorParcela,
     );
   } else {
     base = valorNaParcelaReajuste(
@@ -379,6 +420,7 @@ export function detalheReajusteParcela(
       vencimentoPorParcela,
       lookup,
       cache,
+      valoresEmitidosPorParcela,
     );
   }
 

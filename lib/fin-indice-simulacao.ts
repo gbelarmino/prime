@@ -297,6 +297,7 @@ export function simularParcelasIndice(opts: {
       : parseIsoDate(sorted[0]!.vencimento);
   const tituloPorParcela = new Map(sorted.map((t) => [t.numeroParcela, t]));
   const lookup = buildIndiceLookup(indices);
+  const valoresEmitidos = valoresNominaisEmitidosAtivos(titulosCalculo);
 
   // Índice de reajuste: cronograma contratual (emitidos + projeção). Vencimento de emissão com atraso
   // não altera o mês de corte do IGP-M/IPCA (espelha TituloValorNominalService no backend).
@@ -330,6 +331,7 @@ export function simularParcelasIndice(opts: {
       diaVencimentoMensal,
       lookup,
       vencimentoPorParcela,
+      valoresEmitidos,
     );
     const ehParcelaReajuste = isParcelaReajuste(parcela);
     const reajusteCalculado =
@@ -554,6 +556,30 @@ function titulosEfetivosParaVencimento(titulos: TituloCobranca[]): TituloCobranc
   return titulos.filter((t) => t.status !== "CANCELADO" && t.status !== "RASCUNHO");
 }
 
+/** Espelha findValorNominalParcelaAtiva: ativos (não cancelados / não IPTU legado ≥ 8000). */
+const NR_PARCELA_IPTU_LEGADO_MIN = 8000;
+
+export function valoresNominaisEmitidosAtivos(
+  titulos: TituloCobranca[],
+): Map<number, number> {
+  const map = new Map<number, number>();
+  const ordenados = [...titulos].sort((a, b) => {
+    const byParcela = a.numeroParcela - b.numeroParcela;
+    if (byParcela !== 0) return byParcela;
+    return (b.cadastroEm ?? "").localeCompare(a.cadastroEm ?? "");
+  });
+  for (const t of ordenados) {
+    if (t.status === "CANCELADO" || t.status === "RASCUNHO") continue;
+    if (t.numeroParcela >= NR_PARCELA_IPTU_LEGADO_MIN) continue;
+    if (t.valorNominal == null || Number.isNaN(t.valorNominal)) continue;
+    // Primeiro por parcela (cadastro mais recente já ordenado antes).
+    if (!map.has(t.numeroParcela)) {
+      map.set(t.numeroParcela, t.valorNominal);
+    }
+  }
+  return map;
+}
+
 /**
  * Cronograma parcela a parcela (espelha TituloVencimentoPorParcelaCalculo):
  * títulos emitidos/informados sobrescrevem; demais projetadas a partir da última
@@ -768,6 +794,8 @@ export async function calcularValoresNominaisNovoLote(
     vencimentosInformados: parcelasComVencimento,
   });
 
+  const valoresEmitidos = valoresNominaisEmitidosAtivos(titulos);
+
   const resultado = new Map<number, number>();
   for (const [parcela] of parcelasComVencimento) {
     const valor = detalheReajusteParcela(
@@ -777,6 +805,7 @@ export async function calcularValoresNominaisNovoLote(
       diaVencimento,
       lookup,
       vencimentoPorParcela,
+      valoresEmitidos,
     ).valorNominal;
     resultado.set(parcela, valor);
   }
