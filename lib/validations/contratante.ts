@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isValidCpf, maskCpf } from "@/lib/format-cpf";
 import { isValidPhone, maskPhone } from "@/lib/format-phone";
+import { acharPaisPorDdi, juntarDdi, separarDdi } from "@/lib/ddi-paises";
 import { maskCurrency, currencyToNumber } from "@/lib/format-currency";
 
 /** Inclui string vazia para selects “sem seleção”. */
@@ -26,12 +27,26 @@ function digitsOnly(s: string) {
   return s.replace(/\D/g, "");
 }
 
-function cleanPhone(s: string) {
-  // Mantém o + se for internacional, senão deixa só dígitos
-  if (s.startsWith("+")) {
-    return "+" + s.replace(/\D/g, "");
-  }
-  return s.replace(/\D/g, "");
+/** Mensagem que diz quantos dígitos o país espera — "Telefone inválido." não ajuda a corrigir. */
+function mensagemTelefoneInvalido(ddi: string): string {
+  const pais = acharPaisPorDdi(ddi);
+  if (!pais) return "Telefone inválido.";
+  const esperado =
+    pais.minLocal === pais.maxLocal
+      ? `${pais.minLocal} dígitos`
+      : `${pais.minLocal} ou ${pais.maxLocal} dígitos`;
+  return `Telefone inválido: ${pais.nome} usa ${esperado} (sem o ${pais.ddi}).`;
+}
+
+/** Só valida o formato; a obrigatoriedade fica no `min(1)` do próprio campo. */
+function validarCelular(ctx: z.RefinementCtx, valor: string, ddi: string, path: string) {
+  if (!valor?.trim()) return;
+  if (isValidPhone(valor, ddi)) return;
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: mensagemTelefoneInvalido(ddi),
+    path: [path],
+  });
 }
 
 const cpfRefine = (val: string) => isValidCpf(val);
@@ -108,23 +123,19 @@ export function getContratanteFormSchema(options: ContratanteFormSchemaOptions =
   cidade: z.string().min(1, "Cidade é obrigatória.").max(100),
   uf: z.string().min(1, "UF é obrigatória.").max(2),
   cep: z.string().min(1, "CEP é obrigatório.").max(9),
-  telefoneCelular1: z
-    .string()
-    .min(1, "Celular 1 é obrigatório.")
-    .refine((val) => isValidPhone(val), "Telefone inválido."),
+  // A validação do número depende do DDI escolhido, que é campo irmão — feita no superRefine abaixo.
+  telefoneCelular1: z.string().min(1, "Celular 1 é obrigatório."),
   ddi1: z.string(),
-  telefoneCelular2: z
-    .string()
-    .refine((val) => {
-      if (!val || val.trim() === "") return true;
-      return isValidPhone(val);
-    }, "Telefone inválido."),
+  telefoneCelular2: z.string(),
   ddi2: z.string(),
   rendaFamiliar: z.string(),
   email: z.string().email("E-mail inválido.").min(1, "E-mail é obrigatório.").max(150),
   canaisPreferidos: contratanteCanaisPreferidosEnum,
   conjuge: conjugeFormSchema,
 }).superRefine((data, ctx) => {
+  validarCelular(ctx, data.telefoneCelular1, data.ddi1, "telefoneCelular1");
+  validarCelular(ctx, data.telefoneCelular2, data.ddi2, "telefoneCelular2");
+
   const ec = data.estadoCivil as string;
   if (ec === "CASADO" || ec === "UNIAO_ESTAVEL") {
     const c = data.conjuge;
@@ -234,6 +245,9 @@ export function contratanteResponseToFormValues(data: ContratanteApiResponse): C
         })
       : "";
 
+  const celular1 = separarDdi(data.telefoneCelular1);
+  const celular2 = separarDdi(data.telefoneCelular2);
+
   const cg = data.conjuge;
   return {
     nome: data.nome ?? "",
@@ -253,10 +267,10 @@ export function contratanteResponseToFormValues(data: ContratanteApiResponse): C
     cidade: data.cidade ?? "",
     uf: data.uf ?? "",
     cep: data.cep ?? "",
-    telefoneCelular1: data.telefoneCelular1 ? maskPhone(data.telefoneCelular1.startsWith("+") ? data.telefoneCelular1.slice(3) : data.telefoneCelular1) : "",
-    ddi1: data.telefoneCelular1?.startsWith("+") ? data.telefoneCelular1.slice(0, 3) : "+55",
-    telefoneCelular2: data.telefoneCelular2 ? maskPhone(data.telefoneCelular2.startsWith("+") ? data.telefoneCelular2.slice(3) : data.telefoneCelular2) : "",
-    ddi2: data.telefoneCelular2?.startsWith("+") ? data.telefoneCelular2.slice(0, 3) : "+55",
+    telefoneCelular1: celular1.local ? maskPhone(celular1.local, celular1.ddi) : "",
+    ddi1: celular1.ddi,
+    telefoneCelular2: celular2.local ? maskPhone(celular2.local, celular2.ddi) : "",
+    ddi2: celular2.ddi,
     rendaFamiliar: data.rendaFamiliar ? maskCurrency(data.rendaFamiliar.toString()) : "",
     email: data.email ?? "",
     canaisPreferidos: (data.canaisPreferidos?.length
@@ -317,8 +331,8 @@ export function contratanteToApiPayload(values: ContratanteFormValues): Record<s
     cidade: emptyToUndef(values.cidade),
     uf: emptyToUndef(values.uf)?.toUpperCase(),
     cep: emptyToUndef(values.cep),
-    telefoneCelular1: cleanPhone((values.ddi1 || "+55") + values.telefoneCelular1),
-    telefoneCelular2: values.telefoneCelular2 ? cleanPhone((values.ddi2 || "+55") + values.telefoneCelular2) : undefined,
+    telefoneCelular1: juntarDdi(values.ddi1, values.telefoneCelular1),
+    telefoneCelular2: values.telefoneCelular2 ? juntarDdi(values.ddi2, values.telefoneCelular2) : undefined,
     rendaFamiliar: values.rendaFamiliar ? currencyToNumber(values.rendaFamiliar).toString() : undefined,
     email: emptyToUndef(values.email),
     canaisPreferidos: values.canaisPreferidos?.length ? values.canaisPreferidos : undefined,

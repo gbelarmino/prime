@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormContext, Controller } from "react-hook-form";
+import { useFormContext, Controller, useWatch } from "react-hook-form";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
 import { MultiSelect } from "primereact/multiselect";
@@ -12,6 +12,8 @@ import { getAuthToken } from "@/lib/auth-storage";
 import type { ContratanteCanalPreferido, ContratanteFormValues } from "@/lib/validations/contratante";
 import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
 import { maskPhone } from "@/lib/format-phone";
+import { DDI_PADRAO, placeholderDoPais } from "@/lib/ddi-paises";
+import { DdiSelect } from "@/components/ui/DdiSelect";
 import { maskCurrency } from "@/lib/format-currency";
 import { toast } from "sonner";
 
@@ -26,12 +28,70 @@ const CANAIS_PREFERIDOS_OPTIONS: { label: string; value: ContratanteCanalPreferi
   { label: "SMS", value: "SMS" },
 ];
 
+const inputClass = "bg-white/5 border-white/10 text-white rounded-xl py-3 px-4 focus:border-blue-500 transition-all";
+const labelClass = "block text-xs font-bold uppercase tracking-widest text-white/40 mb-2 ml-1";
+const errorClass = "text-[10px] font-bold text-rose-400 mt-2 ml-1 uppercase tracking-tighter";
+
+type CampoCelularProps = {
+  label: string;
+  obrigatorio?: boolean;
+  ddiName: "ddi1" | "ddi2";
+  telefoneName: "telefoneCelular1" | "telefoneCelular2";
+};
+
+/**
+ * DDI e número andam juntos: a máscara e a validação do número dependem do país escolhido, então
+ * trocar o DDI reformata o que já estava digitado (e corta o excesso de dígitos).
+ */
+function CampoCelular({ label, obrigatorio, ddiName, telefoneName }: CampoCelularProps) {
+  const { control, register, setValue, getValues, formState: { errors } } =
+    useFormContext<ContratanteFormValues>();
+  const ddi = useWatch({ control, name: ddiName }) || DDI_PADRAO;
+
+  return (
+    <div className="flex flex-col">
+      <label className={labelClass}>
+        {label} {obrigatorio && <span className="text-rose-400">*</span>}
+      </label>
+      <div className="flex gap-2">
+        <Controller
+          name={ddiName}
+          control={control}
+          render={({ field }) => (
+            <DdiSelect
+              id={field.name}
+              value={field.value || DDI_PADRAO}
+              onChange={(novoDdi) => {
+                field.onChange(novoDdi);
+                const atual = getValues(telefoneName);
+                if (atual) {
+                  setValue(telefoneName, maskPhone(atual, novoDdi), { shouldValidate: true });
+                }
+              }}
+              invalid={Boolean(errors[ddiName])}
+              className="w-36 min-w-[9rem]"
+            />
+          )}
+        />
+        <InputText
+          placeholder={placeholderDoPais(ddi)}
+          className={cn(inputClass, "flex-1", errors[telefoneName] && "border-rose-400/50")}
+          {...register(telefoneName, {
+            onChange: (e) => {
+              e.target.value = maskPhone(e.target.value, ddi);
+            },
+          })}
+        />
+      </div>
+      {(errors[telefoneName] || errors[ddiName]) && (
+        <p className={errorClass}>{errors[telefoneName]?.message || errors[ddiName]?.message}</p>
+      )}
+    </div>
+  );
+}
+
 export function EnderecoContato() {
   const { register, control, setValue, formState: { errors } } = useFormContext<ContratanteFormValues>();
-
-  const inputClass = "bg-white/5 border-white/10 text-white rounded-xl py-3 px-4 focus:border-blue-500 transition-all";
-  const labelClass = "block text-xs font-bold uppercase tracking-widest text-white/40 mb-2 ml-1";
-  const errorClass = "text-[10px] font-bold text-rose-400 mt-2 ml-1 uppercase tracking-tighter";
 
   const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     const cep = e.target.value.replace(/\D/g, "");
@@ -173,51 +233,9 @@ export function EnderecoContato() {
         {errors.uf && <p className={errorClass}>{errors.uf.message}</p>}
       </div>
 
-      <div className="flex flex-col">
-        <label className={labelClass}>Celular 1 <span className="text-rose-400">*</span></label>
-        <div className="flex gap-2">
-          <InputText 
-            placeholder="+55"
-            className={cn(inputClass, "w-20 min-w-[5rem]", errors.ddi1 && "border-rose-400/50")}
-            {...register("ddi1")}
-          />
-          <InputText 
-            placeholder="(00) 00000-0000"
-            className={cn(inputClass, "flex-1", errors.telefoneCelular1 && "border-rose-400/50")} 
-            {...register("telefoneCelular1", {
-              onChange: (e) => {
-                e.target.value = maskPhone(e.target.value);
-              }
-            })} 
-          />
-        </div>
-        {(errors.telefoneCelular1 || errors.ddi1) && (
-          <p className={errorClass}>{errors.telefoneCelular1?.message || errors.ddi1?.message}</p>
-        )}
-      </div>
+      <CampoCelular label="Celular 1" obrigatorio ddiName="ddi1" telefoneName="telefoneCelular1" />
 
-      <div className="flex flex-col">
-        <label className={labelClass}>Celular 2</label>
-        <div className="flex gap-2">
-          <InputText 
-            placeholder="+55"
-            className={cn(inputClass, "w-20 min-w-[5rem]", errors.ddi2 && "border-rose-400/50")}
-            {...register("ddi2")}
-          />
-          <InputText 
-            placeholder="(00) 00000-0000"
-            className={cn(inputClass, "flex-1", errors.telefoneCelular2 && "border-rose-400/50")} 
-            {...register("telefoneCelular2", {
-              onChange: (e) => {
-                e.target.value = maskPhone(e.target.value);
-              }
-            })} 
-          />
-        </div>
-        {(errors.telefoneCelular2 || errors.ddi2) && (
-          <p className={errorClass}>{errors.telefoneCelular2?.message || errors.ddi2?.message}</p>
-        )}
-      </div>
+      <CampoCelular label="Celular 2" ddiName="ddi2" telefoneName="telefoneCelular2" />
 
       <div>
         <label className={labelClass}>Renda familiar</label>

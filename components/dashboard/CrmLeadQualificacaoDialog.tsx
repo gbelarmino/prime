@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useForm, Controller, type UseFormRegister, type UseFormSetValue } from "react-hook-form";
+import { useForm, Controller, useWatch, type UseFormRegister, type UseFormSetValue } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
@@ -19,6 +19,8 @@ import { finService } from "@/lib/fin-service";
 import { cn } from "@/lib/utils";
 import { maskCpf } from "@/lib/format-cpf";
 import { maskPhone } from "@/lib/format-phone";
+import { DDI_PADRAO, placeholderDoPais } from "@/lib/ddi-paises";
+import { DdiSelect } from "@/components/ui/DdiSelect";
 import { fetchCepLookup, maskCepInput } from "@/lib/crm-cep-lookup";
 import {
   CRM_QUAL_CALENDAR_PT,
@@ -90,12 +92,15 @@ export function CrmLeadQualificacaoDialog({
     handleSubmit,
     reset,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<CrmLeadQualificacaoFormValues>({
     resolver: zodResolver(crmLeadQualificacaoSchema),
     defaultValues: emptyCrmLeadQualificacaoFormValues(),
     mode: "onBlur",
   });
+
+  const ddiSelecionado = useWatch({ control, name: "ddi" }) || DDI_PADRAO;
 
   useEffect(() => {
     if (!lead || !open) return;
@@ -236,17 +241,27 @@ export function CrmLeadQualificacaoDialog({
               error={errors.telefone?.message ?? errors.ddi?.message}
             >
               <div className="flex gap-2">
-                <InputText
-                  placeholder="+55"
-                  className={cn(
-                    CRM_QUAL_INPUT_CLASS,
-                    "w-20 min-w-[5rem]",
-                    errors.ddi && "border-rose-400/50",
+                <Controller
+                  name="ddi"
+                  control={control}
+                  render={({ field }) => (
+                    <DdiSelect
+                      id={field.name}
+                      value={field.value || DDI_PADRAO}
+                      onChange={(novoDdi) => {
+                        field.onChange(novoDdi);
+                        const atual = getValues("telefone");
+                        if (atual) {
+                          setValue("telefone", maskPhone(atual, novoDdi), { shouldValidate: true });
+                        }
+                      }}
+                      invalid={Boolean(errors.ddi)}
+                      className="w-36 min-w-[9rem]"
+                    />
                   )}
-                  {...register("ddi")}
                 />
                 <InputText
-                  placeholder="(00) 00000-0000"
+                  placeholder={placeholderDoPais(ddiSelecionado)}
                   className={cn(
                     CRM_QUAL_INPUT_CLASS,
                     "flex-1",
@@ -254,7 +269,7 @@ export function CrmLeadQualificacaoDialog({
                   )}
                   {...register("telefone", {
                     onChange: (e) => {
-                      e.target.value = maskPhone(e.target.value);
+                      e.target.value = maskPhone(e.target.value, ddiSelecionado);
                     },
                   })}
                 />

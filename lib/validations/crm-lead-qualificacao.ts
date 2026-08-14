@@ -1,29 +1,16 @@
 import { z } from "zod";
 import { isValidCpf } from "@/lib/format-cpf";
 import { isValidPhone, maskPhone } from "@/lib/format-phone";
+import { acharPaisPorDdi, juntarDdi, separarDdi } from "@/lib/ddi-paises";
 import type { LeadDto, LeadQualificacaoPayload } from "@/lib/crm-service";
-
-function cleanPhone(s: string) {
-  if (s.startsWith("+")) {
-    return "+" + s.replace(/\D/g, "");
-  }
-  return s.replace(/\D/g, "");
-}
 
 /** Separa DDI e número local (mesma regra do cadastro de contratante). */
 export function splitPhoneWithDdi(full: string | null | undefined): { ddi: string; local: string } {
-  if (!full?.trim()) {
-    return { ddi: "+55", local: "" };
-  }
-  const t = full.trim();
-  if (t.startsWith("+")) {
-    return { ddi: t.slice(0, 3), local: t.slice(3) };
-  }
-  return { ddi: "+55", local: t };
+  return separarDdi(full);
 }
 
 export function combinePhoneWithDdi(ddi: string, local: string): string {
-  return cleanPhone((ddi.trim() || "+55") + local);
+  return juntarDdi(ddi, local);
 }
 
 const sexoSchema = z
@@ -46,10 +33,8 @@ export const crmLeadQualificacaoSchema = z.object({
   nome: z.string().min(3, "Nome é obrigatório.").max(150, "Nome muito longo."),
   email: z.string().email("E-mail inválido.").min(1, "E-mail é obrigatório.").max(150),
   ddi: z.string(),
-  telefone: z
-    .string()
-    .min(1, "Telefone é obrigatório.")
-    .refine((val) => isValidPhone(val), "Telefone inválido."),
+  // O formato depende do DDI (campo irmão), validado no superRefine abaixo.
+  telefone: z.string().min(1, "Telefone é obrigatório."),
   cpf: z.string().min(1, "CPF é obrigatório.").refine((val) => isValidCpf(val), "CPF inválido."),
   empreendimentoInteresse: z.string().min(1, "Empreendimento é obrigatório.").max(150),
   sexo: sexoSchema,
@@ -66,6 +51,21 @@ export const crmLeadQualificacaoSchema = z.object({
   bairro: z.string().min(1, "Bairro é obrigatório.").max(100),
   cidade: z.string().min(1, "Cidade é obrigatória.").max(100),
   uf: z.string().min(1, "UF é obrigatória.").max(2),
+}).superRefine((data, ctx) => {
+  if (!data.telefone?.trim() || isValidPhone(data.telefone, data.ddi)) return;
+  const pais = acharPaisPorDdi(data.ddi);
+  const esperado = pais
+    ? ` ${pais.nome} usa ${
+        pais.minLocal === pais.maxLocal
+          ? `${pais.minLocal} dígitos`
+          : `${pais.minLocal} ou ${pais.maxLocal} dígitos`
+      } (sem o ${pais.ddi}).`
+    : "";
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: `Telefone inválido.${esperado}`,
+    path: ["telefone"],
+  });
 });
 
 export type CrmLeadQualificacaoFormValues = z.infer<typeof crmLeadQualificacaoSchema>;
@@ -101,7 +101,7 @@ export function leadDtoToQualificacaoFormValues(lead: LeadDto): CrmLeadQualifica
     nome: lead.nome ?? "",
     email: lead.email ?? "",
     ddi,
-    telefone: local ? maskPhone(local) : "",
+    telefone: local ? maskPhone(local, ddi) : "",
     cpf: lead.cpf ?? "",
     empreendimentoInteresse: lead.empreendimentoInteresse ?? "",
     sexo: (lead.sexo as CrmLeadQualificacaoFormValues["sexo"]) ?? "",
