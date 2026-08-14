@@ -2,6 +2,7 @@ import {
   DDI_PADRAO,
   LIMITES_DDI_DESCONHECIDO,
   acharPaisPorDdi,
+  juntarDdi,
   normalizarDdi,
   separarDdi,
 } from "@/lib/ddi-paises";
@@ -40,6 +41,21 @@ export function formatPhoneDisplay(value: string | null | undefined): string {
   }
 
   return ddiPrefix ? ddiPrefix + digits : trimmed;
+}
+
+/**
+ * Exibe telefone a partir dos campos separados do formulário (DDI num campo, número local noutro).
+ *
+ * As telas de detalhe do cliente recebem valores já no formato do formulário, onde o DDI foi
+ * separado do número. Passar só a parte local a `formatPhoneDisplay` perde o país: o
+ * `937 525 031` de Portugal era exibido como `(93) 7525-031`.
+ */
+export function formatPhoneComDdi(
+  ddi: string | null | undefined,
+  local: string | null | undefined,
+): string {
+  if (!local?.trim()) return "";
+  return formatPhoneDisplay(juntarDdi(ddi, local));
 }
 
 /**

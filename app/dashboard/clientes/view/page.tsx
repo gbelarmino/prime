@@ -8,7 +8,7 @@ import { Button } from "primereact/button";
 import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { formatCpfDisplay } from "@/lib/format-cpf";
-import { formatPhoneDisplay } from "@/lib/format-phone";
+import { formatPhoneComDdi } from "@/lib/format-phone";
 import { toast } from "sonner";
 import { getDocumentosContratanteUrl, getDocumentoContratanteUrl } from "@/lib/api-config";
 import { getAuthToken } from "@/lib/auth-storage";
@@ -134,7 +134,7 @@ function ClienteViewContent() {
                 </div>
                 <div>
                   <span className={labelClass}>Celular</span>
-                  <p className={valueClass}>{formatPhoneDisplay(data.telefoneCelular1) || "—"}</p>
+                  <p className={valueClass}>{formatPhoneComDdi(data.ddi1, data.telefoneCelular1) || "—"}</p>
                 </div>
               </div>
               <div className="md:col-span-2 h-[1px] bg-white/5 my-2" />

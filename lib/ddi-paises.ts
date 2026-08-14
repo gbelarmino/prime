@@ -72,7 +72,13 @@ export function separarDdi(full: string | null | undefined): { ddi: string; loca
   }
   const t = full.trim();
   if (!t.startsWith("+")) {
-    // Sem `+` não há como distinguir DDI de DDD; mantém o comportamento histórico (Brasil).
+    // Sem `+` não dá para distinguir DDI de DDD em geral, mas `55` seguido de 10 ou 11 dígitos só
+    // pode ser o código do Brasil: um número local brasileiro tem 10 ou 11 dígitos no total, nunca
+    // 12 ou 13. Sem esta regra, o `55` do país era lido como DDD (cadastros legados).
+    const digitos = t.replace(/\D/g, "");
+    if (digitos.startsWith("55") && (digitos.length === 12 || digitos.length === 13)) {
+      return { ddi: DDI_PADRAO, local: digitos.slice(2) };
+    }
     return { ddi: DDI_PADRAO, local: t };
   }
 
