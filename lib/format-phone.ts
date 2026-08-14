@@ -32,11 +32,14 @@ export function formatPhoneDisplay(value: string | null | undefined): string {
     digits = digits.slice(2);
   }
 
-  if (digits.length > 0 && digits.length <= 11) {
+  // Sem DDI não há como saber o país, então o formato brasileiro só entra quando a contagem de
+  // dígitos é válida no Brasil (10 fixo, 11 celular). Um número de 9 dígitos — cadastro antigo sem
+  // código de país — era exibido como "(93) 7525-031", inventando um DDD que não existe.
+  if (digits.length === 10 || digits.length === 11) {
     return ddiPrefix + maskPhone(digits);
   }
 
-  return trimmed;
+  return ddiPrefix ? ddiPrefix + digits : trimmed;
 }
 
 /**
