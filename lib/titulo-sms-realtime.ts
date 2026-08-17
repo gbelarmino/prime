@@ -1,4 +1,4 @@
-import type { TituloCobranca, TituloSmsNotificacao, TituloSmsNotificacaoResumo } from "@/lib/fin-service";
+import type { TituloCobranca, TituloNotificacao, TituloSmsNotificacaoResumo } from "@/lib/fin-service";
 import type { SmsFilaItem } from "@/lib/sms-service";
 import {
   normalizeSmsFilaItem,
@@ -106,18 +106,52 @@ export function applyTitulosSmsFromWsEvent(
   return applyTitulosSmsFromEnqueue(prev, tituloIds, resumoFromFilaItem(item));
 }
 
-export function mergeTituloSmsNotificacaoList(
-  prev: TituloSmsNotificacao[],
+function notificacaoFromSmsFilaItem(item: SmsFilaItem): TituloNotificacao {
+  return {
+    canal: "SMS",
+    id: item.id,
+    telefone: item.telefone,
+    mensagem: item.mensagem,
+    status: item.status,
+    tentativas: item.tentativas,
+    dataAgendada: item.dataAgendada,
+    dataEnvio: item.dataEnvio ?? null,
+    dataCriacao: item.dataCriacao,
+    erro: item.erro ?? null,
+    externalId: item.externalId ?? null,
+    externalSmsId: item.externalSmsId ?? null,
+    providerMessageId: null,
+    linhaNome: null,
+    tituloCobrancaId: item.tituloCobrancaId ?? null,
+    tituloIds: item.tituloIds ?? null,
+  };
+}
+
+/** Mesma ordem do endpoint: mais recentes primeiro, sem data no fim. */
+function ordemNotificacaoDesc(a: TituloNotificacao, b: TituloNotificacao): number {
+  const ta = a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0;
+  const tb = b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0;
+  if (ta !== tb) return tb - ta;
+  return b.id - a.id;
+}
+
+/**
+ * Aplica um evento da fila SMS à lista aberta no modal de notificações. Só o SMS tem WS hoje; os
+ * envios de WhatsApp entram na próxima abertura do modal.
+ */
+export function mergeTituloNotificacaoList(
+  prev: TituloNotificacao[],
   item: SmsFilaItem,
   tituloId: string,
-): TituloSmsNotificacao[] | null {
+): TituloNotificacao[] | null {
   const tituloIds = resolveTituloIdsFromFilaItem(item);
   if (!tituloIds.includes(tituloId)) return null;
-  const idx = prev.findIndex((n) => n.id === item.id);
+  const notificacao = notificacaoFromSmsFilaItem(item);
+  const idx = prev.findIndex((n) => n.canal === "SMS" && n.id === item.id);
   if (idx >= 0) {
     const next = [...prev];
-    next[idx] = item;
+    next[idx] = notificacao;
     return next;
   }
-  return [...prev, item].sort((a, b) => a.id - b.id);
+  return [...prev, notificacao].sort(ordemNotificacaoDesc);
 }

@@ -52,7 +52,7 @@ import {
   getFinTituloWhatsAppCobrancaParcelaUrl,
   getFinTituloSmsReguaPreviewUrl,
   getFinTituloSmsReguaUrl,
-  getFinTituloSmsNotificacoesUrl,
+  getFinTituloNotificacoesUrl,
   getFinTitulosIdsElegiveisWhatsAppUrl,
   getFinTitulosWhatsAppCobrancaParcelaLoteUrl,
   getFinTitulosEmailCobrancaParcelaLoteUrl,
@@ -142,6 +142,7 @@ export interface TituloCobranca {
   legado?: boolean;
   smsNotificacoes?: TituloSmsNotificacaoResumo[];
   smsNotificacoesEnviadas?: number;
+  whatsappNotificacoes?: TituloWhatsAppNotificacaoResumo[];
 }
 
 export interface TituloSmsNotificacaoResumo {
@@ -151,8 +152,39 @@ export interface TituloSmsNotificacaoResumo {
   dataEnvio?: string | null;
 }
 
-/** Item da fila SMS vinculado a um título (detalhe na listagem de títulos). */
-export type TituloSmsNotificacao = import("@/lib/sms-service").SmsFilaItem;
+export interface TituloWhatsAppNotificacaoResumo {
+  id: number;
+  status: string;
+  dataAgendada: string;
+  dataEnvio?: string | null;
+}
+
+export type TituloNotificacaoCanal = "SMS" | "WHATSAPP";
+
+/**
+ * Envio de cobrança vinculado a um título (detalhe no modal de notificações).
+ *
+ * Campos de canal vêm nulos no outro canal: `externalId`/`externalSmsId` são do TextBee (SMS);
+ * `providerMessageId`/`linhaNome` são do Twilio (WhatsApp).
+ */
+export interface TituloNotificacao {
+  canal: TituloNotificacaoCanal;
+  id: number;
+  telefone: string;
+  mensagem: string;
+  status: string;
+  tentativas?: number | null;
+  dataAgendada: string;
+  dataEnvio?: string | null;
+  dataCriacao: string;
+  erro?: string | null;
+  externalId?: string | null;
+  externalSmsId?: string | null;
+  providerMessageId?: string | null;
+  linhaNome?: string | null;
+  tituloCobrancaId?: string | null;
+  tituloIds?: string[] | null;
+}
 
 export interface TituloHistoricoItem {
   id: string;
@@ -1325,8 +1357,8 @@ export const finService = {
     return parseJson(res);
   },
 
-  async listTituloSmsNotificacoes(id: string): Promise<TituloSmsNotificacao[]> {
-    const res = await apiFetch(getFinTituloSmsNotificacoesUrl(id));
+  async listTituloNotificacoes(id: string): Promise<TituloNotificacao[]> {
+    const res = await apiFetch(getFinTituloNotificacoesUrl(id));
     return parseJson(res);
   },
 

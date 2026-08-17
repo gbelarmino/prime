@@ -48,8 +48,8 @@ import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegi
 import { TituloEmailLoteDialog } from "@/components/dashboard/fin/TituloEmailLoteDialog";
 import { TituloSmsLoteDialog } from "@/components/dashboard/fin/TituloSmsLoteDialog";
 import { TituloSmsReguaDialog } from "@/components/dashboard/fin/TituloSmsReguaDialog";
-import { TituloSmsNotificacoesDialog } from "@/components/dashboard/fin/TituloSmsNotificacoesDialog";
-import { TituloSmsNotificacoesBadge } from "@/components/dashboard/fin/TituloSmsNotificacoesBadge";
+import { TituloNotificacoesDialog } from "@/components/dashboard/fin/TituloNotificacoesDialog";
+import { TituloNotificacoesBadge } from "@/components/dashboard/fin/TituloNotificacoesBadge";
 import { TituloWhatsAppLoteDialog } from "@/components/dashboard/fin/TituloWhatsAppLoteDialog";
 import { useSmsFilaRealtime } from "@/hooks/use-sms-fila-realtime";
 import { normalizeSmsFilaItem, type SmsFilaWsEvent } from "@/lib/sms-fila-realtime";
@@ -57,7 +57,7 @@ import {
   applyTitulosSmsFromEnqueue,
   applyTitulosSmsFromLoteGrupos,
   applyTitulosSmsFromWsEvent,
-  mergeTituloSmsNotificacaoList,
+  mergeTituloNotificacaoList,
   tituloIdsAsStrings,
 } from "@/lib/titulo-sms-realtime";
 import {
@@ -67,7 +67,7 @@ import {
   tituloEstaVencido,
   type TituloCobranca,
   type TituloSmsReguaPreview,
-  type TituloSmsNotificacao,
+  type TituloNotificacao,
   type TituloContextoLote,
   type TituloPdfLoteResult,
   type TituloRegistrarLoteResult,
@@ -375,11 +375,11 @@ export function TitulosList({
   const [smsReguaPreview, setSmsReguaPreview] = useState<TituloSmsReguaPreview | null>(null);
   const [smsReguaPreviewLoading, setSmsReguaPreviewLoading] = useState(false);
   const [smsReguaPreviewError, setSmsReguaPreviewError] = useState<string | null>(null);
-  const [smsNotificacoesDialogOpen, setSmsNotificacoesDialogOpen] = useState(false);
-  const [tituloSmsNotificacoes, setTituloSmsNotificacoes] = useState<TituloCobranca | null>(null);
-  const [smsNotificacoes, setSmsNotificacoes] = useState<TituloSmsNotificacao[]>([]);
-  const [smsNotificacoesLoading, setSmsNotificacoesLoading] = useState(false);
-  const [smsNotificacoesError, setSmsNotificacoesError] = useState<string | null>(null);
+  const [notificacoesDialogOpen, setNotificacoesDialogOpen] = useState(false);
+  const [tituloNotificacoes, setTituloNotificacoes] = useState<TituloCobranca | null>(null);
+  const [notificacoes, setNotificacoes] = useState<TituloNotificacao[]>([]);
+  const [notificacoesLoading, setNotificacoesLoading] = useState(false);
+  const [notificacoesError, setNotificacoesError] = useState<string | null>(null);
   const [pdfLoteDialogOpen, setPdfLoteDialogOpen] = useState(false);
   const [pdfLoteResultado, setPdfLoteResultado] = useState<TituloPdfLoteResult | null>(null);
   const [selecionandoTodos, setSelecionandoTodos] = useState(false);
@@ -513,23 +513,19 @@ export function TitulosList({
     };
   }, []);
 
-  const tituloSmsNotificacoesDialogId = tituloSmsNotificacoes?.id ?? null;
+  const tituloNotificacoesDialogId = tituloNotificacoes?.id ?? null;
 
   const onSmsFilaRealtime = useCallback(
     (event: SmsFilaWsEvent) => {
       const item = normalizeSmsFilaItem(event.item);
       setPageData((prev) => applyTitulosSmsFromWsEvent(prev, event));
-      if (!tituloSmsNotificacoesDialogId) return;
-      setSmsNotificacoes((prev) => {
-        const merged = mergeTituloSmsNotificacaoList(
-          prev,
-          item,
-          tituloSmsNotificacoesDialogId,
-        );
+      if (!tituloNotificacoesDialogId) return;
+      setNotificacoes((prev) => {
+        const merged = mergeTituloNotificacaoList(prev, item, tituloNotificacoesDialogId);
         return merged ?? prev;
       });
     },
-    [tituloSmsNotificacoesDialogId],
+    [tituloNotificacoesDialogId],
   );
 
   useSmsFilaRealtime(onSmsFilaRealtime);
@@ -1343,29 +1339,29 @@ export function TitulosList({
     setSmsReguaPreviewLoading(false);
   };
 
-  const fecharSmsNotificacoesDialog = () => {
-    setSmsNotificacoesDialogOpen(false);
-    setTituloSmsNotificacoes(null);
-    setSmsNotificacoes([]);
-    setSmsNotificacoesError(null);
-    setSmsNotificacoesLoading(false);
+  const fecharNotificacoesDialog = () => {
+    setNotificacoesDialogOpen(false);
+    setTituloNotificacoes(null);
+    setNotificacoes([]);
+    setNotificacoesError(null);
+    setNotificacoesLoading(false);
   };
 
-  const abrirSmsNotificacoes = async (row: TituloCobranca) => {
-    setTituloSmsNotificacoes(row);
-    setSmsNotificacoes([]);
-    setSmsNotificacoesError(null);
-    setSmsNotificacoesLoading(true);
-    setSmsNotificacoesDialogOpen(true);
+  const abrirNotificacoes = async (row: TituloCobranca) => {
+    setTituloNotificacoes(row);
+    setNotificacoes([]);
+    setNotificacoesError(null);
+    setNotificacoesLoading(true);
+    setNotificacoesDialogOpen(true);
     try {
-      const items = await finService.listTituloSmsNotificacoes(row.id);
-      setSmsNotificacoes(items);
+      const items = await finService.listTituloNotificacoes(row.id);
+      setNotificacoes(items);
     } catch (e) {
-      setSmsNotificacoesError(
-        e instanceof Error ? e.message : "Falha ao carregar notificações SMS.",
+      setNotificacoesError(
+        e instanceof Error ? e.message : "Falha ao carregar notificações.",
       );
     } finally {
-      setSmsNotificacoesLoading(false);
+      setNotificacoesLoading(false);
     }
   };
 
@@ -1376,9 +1372,10 @@ export function TitulosList({
       return (
         <span className="inline-flex flex-wrap items-center gap-1.5">
           {dashboardStatusBadge(row.status, STATUS_TONES)}
-          <TituloSmsNotificacoesBadge
-            notificacoes={row.smsNotificacoes ?? []}
-            onClick={() => void abrirSmsNotificacoes(row)}
+          <TituloNotificacoesBadge
+            smsNotificacoes={row.smsNotificacoes ?? []}
+            whatsappNotificacoes={row.whatsappNotificacoes ?? []}
+            onClick={() => void abrirNotificacoes(row)}
           />
         </span>
       );
@@ -2324,13 +2321,13 @@ export function TitulosList({
           loading={actionLoading}
         />
 
-        <TituloSmsNotificacoesDialog
-          visible={smsNotificacoesDialogOpen}
-          onHide={fecharSmsNotificacoesDialog}
-          titulo={tituloSmsNotificacoes}
-          notificacoes={smsNotificacoes}
-          loading={smsNotificacoesLoading}
-          error={smsNotificacoesError}
+        <TituloNotificacoesDialog
+          visible={notificacoesDialogOpen}
+          onHide={fecharNotificacoesDialog}
+          titulo={tituloNotificacoes}
+          notificacoes={notificacoes}
+          loading={notificacoesLoading}
+          error={notificacoesError}
         />
 
         {whatsappBoletoEnvioHabilitado ? (

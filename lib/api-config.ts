@@ -1317,8 +1317,9 @@ export function getFinTituloSmsReguaUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/sms/regua`;
 }
 
-export function getFinTituloSmsNotificacoesUrl(id: string): string {
-  return `${getFinTituloByIdUrl(id)}/sms/notificacoes`;
+/** Histórico de envios de cobrança do título nos dois canais (SMS e WhatsApp). */
+export function getFinTituloNotificacoesUrl(id: string): string {
+  return `${getFinTituloByIdUrl(id)}/notificacoes`;
 }
 
 export function getFinTituloCancelarUrl(id: string): string {
