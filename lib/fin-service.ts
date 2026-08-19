@@ -34,6 +34,7 @@ import {
   getFinUnicredWebhookConciliacaoCriarTituloUrl,
   getFinUnicredWebhookConciliacaoIgnorarUrl,
   getFinUnicredWebhookConciliacaoListUrl,
+  getFinUnicredWebhookConciliacaoTotaisUrl,
   getFinUnicredWebhookConciliacaoPendentesUrl,
   getFinUnicredWebhookConciliacaoReprocessarUrl,
   getFinUnicredWebhookReprocessarFalhasAuthUrl,
@@ -913,7 +914,19 @@ export interface UnicredWebhookConciliacaoResumo {
   pagadorDocumento?: string | null;
   numeroContrato?: string | null;
   tituloVinculadoId?: string | null;
+  /** Juros de mora pagos na liquidação; nulo quando não houve. */
+  valorJuros?: number | null;
+  /** Tarifa cobrada pelo banco na liquidação. */
+  valorTarifa?: number | null;
   liquidacao: boolean;
+}
+
+/** Somatório do filtro inteiro, não só da página exibida. */
+export interface UnicredWebhookConciliacaoTotais {
+  quantidade: number;
+  valorRecebido: number;
+  valorJuros: number;
+  valorTarifa: number;
 }
 
 export interface UnicredWebhookConciliacaoDetalhe {
@@ -1723,6 +1736,28 @@ export const finService = {
       {
         skipLoading: options?.skipLoading,
       },
+    );
+    return parseJson(res);
+  },
+
+  async totaisUnicredWebhookConciliacao(
+    status?: UnicredWebhookConciliacaoStatus,
+    filtros?: UnicredWebhookConciliacaoFiltros,
+    options?: FinFetchOptions,
+  ): Promise<UnicredWebhookConciliacaoTotais> {
+    const res = await apiFetch(
+      getFinUnicredWebhookConciliacaoTotaisUrl({
+        status,
+        nome: filtros?.nome,
+        nossoNumero: filtros?.nossoNumero,
+        dataRecebimentoDe: filtros?.dataRecebimentoDe,
+        dataRecebimentoAte: filtros?.dataRecebimentoAte,
+        dataPagamentoDe: filtros?.dataPagamentoDe,
+        dataPagamentoAte: filtros?.dataPagamentoAte,
+        contrato: filtros?.contrato,
+        empreendimento: filtros?.empreendimento,
+      }),
+      { skipLoading: options?.skipLoading },
     );
     return parseJson(res);
   },

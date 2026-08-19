@@ -1800,6 +1800,34 @@ export function getFinUnicredWebhookConciliacaoUrl(): string {
   return withBase(getApiBaseUrl(), API_PATHS.finUnicredWebhookConciliacao);
 }
 
+/** Totais do filtro inteiro (sem paginação) — alimenta o rodapé da tela de conciliação. */
+export function getFinUnicredWebhookConciliacaoTotaisUrl(filters?: {
+  status?: string;
+  nome?: string;
+  nossoNumero?: string;
+  dataRecebimentoDe?: string;
+  dataRecebimentoAte?: string;
+  dataPagamentoDe?: string;
+  dataPagamentoAte?: string;
+  contrato?: string;
+  empreendimento?: string;
+}): string {
+  const base = getFinUnicredWebhookConciliacaoUrl();
+  if (!base) return "";
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.nome) params.set("nome", filters.nome);
+  if (filters?.nossoNumero) params.set("nossoNumero", filters.nossoNumero);
+  if (filters?.dataRecebimentoDe) params.set("dataRecebimentoDe", filters.dataRecebimentoDe);
+  if (filters?.dataRecebimentoAte) params.set("dataRecebimentoAte", filters.dataRecebimentoAte);
+  if (filters?.dataPagamentoDe) params.set("dataPagamentoDe", filters.dataPagamentoDe);
+  if (filters?.dataPagamentoAte) params.set("dataPagamentoAte", filters.dataPagamentoAte);
+  if (filters?.contrato) params.set("contrato", filters.contrato);
+  if (filters?.empreendimento) params.set("empreendimento", filters.empreendimento);
+  const qs = params.toString();
+  return qs ? `${base}/totais?${qs}` : `${base}/totais`;
+}
+
 export function getFinUnicredWebhookConciliacaoListUrl(
   page = 0,
   size = 20,

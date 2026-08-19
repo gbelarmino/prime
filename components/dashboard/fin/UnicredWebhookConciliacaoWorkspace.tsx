@@ -35,6 +35,7 @@ import {
   type TituloContextoLote,
   type UnicredWebhookConciliacaoDetalhe,
   type UnicredWebhookConciliacaoResumo,
+  type UnicredWebhookConciliacaoTotais,
   type UnicredWebhookConciliacaoStatus,
 } from "@/lib/fin-service";
 import type { SpringPage } from "@/lib/spring-page";
@@ -145,6 +146,7 @@ export function UnicredWebhookConciliacaoWorkspace() {
   const [empreendimentosLoading, setEmpreendimentosLoading] = useState(false);
   const [pageData, setPageData] = useState<SpringPage<UnicredWebhookConciliacaoResumo> | null>(null);
   const [pendentes, setPendentes] = useState(0);
+  const [totais, setTotais] = useState<UnicredWebhookConciliacaoTotais | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<UnicredWebhookConciliacaoDetalhe | null>(null);
@@ -170,27 +172,28 @@ export function UnicredWebhookConciliacaoWorkspace() {
   const carregarLista = useCallback(async () => {
     setLoading(true);
     try {
-      const [lista, cont] = await Promise.all([
-        finService.listUnicredWebhookConciliacao(
-          pageIndex,
-          PAGE_SIZE,
-          statusFiltro || "PENDENTE",
-          {
-            nome: nomeFiltro.trim() || undefined,
-            nossoNumero: nossoNumeroFiltro.trim() || undefined,
-            dataRecebimentoDe: dataRecebimentoDe || undefined,
-            dataRecebimentoAte: dataRecebimentoAte || undefined,
-            dataPagamentoDe: dataPagamentoDe || undefined,
-            dataPagamentoAte: dataPagamentoAte || undefined,
-            contrato: contratoFiltro.trim() || undefined,
-            empreendimento: empreendimentoFiltro.trim() || undefined,
-          },
-          { skipLoading: true },
-        ),
+      const filtrosAtuais = {
+        nome: nomeFiltro.trim() || undefined,
+        nossoNumero: nossoNumeroFiltro.trim() || undefined,
+        dataRecebimentoDe: dataRecebimentoDe || undefined,
+        dataRecebimentoAte: dataRecebimentoAte || undefined,
+        dataPagamentoDe: dataPagamentoDe || undefined,
+        dataPagamentoAte: dataPagamentoAte || undefined,
+        contrato: contratoFiltro.trim() || undefined,
+        empreendimento: empreendimentoFiltro.trim() || undefined,
+      };
+      const statusAtual = statusFiltro || "PENDENTE";
+      // Totais vêm do servidor com o mesmo filtro: somar as linhas da página daria só o visível.
+      const [lista, cont, somas] = await Promise.all([
+        finService.listUnicredWebhookConciliacao(pageIndex, PAGE_SIZE, statusAtual, filtrosAtuais, {
+          skipLoading: true,
+        }),
         finService.contagemUnicredWebhookPendentes(),
+        finService.totaisUnicredWebhookConciliacao(statusAtual, filtrosAtuais, { skipLoading: true }),
       ]);
       setPageData(lista);
       setPendentes(cont.pendentes);
+      setTotais(somas);
       notifyUnicredWebhookPendentesChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao carregar fila");
@@ -739,10 +742,51 @@ export function UnicredWebhookConciliacaoWorkspace() {
             body={(r: UnicredWebhookConciliacaoResumo) =>
               dashboardCellMono(formatMoney(r.valorRecebido ?? r.valorTitulo))
             }
-            style={{ width: "10%" }}
+            style={{ width: "9%" }}
           />
-          <Column header="Situação" body={statusBody} style={{ width: "12%" }} />
+          <Column
+            header="Juros"
+            body={(r: UnicredWebhookConciliacaoResumo) =>
+              // Sem juros na liquidação mostra "—": zero daria a entender cobrança de valor zero.
+              r.valorJuros != null && r.valorJuros > 0
+                ? dashboardCellMono(formatMoney(r.valorJuros))
+                : dashboardCellMono("—")
+            }
+            style={{ width: "8%" }}
+          />
+          <Column
+            header="Tarifa"
+            body={(r: UnicredWebhookConciliacaoResumo) =>
+              r.valorTarifa != null && r.valorTarifa > 0
+                ? dashboardCellMono(formatMoney(r.valorTarifa))
+                : dashboardCellMono("—")
+            }
+            style={{ width: "8%" }}
+          />
+          <Column header="Situação" body={statusBody} style={{ width: "11%" }} />
         </DataTable>
+
+        {/* Soma de todos os eventos do filtro — não apenas os da página exibida. */}
+        {totais && totais.quantidade > 0 && (
+          <div className="flex flex-wrap items-center justify-end gap-x-8 gap-y-2 border-t border-white/10 px-4 py-3">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+              Total do filtro · {totais.quantidade}{" "}
+              {totais.quantidade === 1 ? "evento" : "eventos"}
+            </span>
+            <span className="flex items-baseline gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Valor</span>
+              <span className="font-mono text-sm text-white/80">{formatMoney(totais.valorRecebido)}</span>
+            </span>
+            <span className="flex items-baseline gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Juros</span>
+              <span className="font-mono text-sm text-amber-300">{formatMoney(totais.valorJuros)}</span>
+            </span>
+            <span className="flex items-baseline gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Tarifa</span>
+              <span className="font-mono text-sm text-rose-300">{formatMoney(totais.valorTarifa)}</span>
+            </span>
+          </div>
+        )}
       </DashboardDataTableShell>
 
       <DashboardDialog
