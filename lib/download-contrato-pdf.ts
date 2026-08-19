@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import {
+  getContratoExtratoAnualPdfUrl,
   getContratoHonorariosPdfAssinadoUrl,
   getContratoHonorariosPdfUrl,
   isApiConfigured,
@@ -13,89 +14,47 @@ function tryGetFilenameFromDisposition(disposition: string | null): string | nul
   return m?.[1] ?? null;
 }
 
-/**
- * Busca o PDF do contrato na API (com Bearer) e dispara o download via blob.
- */
-export async function downloadContratoPdf(contratoId: number): Promise<void> {
-  if (!isApiConfigured()) {
-    toast.error("Configure NEXT_PUBLIC_API_BASE_URL para baixar o contrato.");
-    return;
-  }
-  const url = getContratoHonorariosPdfUrl(contratoId);
-  if (!url) {
-    toast.error("URL da API inválida.");
-    return;
-  }
-
-  const token = getAuthToken();
-  const loadingId = toast.loading("Gerando PDF…");
-
+/** Mensagem de erro da API: vem em JSON quando o Spring recusa, em texto quando estoura. */
+async function extrairMensagemErro(res: Response, padrao: string): Promise<string> {
+  const ct = res.headers.get("content-type") ?? "";
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/pdf,application/json;q=0.9,*/*;q=0.8",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      credentials: "omit",
-    });
-
-    if (!res.ok) {
-      let msg = "Não foi possível gerar o PDF do contrato.";
-      const ct = res.headers.get("content-type") ?? "";
-      try {
-        if (ct.includes("application/json")) {
-          const j = (await res.json()) as { message?: string };
-          if (j.message) msg = j.message;
-        } else {
-          const t = await res.text();
-          if (t && t.length < 400) msg = t;
-        }
-      } catch {
-        /* ignore */
-      }
-      toast.error(msg, { id: loadingId });
-      return;
+    if (ct.includes("application/json")) {
+      const j = (await res.json()) as { message?: string };
+      if (j.message) return j.message;
+    } else {
+      const t = await res.text();
+      if (t && t.length < 400) return t;
     }
-
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-
-    const filename =
-      tryGetFilenameFromDisposition(res.headers.get("content-disposition")) ??
-      `contrato-${contratoId}.pdf`;
-
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = filename;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    toast.success("PDF baixado.", { id: loadingId });
-    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
   } catch {
-    toast.error("Erro de rede ao gerar o PDF.", { id: loadingId });
+    /* ignore */
   }
+  return padrao;
 }
 
+type BaixarPdfOpts = {
+  url: string;
+  /** Usado quando a resposta não traz Content-Disposition. */
+  nomeArquivo: string;
+  aguardando: string;
+  erroPadrao: string;
+};
+
 /**
- * Baixa o PDF assinado já anexado (legado ou Clicksign), com autenticação Bearer.
+ * Busca um PDF na API com Bearer e dispara o download via blob. A API responde
+ * application/pdf; o blob evita abrir a URL direto, que iria sem o Authorization.
  */
-export async function downloadContratoPdfAssinado(contratoId: number): Promise<void> {
+async function baixarPdfAutenticado({ url, nomeArquivo, aguardando, erroPadrao }: BaixarPdfOpts): Promise<void> {
   if (!isApiConfigured()) {
-    toast.error("Configure NEXT_PUBLIC_API_BASE_URL para baixar o contrato.");
+    toast.error("Configure NEXT_PUBLIC_API_BASE_URL para baixar o arquivo.");
     return;
   }
-  const url = getContratoHonorariosPdfAssinadoUrl(contratoId);
   if (!url) {
     toast.error("URL da API inválida.");
     return;
   }
 
   const token = getAuthToken();
-  const loadingId = toast.loading("Baixando PDF…");
+  const loadingId = toast.loading(aguardando);
 
   try {
     const res = await fetch(url, {
@@ -108,29 +67,14 @@ export async function downloadContratoPdfAssinado(contratoId: number): Promise<v
     });
 
     if (!res.ok) {
-      let msg = "PDF assinado não disponível para este contrato.";
-      const ct = res.headers.get("content-type") ?? "";
-      try {
-        if (ct.includes("application/json")) {
-          const j = (await res.json()) as { message?: string };
-          if (j.message) msg = j.message;
-        } else {
-          const t = await res.text();
-          if (t && t.length < 400) msg = t;
-        }
-      } catch {
-        /* ignore */
-      }
-      toast.error(msg, { id: loadingId });
+      toast.error(await extrairMensagemErro(res, erroPadrao), { id: loadingId });
       return;
     }
 
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
-
     const filename =
-      tryGetFilenameFromDisposition(res.headers.get("content-disposition")) ??
-      `contrato-${contratoId}-assinado.pdf`;
+      tryGetFilenameFromDisposition(res.headers.get("content-disposition")) ?? nomeArquivo;
 
     const a = document.createElement("a");
     a.href = blobUrl;
@@ -147,3 +91,32 @@ export async function downloadContratoPdfAssinado(contratoId: number): Promise<v
   }
 }
 
+/** PDF do contrato gerado do template. */
+export async function downloadContratoPdf(contratoId: number): Promise<void> {
+  return baixarPdfAutenticado({
+    url: getContratoHonorariosPdfUrl(contratoId),
+    nomeArquivo: `contrato-${contratoId}.pdf`,
+    aguardando: "Gerando PDF…",
+    erroPadrao: "Não foi possível gerar o PDF do contrato.",
+  });
+}
+
+/** PDF assinado já anexado (legado ou Clicksign). */
+export async function downloadContratoPdfAssinado(contratoId: number): Promise<void> {
+  return baixarPdfAutenticado({
+    url: getContratoHonorariosPdfAssinadoUrl(contratoId),
+    nomeArquivo: `contrato-${contratoId}-assinado.pdf`,
+    aguardando: "Baixando PDF…",
+    erroPadrao: "PDF assinado não disponível para este contrato.",
+  });
+}
+
+/** Extrato anual (evolução do saldo devedor) — o mesmo documento do portal do cliente. */
+export async function downloadExtratoAnualPdf(contratoId: number): Promise<void> {
+  return baixarPdfAutenticado({
+    url: getContratoExtratoAnualPdfUrl(contratoId),
+    nomeArquivo: `extrato-anual-contrato-${contratoId}.pdf`,
+    aguardando: "Gerando extrato anual…",
+    erroPadrao: "Não foi possível gerar o extrato anual.",
+  });
+}

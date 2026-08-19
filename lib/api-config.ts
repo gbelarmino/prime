@@ -394,6 +394,13 @@ export function getContratoHonorariosPdfAssinadoUrl(id: number): string {
   return `${base}/${id}/pdf-assinado`;
 }
 
+/** GET — extrato anual (evolução do saldo devedor) em PDF, o mesmo que o cliente baixa no portal. */
+export function getContratoExtratoAnualPdfUrl(id: number): string {
+  const base = getContratoHonorariosUrl();
+  if (!base) return "";
+  return `${base}/${id}/extrato-anual/pdf`;
+}
+
 /** PUT — anexa ou substitui PDF assinado de contrato legado (multipart, campo {@code file}). */
 export function getContratoHonorariosPdfAssinadoUploadUrl(id: number): string {
   const base = getContratoHonorariosUrl();

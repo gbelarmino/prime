@@ -18,7 +18,8 @@ import {
   Calendar,
   User,
   Building2,
-  Download
+  Download,
+  ReceiptText
 } from "lucide-react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -55,7 +56,11 @@ import {
 } from "@/lib/renegociacao-routes";
 import { apiFetch } from "@/lib/api-fetch";
 import { ContratoTimeline } from "@/components/dashboard/ContratoTimeline";
-import { downloadContratoPdf, downloadContratoPdfAssinado } from "@/lib/download-contrato-pdf";
+import {
+  downloadContratoPdf,
+  downloadContratoPdfAssinado,
+  downloadExtratoAnualPdf,
+} from "@/lib/download-contrato-pdf";
 import { openContratoHtmlInNewTab } from "@/lib/open-contrato-html";
 import { formatBusinessDate } from "@/lib/format-datetime";
 import { ContratoViewModal } from "@/components/dashboard/ContratoViewModal";
@@ -463,6 +468,27 @@ export function ContratosList() {
           >
             <FileText size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
             <span className="text-xs font-bold uppercase tracking-widest text-emerald-400/80 text-left whitespace-nowrap">
+              {item.label}
+            </span>
+          </button>
+        ),
+      });
+    }
+
+    // Extrato anual: o mesmo demonstrativo que o cliente baixa no portal, para o
+    // back-office atender quem pede por telefone. Só faz sentido com contrato vigente.
+    if (isAssinado) {
+      items.push({
+        label: "Extrato Anual",
+        icon: "pi pi-receipt",
+        template: (item: { label: string }) => (
+          <button
+            type="button"
+            onClick={() => void downloadExtratoAnualPdf(r.id)}
+            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group"
+          >
+            <ReceiptText size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold uppercase tracking-widest text-white/70 text-left whitespace-nowrap">
               {item.label}
             </span>
           </button>
