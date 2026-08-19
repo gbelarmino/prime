@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
   Search, 
@@ -45,7 +44,6 @@ export type ContratanteListItem = {
 };
 
 export function ClientesList() {
-  const router = useRouter();
   const menuRef = useRef<Menu>(null);
   const [selectedRow, setSelectedRow] = useState<ContratanteListItem | null>(null);
   const [viewClientId, setViewClientId] = useState<number | null>(null);
@@ -60,15 +58,21 @@ export function ClientesList() {
     { 
       label: 'Editar Cliente', 
       icon: 'pi pi-pencil', 
+      /**
+       * Link, e não router.push: o site é exportado estático (`output: 'export'`) e o
+       * router indexa a rota pelo pathname, ignorando a query. Na segunda ida a
+       * /clientes/edit o push não acontece — a página recarrega na URL que ficou em
+       * cache e abre o cliente editado antes. Com Link a navegação vai para o id certo.
+       */
       template: (item: any) => (
-        <button onClick={item.command} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group">
+        <Link
+          href={selectedRow ? `/dashboard/clientes/edit?id=${selectedRow.id}` : "/dashboard/clientes"}
+          className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors group no-underline"
+        >
           <i className="pi pi-pencil text-blue-400 group-hover:scale-110 transition-transform" />
           <span className="text-xs font-bold uppercase tracking-widest text-white/70 text-left whitespace-nowrap">{item.label}</span>
-        </button>
-      ),
-      command: () => {
-        if (selectedRow) router.push(`/dashboard/clientes/edit?id=${selectedRow.id}`);
-      }
+        </Link>
+      )
     },
     { 
       label: 'Visualizar Detalhes', 
@@ -188,17 +192,18 @@ export function ClientesList() {
     }
     const badgeLabel = qtd > 99 ? "99+" : String(qtd);
     return (
-      <button
-        type="button"
+      // Link pelo mesmo motivo do item Editar: router.push para a mesma rota variando só
+      // a query recarrega na URL anterior e mostra os contratos do cliente errado.
+      <Link
+        href={`/dashboard/contratos?contratanteId=${rowData.id}`}
         title={`Ver ${qtd} contrato(s) deste cliente`}
-        onClick={() => router.push(`/dashboard/contratos?contratanteId=${rowData.id}`)}
-        className="relative inline-flex items-center justify-center rounded-xl p-2 text-blue-400 transition-colors hover:bg-blue-500/10 hover:text-blue-300"
+        className="relative inline-flex items-center justify-center rounded-xl p-2 text-blue-400 transition-colors hover:bg-blue-500/10 hover:text-blue-300 no-underline"
       >
         <FileText size={20} className="shrink-0" />
         <span className="absolute -right-1 -top-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full border border-[#071C33] bg-blue-600 px-1 text-[10px] font-bold leading-none text-white shadow-sm shadow-blue-600/40">
           {badgeLabel}
         </span>
-      </button>
+      </Link>
     );
   };
 
