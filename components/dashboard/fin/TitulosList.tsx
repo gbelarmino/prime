@@ -2236,8 +2236,21 @@ export function TitulosList({
               field="valorNominal"
               header="Valor"
               sortable
-              body={(row: TituloCobranca) => dashboardCellText(formatMoney(row.valorNominal))}
-              style={{ width: "7rem", maxWidth: "7rem" }}
+              body={(row: TituloCobranca) => (
+                <div className="flex flex-col items-start gap-1">
+                  {dashboardCellText(formatMoney(row.valorNominal))}
+                  {/* Boleto de grupo: o valor soma todos os lotes, não é a parcela de um só. */}
+                  {row.grupoLider && (
+                    <span
+                      title="Boleto de grupo legado: o valor cobre todos os lotes do grupo"
+                      className="inline-flex items-center rounded-md border border-rose-500/30 bg-rose-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-rose-300"
+                    >
+                      Líder
+                    </span>
+                  )}
+                </div>
+              )}
+              style={{ width: "8rem", maxWidth: "8rem" }}
             />
             <Column
               field="status"

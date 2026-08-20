@@ -141,6 +141,8 @@ export interface TituloCobranca {
   alteradoEm: string;
   usuarioNome?: string | null;
   legado?: boolean;
+  /** Boleto de grupo legado emitido no contrato líder: o valor cobre todos os lotes do grupo. */
+  grupoLider?: boolean;
   smsNotificacoes?: TituloSmsNotificacaoResumo[];
   smsNotificacoesEnviadas?: number;
   whatsappNotificacoes?: TituloWhatsAppNotificacaoResumo[];
