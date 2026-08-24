@@ -1703,7 +1703,7 @@ export function TitulosList({
     pageData?.content.reduce((acc, t) => acc + (t.valorNominal ?? 0), 0) ?? 0;
 
   const titulosTableHeader = (
-    <div className="flex flex-col gap-1 py-1 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <p className="text-sm text-white/40">
         <span className="font-bold text-white">
           {refreshing && pageData == null ? "…" : totalRecords}
@@ -1713,17 +1713,24 @@ export function TitulosList({
           <span className="text-white/30">
             {" "}
             · a mostrar {range.from}–{range.to}
-            {" "}
-            · subtotal{" "}
-            <span className="font-medium text-white/70">{formatMoney(subtotalPagina)}</span>
-            {" "}
-            · total{" "}
-            <span className="font-medium text-white/70">
-              {valorNominalTotalFiltro == null ? "…" : formatMoney(valorNominalTotalFiltro)}
-            </span>
           </span>
         ) : null}
       </p>
+      {totalRecords > 0 ? (
+        <p className="flex flex-wrap items-baseline justify-end gap-x-4 gap-y-1 text-right text-base font-semibold tracking-wide text-amber-400/90 sm:text-lg">
+          <span>
+            subtotal{" "}
+            <span className="font-bold text-amber-300">{formatMoney(subtotalPagina)}</span>
+          </span>
+          <span className="text-amber-500/50">·</span>
+          <span>
+            total{" "}
+            <span className="font-bold text-amber-300">
+              {valorNominalTotalFiltro == null ? "…" : formatMoney(valorNominalTotalFiltro)}
+            </span>
+          </span>
+        </p>
+      ) : null}
     </div>
   );
 
