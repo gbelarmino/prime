@@ -1717,12 +1717,14 @@ export function TitulosList({
         ) : null}
       </p>
       {totalRecords > 0 ? (
-        <p className="flex flex-wrap items-baseline justify-end gap-x-4 gap-y-1 text-right text-base font-semibold tracking-wide text-amber-400/90 sm:text-lg">
+        <p className="flex flex-wrap items-baseline justify-end gap-x-2 gap-y-1 text-right text-base font-semibold tracking-wide text-amber-400/90 sm:text-lg">
           <span>
             subtotal{" "}
             <span className="font-bold text-amber-300">{formatMoney(subtotalPagina)}</span>
           </span>
-          <span className="text-amber-500/50">·</span>
+          <span className="px-0.5 text-amber-500/70" aria-hidden>
+            →
+          </span>
           <span>
             total{" "}
             <span className="font-bold text-amber-300">
