@@ -87,7 +87,7 @@ export function ImoveisList() {
     void fetchOptions(getImoveisQuadrasUrl(), setQuadraOptions, "quadras");
   }, []);
 
-  const isAdmin = role === "ADMIN";
+  const canManage = role === "ADMIN" || role === "ADMINISTRATIVO";
   const canSeeIndisponivel = role === "ADMIN" || role === "ADMINISTRATIVO";
 
   const buildUrl = useCallback(
@@ -147,11 +147,11 @@ export function ImoveisList() {
           <i
             className={cn(
               "pi pi-pencil transition-transform",
-              isAdmin ? "text-blue-400 group-hover:scale-110" : "text-white/20",
+              canManage ? "text-blue-400 group-hover:scale-110" : "text-white/20",
             )}
           />
         ),
-        disabled: !isAdmin,
+        disabled: !canManage,
         onClick: () => router.push(`/dashboard/imoveis/edit?id=${row.id}`),
       }),
     );

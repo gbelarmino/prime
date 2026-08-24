@@ -174,6 +174,11 @@ export function canRegistrarContratoLegado(): boolean {
   return isAdmin() || isAdministrativo();
 }
 
+/** Criar e editar imóveis — admin e administrativo. */
+export function canManageImoveis(): boolean {
+  return isAdmin() || isAdministrativo();
+}
+
 const CONTRATO_ADITIVO_PATH = "/dashboard/contratos/aditivo";
 const CONTRATO_RENEGOCIACAO_PATH = "/dashboard/contratos/renegociacao";
 

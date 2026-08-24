@@ -59,6 +59,7 @@ import {
   getFinTitulosEmailCobrancaParcelaLoteUrl,
   getFinTitulosSmsCobrancaParcelaLoteUrl,
   getFinTitulosListUrl,
+  getFinTitulosSomaUrl,
   getFinTitulosLoteUrl,
   getFinTitulosIdsElegiveisRegistroUrl,
   getFinTitulosPdfLoteUrl,
@@ -1082,6 +1083,49 @@ export const finService = {
       },
       sort,
     );
+    const res = await apiFetch(url, { skipLoading: options?.skipLoading });
+    return parseJson(res);
+  },
+
+  async somarValorNominalTitulos(
+    filters?: {
+      status?: string | string[];
+      contratoId?: number;
+      imovelId?: number;
+      vencimentoDe?: string;
+      vencimentoAte?: string;
+      cadastroDe?: string;
+      cadastroAte?: string;
+      pagamentoDe?: string;
+      pagamentoAte?: string;
+      empreendimento?: string;
+      quadra?: string;
+      lote?: number;
+      contrato?: string;
+      nome?: string;
+      cpf?: string;
+      nossoNumero?: string;
+    },
+    options?: FinFetchOptions,
+  ): Promise<{ valorNominalTotal: number }> {
+    const url = getFinTitulosSomaUrl({
+      status: filters?.status,
+      contratoId: filters?.contratoId,
+      imovelId: filters?.imovelId,
+      vencimentoDe: filters?.vencimentoDe,
+      vencimentoAte: filters?.vencimentoAte,
+      cadastroDe: filters?.cadastroDe,
+      cadastroAte: filters?.cadastroAte,
+      pagamentoDe: filters?.pagamentoDe,
+      pagamentoAte: filters?.pagamentoAte,
+      empreendimento: filters?.empreendimento,
+      quadra: filters?.quadra,
+      lote: filters?.lote,
+      contrato: filters?.contrato,
+      nome: filters?.nome,
+      cpf: filters?.cpf,
+      nossoNumero: filters?.nossoNumero,
+    });
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
   },

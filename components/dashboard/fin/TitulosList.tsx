@@ -333,6 +333,7 @@ export function TitulosList({
   const [marcarVencidosDialogOpen, setMarcarVencidosDialogOpen] = useState(false);
   const hasLoadedRef = useRef(false);
   const [pageData, setPageData] = useState<SpringPage<TituloCobranca> | null>(null);
+  const [valorNominalTotalFiltro, setValorNominalTotalFiltro] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [empreendimentos, setEmpreendimentos] = useState<string[]>([]);
   const [empreendimentosLoading, setEmpreendimentosLoading] = useState(false);
@@ -470,20 +471,26 @@ export function TitulosList({
         setRefreshing(true);
       }
       try {
-        const data = await finService.listTitulos(
-          pageToLoad,
-          PAGE_SIZE,
-          buildListFilters(overrides?.status),
-          {
-            field: sortField,
-            direction: sortOrder === 1 ? "asc" : "desc",
-          },
-          { skipLoading },
-        );
+        const filters = buildListFilters(overrides?.status);
+        const [data, soma] = await Promise.all([
+          finService.listTitulos(
+            pageToLoad,
+            PAGE_SIZE,
+            filters,
+            {
+              field: sortField,
+              direction: sortOrder === 1 ? "asc" : "desc",
+            },
+            { skipLoading },
+          ),
+          finService.somarValorNominalTitulos(filters, { skipLoading: true }),
+        ]);
         setPageData(data);
+        setValorNominalTotalFiltro(soma.valorNominalTotal ?? 0);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erro ao carregar títulos.");
         setPageData(null);
+        setValorNominalTotalFiltro(null);
       } finally {
         if (skipLoading) {
           setRefreshing(false);
@@ -1692,6 +1699,8 @@ export function TitulosList({
 
   const totalRecords = pageData?.totalElements ?? 0;
   const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
+  const subtotalPagina =
+    pageData?.content.reduce((acc, t) => acc + (t.valorNominal ?? 0), 0) ?? 0;
 
   const titulosTableHeader = (
     <div className="flex flex-col gap-1 py-1 sm:flex-row sm:items-center sm:justify-between">
@@ -1704,6 +1713,14 @@ export function TitulosList({
           <span className="text-white/30">
             {" "}
             · a mostrar {range.from}–{range.to}
+            {" "}
+            · subtotal{" "}
+            <span className="font-medium text-white/70">{formatMoney(subtotalPagina)}</span>
+            {" "}
+            · total{" "}
+            <span className="font-medium text-white/70">
+              {valorNominalTotalFiltro == null ? "…" : formatMoney(valorNominalTotalFiltro)}
+            </span>
           </span>
         ) : null}
       </p>

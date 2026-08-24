@@ -1167,6 +1167,15 @@ export function getFinTitulosListUrl(
   return `${base}?${params.toString()}`;
 }
 
+export function getFinTitulosSomaUrl(opts?: FinTitulosListFilters): string {
+  const base = getFinTitulosUrl();
+  if (!base) return "";
+  const params = new URLSearchParams();
+  appendFinTitulosListFilterParams(params, opts);
+  const qs = params.toString();
+  return qs ? `${base}/soma?${qs}` : `${base}/soma`;
+}
+
 export function getFinTituloContextoLoteUrl(
   empreendimento: string,
   quadra: string,
