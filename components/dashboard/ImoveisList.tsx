@@ -60,7 +60,7 @@ export function ImoveisList() {
     setRole(getUserRole());
   }, []);
 
-  // Busca opções de empreendimentos e quadras
+  // Busca opções de empreendimentos (uma vez) e quadras (conforme empreendimento)
   useEffect(() => {
     if (!isApiConfigured()) return;
 
@@ -76,7 +76,7 @@ export function ImoveisList() {
         });
         if (res.ok) {
           const data = await res.json();
-          onSuccess(Array.isArray(data) ? data : []);
+          onSuccess(Array.isArray(data) ? data.map(String) : []);
         }
       } catch (err) {
         console.error(`Erro ao buscar ${label}:`, err);
@@ -84,8 +84,38 @@ export function ImoveisList() {
     };
 
     void fetchOptions(getImoveisEmpreendimentosUrl(), setEmpreendimentoOptions, "empreendimentos");
-    void fetchOptions(getImoveisQuadrasUrl(), setQuadraOptions, "quadras");
   }, []);
+
+  useEffect(() => {
+    if (!isApiConfigured()) return;
+
+    const loadQuadras = async () => {
+      const url = getImoveisQuadrasUrl(
+        situacaoFilter ? Number(situacaoFilter) : null,
+        empreendimentoFilter || null,
+      );
+      if (!url) return;
+      try {
+        const token = getAuthToken();
+        const res = await apiFetch(url, {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const options = Array.isArray(data) ? data.map(String) : [];
+          setQuadraOptions(options);
+          setQuadraFilter((prev) => (prev && !options.includes(prev) ? "" : prev));
+        }
+      } catch (err) {
+        console.error("Erro ao buscar quadras:", err);
+      }
+    };
+
+    void loadQuadras();
+  }, [empreendimentoFilter, situacaoFilter]);
 
   const canManage = role === "ADMIN" || role === "ADMINISTRATIVO";
   const canSeeIndisponivel = role === "ADMIN" || role === "ADMINISTRATIVO";

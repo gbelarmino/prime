@@ -55,7 +55,7 @@ export function usePaginatedSpringList<T>({
   }, [searchInput, debounceMs]);
 
   const setPage = useCallback((next: number) => {
-    setParams((p) => ({ ...p, page: next }));
+    setParams((p) => (p.page === next ? p : { ...p, page: next }));
   }, []);
 
   const [loading, setLoading] = useState(true);
@@ -64,60 +64,78 @@ export function usePaginatedSpringList<T>({
 
   const searchPending = searchInput.trim() !== params.q;
 
-  const load = useCallback(async () => {
-    if (!isApiConfigured()) {
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const listUrl =
+    isApiConfigured() ? buildUrl(params.page, pageSize, params.q) : "";
+
+  useEffect(() => {
+    if (!listUrl) {
       setLoading(false);
       setPageData(null);
       setFetchError(null);
       return;
     }
-    const url = buildUrl(params.page, pageSize, params.q);
-    if (!url) {
-      setLoading(false);
-      setPageData(null);
-      setFetchError(null);
-      return;
-    }
+
     const token = getAuthToken();
+    const controller = new AbortController();
+    let cancelled = false;
+
     setLoading(true);
     setFetchError(null);
-    try {
-      const res = await apiFetch(url, {
-        headers: {
-          Accept: "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: "omit",
-      });
-      if (!res.ok) {
-        let msg = fallbackRef.current;
-        try {
-          const j = (await res.json()) as { message?: string };
-          if (j.message) msg = j.message;
-        } catch {
-          /* ignore */
+
+    void (async () => {
+      try {
+        const res = await apiFetch(listUrl, {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: "omit",
+          signal: controller.signal,
+          skipLoading: false,
+        });
+        if (cancelled) return;
+        if (!res.ok) {
+          let msg = fallbackRef.current;
+          try {
+            const j = (await res.json()) as { message?: string };
+            if (j.message) msg = j.message;
+          } catch {
+            /* ignore */
+          }
+          setFetchError(msg);
+          onErrRef.current?.(msg);
+          setPageData(null);
+          return;
         }
+        const json = (await res.json()) as SpringPage<T>;
+        if (cancelled) return;
+        setPageData(json);
+        setFetchError(null);
+      } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) {
+          return;
+        }
+        const msg = "Erro de rede.";
         setFetchError(msg);
         onErrRef.current?.(msg);
         setPageData(null);
-        return;
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      const json = (await res.json()) as SpringPage<T>;
-      setPageData(json);
-      setFetchError(null);
-    } catch {
-      const msg = "Erro de rede.";
-      setFetchError(msg);
-      onErrRef.current?.(msg);
-      setPageData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [buildUrl, pageSize, params.page, params.q]);
+    })();
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [listUrl, refreshNonce]);
+
+  const reload = useCallback(() => {
+    setRefreshNonce((n) => n + 1);
+  }, []);
 
   return {
     searchInput,
@@ -127,7 +145,7 @@ export function usePaginatedSpringList<T>({
     pageSize,
     loading,
     pageData,
-    reload: load,
+    reload,
     fetchError,
     searchPending,
   };
