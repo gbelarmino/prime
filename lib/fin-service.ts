@@ -1499,7 +1499,12 @@ export const finService = {
 
   async cancelar(
     id: string,
-    payload?: { motivo?: string; justificativa?: string; valorRecebido?: number },
+    payload?: {
+      motivo?: string;
+      justificativa?: string;
+      valorRecebido?: number;
+      destinoContabil?: "CREDITO_CLIENTE" | "DISTRATO_MULTA";
+    },
   ): Promise<TituloCobranca> {
     const res = await apiFetch(getFinTituloCancelarUrl(id), {
       method: "POST",

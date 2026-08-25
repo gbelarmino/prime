@@ -182,6 +182,8 @@ export function TituloDetalhe({
       const atualizado = await finService.cancelar(tituloId, payload);
       if (atualizado.status === "BAIXA_SOLICITADA") {
         toast.success("Baixa solicitada no banco. Aguarde confirmação ou sincronize o status.");
+      } else if (titulo?.status === "PAGO") {
+        toast.success("Título pago cancelado e contabilidade reclassificada.");
       } else {
         toast.success("Título cancelado.");
       }
@@ -295,9 +297,7 @@ export function TituloDetalhe({
     titulo.status === "REGISTRADO" ||
     titulo.status === "VENCIDO";
   const podeCancelar =
-    titulo.status !== "PAGO" &&
-    titulo.status !== "CANCELADO" &&
-    titulo.status !== "BAIXA_SOLICITADA";
+    titulo.status !== "CANCELADO" && titulo.status !== "BAIXA_SOLICITADA";
   const podeSincronizar =
     Boolean(titulo.idExternoBanco?.trim()) &&
     (titulo.status === "BAIXA_SOLICITADA" ||
@@ -375,7 +375,7 @@ export function TituloDetalhe({
           )}
           {!isAtendimentoView && podeCancelar && (
             <ActionButton
-              label="Cancelar"
+              label={titulo.status === "PAGO" ? "Cancelar pago" : "Cancelar"}
               icon={<Ban size={14} />}
               variant="danger"
               disabled={actionLoading}
