@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { formatDataPagamentoExibicao } from "@/lib/fin-vencimento";
 import { dashboardCellText, dashboardStatusBadge } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
+import { canCancelarTituloPago } from "@/lib/auth-storage";
 import { TituloLegadoManualDialog } from "@/components/dashboard/fin/TituloLegadoManualDialog";
 import { TituloBalaoLegadoManualDialog } from "@/components/dashboard/fin/TituloBalaoLegadoManualDialog";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
@@ -297,7 +298,9 @@ export function TituloDetalhe({
     titulo.status === "REGISTRADO" ||
     titulo.status === "VENCIDO";
   const podeCancelar =
-    titulo.status !== "CANCELADO" && titulo.status !== "BAIXA_SOLICITADA";
+    titulo.status === "PAGO"
+      ? canCancelarTituloPago()
+      : titulo.status !== "CANCELADO" && titulo.status !== "BAIXA_SOLICITADA";
   const podeSincronizar =
     Boolean(titulo.idExternoBanco?.trim()) &&
     (titulo.status === "BAIXA_SOLICITADA" ||

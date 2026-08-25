@@ -179,6 +179,11 @@ export function canManageImoveis(): boolean {
   return isAdmin() || isAdministrativo();
 }
 
+/** Cancelar título já pago com reclassificação contábil — admin e administrativo. */
+export function canCancelarTituloPago(): boolean {
+  return isAdmin() || isAdministrativo();
+}
+
 const CONTRATO_ADITIVO_PATH = "/dashboard/contratos/aditivo";
 const CONTRATO_RENEGOCIACAO_PATH = "/dashboard/contratos/renegociacao";
 

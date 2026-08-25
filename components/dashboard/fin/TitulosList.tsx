@@ -42,6 +42,7 @@ import {
 } from "@/lib/dashboard-datatable";
 import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
+import { canCancelarTituloPago } from "@/lib/auth-storage";
 import { TituloRegistrarConvenioDialog } from "@/components/dashboard/fin/TituloRegistrarConvenioDialog";
 import { TituloPdfLoteDialog } from "@/components/dashboard/fin/TituloPdfLoteDialog";
 import { TituloRegistrarLoteDialog } from "@/components/dashboard/fin/TituloRegistrarLoteDialog";
@@ -1603,11 +1604,24 @@ export function TitulosList({
       );
     }
 
-    if (row.status !== "CANCELADO" && row.status !== "BAIXA_SOLICITADA") {
+    if (row.status === "PAGO") {
+      if (canCancelarTituloPago()) {
+        items.push(dashboardActionMenuSeparator());
+        items.push(
+          dashboardActionMenuItem({
+            label: "Cancelar título pago",
+            icon: <Ban size={16} className="text-rose-400 transition-transform group-hover:scale-110" />,
+            labelClassName: "text-rose-300/90",
+            onClick: () => abrirCancelar(row),
+            disabled: actionLoading,
+          }),
+        );
+      }
+    } else if (row.status !== "CANCELADO" && row.status !== "BAIXA_SOLICITADA") {
       items.push(dashboardActionMenuSeparator());
       items.push(
         dashboardActionMenuItem({
-          label: row.status === "PAGO" ? "Cancelar título pago" : "Cancelar título",
+          label: "Cancelar título",
           icon: <Ban size={16} className="text-rose-400 transition-transform group-hover:scale-110" />,
           labelClassName: "text-rose-300/90",
           onClick: () => abrirCancelar(row),
