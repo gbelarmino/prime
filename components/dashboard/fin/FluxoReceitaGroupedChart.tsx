@@ -35,6 +35,7 @@ type BarTooltip = {
   serie: string;
   mes: string;
   value: number;
+  totalValue?: number;
   color: string;
   detail?: string;
   clientX: number;
@@ -215,6 +216,7 @@ export function FluxoReceitaGroupedChart({
       serie: bar.serie,
       mes: bar.mes,
       value: bar.value,
+      totalValue: bar.detail ? bar.totalValue : undefined,
       color: bar.color,
       detail: bar.detail,
       clientX,
@@ -344,6 +346,11 @@ export function FluxoReceitaGroupedChart({
           >
             {formatMoney(tooltip.value)}
           </p>
+          {tooltip.totalValue != null && tooltip.totalValue !== tooltip.value ? (
+            <p className="mt-1.5 font-mono text-[13px] tabular-nums text-white/45">
+              Total da barra {formatMoney(tooltip.totalValue)}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -366,6 +373,6 @@ export const FLUXO_RECEITA_RECEBIDO_STACKS = [
   {
     key: "recebidoOutroVencimento",
     label: "Outros vencimentos",
-    color: "#059669",
+    color: "#a78bfa",
   },
 ] as const;
