@@ -19,6 +19,7 @@ import {
 import { DASHBOARD_DATATABLE_SHELL_CLASS } from "@/lib/dashboard-datatable";
 import { cn } from "@/lib/utils";
 import {
+  FLUXO_RECEITA_RECEBIDO_STACKS,
   FLUXO_RECEITA_SERIES,
   FluxoReceitaGroupedChart,
   formatMesLabel,
@@ -48,15 +49,43 @@ function formatMesRange(de?: string | null, ate?: string | null): string {
   return `${formatMesLabel(de)} — ${formatMesLabel(ate)}`;
 }
 
+function splitRecebido(m: FinFluxoReceitaMes): {
+  mesmo: number;
+  outro: number;
+  total: number;
+} {
+  const total = m.recebidoLiquido ?? 0;
+  const mesmo = m.recebidoMesmoVencimento;
+  const outro = m.recebidoOutroVencimento;
+  if (mesmo != null || outro != null) {
+    const mVal = mesmo ?? 0;
+    const oVal = outro ?? 0;
+    return { mesmo: mVal, outro: oVal, total: mVal + oVal || total };
+  }
+  return { mesmo: total, outro: 0, total };
+}
+
 function totaisMes(meses: FinFluxoReceitaMes[]) {
   return meses.reduce(
-    (acc, m) => ({
-      recebidoLiquido: acc.recebidoLiquido + (m.recebidoLiquido ?? 0),
-      emitido: acc.emitido + (m.emitido ?? 0),
-      inadimplencia: acc.inadimplencia + (m.inadimplencia ?? 0),
-      taxas: acc.taxas + (m.taxas ?? 0),
-    }),
-    { recebidoLiquido: 0, emitido: 0, inadimplencia: 0, taxas: 0 },
+    (acc, m) => {
+      const split = splitRecebido(m);
+      return {
+        recebidoLiquido: acc.recebidoLiquido + split.total,
+        recebidoMesmoVencimento: acc.recebidoMesmoVencimento + split.mesmo,
+        recebidoOutroVencimento: acc.recebidoOutroVencimento + split.outro,
+        emitido: acc.emitido + (m.emitido ?? 0),
+        inadimplencia: acc.inadimplencia + (m.inadimplencia ?? 0),
+        taxas: acc.taxas + (m.taxas ?? 0),
+      };
+    },
+    {
+      recebidoLiquido: 0,
+      recebidoMesmoVencimento: 0,
+      recebidoOutroVencimento: 0,
+      emitido: 0,
+      inadimplencia: 0,
+      taxas: 0,
+    },
   );
 }
 
@@ -71,8 +100,9 @@ function mesReferenciaAtual(): string {
 /** Só meses com alguma métrica — evita colunas vazias de APIs antigas com gap-fill. */
 function mesesComMovimento(meses: FinFluxoReceitaMes[]): FinFluxoReceitaMes[] {
   return meses.filter((m) => {
+    const split = splitRecebido(m);
     const total =
-      Math.abs(m.recebidoLiquido ?? 0) +
+      Math.abs(split.total) +
       Math.abs(m.emitido ?? 0) +
       Math.abs(m.inadimplencia ?? 0) +
       Math.abs(m.taxas ?? 0);
@@ -84,14 +114,19 @@ function somarMesesPorChave(mesesLists: FinFluxoReceitaMes[][]): FinFluxoReceita
   const byMes = new Map<string, FinFluxoReceitaMes>();
   for (const meses of mesesLists) {
     for (const m of meses) {
+      const split = splitRecebido(m);
       const cur = byMes.get(m.mes) ?? {
         mes: m.mes,
         recebidoLiquido: 0,
+        recebidoMesmoVencimento: 0,
+        recebidoOutroVencimento: 0,
         emitido: 0,
         inadimplencia: 0,
         taxas: 0,
       };
-      cur.recebidoLiquido += m.recebidoLiquido ?? 0;
+      cur.recebidoLiquido += split.total;
+      cur.recebidoMesmoVencimento = (cur.recebidoMesmoVencimento ?? 0) + split.mesmo;
+      cur.recebidoOutroVencimento = (cur.recebidoOutroVencimento ?? 0) + split.outro;
       cur.emitido += m.emitido ?? 0;
       cur.inadimplencia += m.inadimplencia ?? 0;
       cur.taxas += m.taxas ?? 0;
@@ -110,30 +145,52 @@ function buildGraficoItem(
 ): FluxoReceitaGraficoItem | null {
   const mesesAtivos = mesesComMovimento(meses);
   if (mesesAtivos.length === 0) return null;
-  const mesesGrafico = mesesAtivos.map((m) => ({
-    ...m,
-    emitido: m.mes < mesAtual ? 0 : (m.emitido ?? 0),
-  }));
+  const mesesGrafico = mesesAtivos.map((m) => {
+    const split = splitRecebido(m);
+    return {
+      ...m,
+      recebidoLiquido: split.total,
+      recebidoMesmoVencimento: split.mesmo,
+      recebidoOutroVencimento: split.outro,
+      emitido: m.mes < mesAtual ? 0 : (m.emitido ?? 0),
+    };
+  });
   const mesInicial = mesesGrafico[0]!.mes;
   const mesFinal = mesesGrafico[mesesGrafico.length - 1]!.mes;
   const labels = mesesGrafico.map((m) => m.mes);
-  const series = FLUXO_RECEITA_SERIES.map((def) => ({
-    ...def,
-    values: mesesGrafico.map((m) => {
-      switch (def.key) {
-        case "recebidoLiquido":
-          return m.recebidoLiquido ?? 0;
-        case "emitido":
-          return m.emitido ?? 0;
-        case "inadimplencia":
-          return m.inadimplencia ?? 0;
-        case "taxas":
-          return m.taxas ?? 0;
-        default:
-          return 0;
-      }
-    }),
-  }));
+  const series = FLUXO_RECEITA_SERIES.map((def): FluxoReceitaSerie => {
+    if (def.key === "recebidoLiquido") {
+      return {
+        ...def,
+        values: mesesGrafico.map((m) => m.recebidoLiquido ?? 0),
+        stacks: FLUXO_RECEITA_RECEBIDO_STACKS.map((st) => ({
+          key: st.key,
+          label: st.label,
+          color: st.color,
+          values: mesesGrafico.map((m) =>
+            st.key === "recebidoMesmoVencimento"
+              ? (m.recebidoMesmoVencimento ?? 0)
+              : (m.recebidoOutroVencimento ?? 0),
+          ),
+        })),
+      };
+    }
+    return {
+      ...def,
+      values: mesesGrafico.map((m) => {
+        switch (def.key) {
+          case "emitido":
+            return m.emitido ?? 0;
+          case "inadimplencia":
+            return m.inadimplencia ?? 0;
+          case "taxas":
+            return m.taxas ?? 0;
+          default:
+            return 0;
+        }
+      }),
+    };
+  });
   return {
     id,
     empreendimento,
@@ -282,9 +339,10 @@ export function FluxoReceitaDashboard() {
               consolidado do tenant + um gráfico por empreendimento
             </p>
             <p className="mt-1 text-xs text-white/30">
-              Recebido líquido = caixa (mês do pagamento) · A vencer = vencimento a partir de{" "}
-              {formatMesLabel(mesReferenciaAtual())} · Inadimplência = vencidos e atrasados (mês
-              do vencimento) · Inclui carteira legada importada
+              Recebido líquido = caixa (mês do pagamento), empilhado em vencimento no mês vs outros
+              vencimentos · A vencer = vencimento a partir de {formatMesLabel(mesReferenciaAtual())}{" "}
+              · Inadimplência = vencidos e atrasados (mês do vencimento) · Inclui carteira legada
+              importada
             </p>
           </div>
           <button
@@ -301,15 +359,30 @@ export function FluxoReceitaDashboard() {
 
       <Card className="border-white/10 bg-white/5" pt={{ body: { className: "px-6 py-4" } }}>
         <div className="flex flex-wrap gap-4">
-          {FLUXO_RECEITA_SERIES.map((s) => (
-            <div key={s.key} className="flex items-center gap-2 text-xs text-white/60">
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-sm"
-                style={{ backgroundColor: s.color }}
-              />
-              {s.label}
-            </div>
-          ))}
+          {FLUXO_RECEITA_SERIES.map((s) =>
+            s.key === "recebidoLiquido" ? (
+              <div key={s.key} className="flex flex-wrap items-center gap-3 text-xs text-white/60">
+                <span className="text-white/45">{s.label}:</span>
+                {FLUXO_RECEITA_RECEBIDO_STACKS.map((st) => (
+                  <span key={st.key} className="inline-flex items-center gap-2">
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-sm"
+                      style={{ backgroundColor: st.color }}
+                    />
+                    {st.label}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div key={s.key} className="flex items-center gap-2 text-xs text-white/60">
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-sm"
+                  style={{ backgroundColor: s.color }}
+                />
+                {s.label}
+              </div>
+            ),
+          )}
         </div>
       </Card>
 

@@ -422,6 +422,10 @@ export interface FinDashboardResumo {
 export interface FinFluxoReceitaMes {
   mes: string;
   recebidoLiquido: number;
+  /** Pagamentos no mês com vencimento no mesmo mês. */
+  recebidoMesmoVencimento?: number;
+  /** Pagamentos no mês com vencimento em mês passado ou futuro. */
+  recebidoOutroVencimento?: number;
   emitido: number;
   inadimplencia: number;
   taxas: number;
