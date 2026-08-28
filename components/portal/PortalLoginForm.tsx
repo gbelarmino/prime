@@ -8,6 +8,7 @@ import { Button } from "primereact/button";
 import { setPortalSession, isPortalAuthenticated } from "@/lib/portal-auth-storage";
 import { portalSolicitarOtp, portalVerificarOtp } from "@/lib/portal-service";
 import { PortalAlert, PortalField, PortalStepIndicator } from "@/lib/portal-ui";
+import { PortalOtpEnvioMensagem } from "@/lib/portal-otp-message";
 
 export function PortalLoginForm() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export function PortalLoginForm() {
   const [codigo, setCodigo] = useState("");
   const [etapa, setEtapa] = useState<"cpf" | "otp">("cpf");
   const [mensagem, setMensagem] = useState<string | null>(null);
+  const [destinoMascarado, setDestinoMascarado] = useState<string | null>(null);
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,6 +45,7 @@ export function PortalLoginForm() {
     try {
       const res = await portalSolicitarOtp(cpf);
       setMensagem(res.mensagem);
+      setDestinoMascarado(res.destinoMascarado ?? null);
       setDevOtp(res.devOtpExposto ? res.devOtp ?? null : null);
       setEtapa("otp");
     } catch (e) {
@@ -97,7 +100,11 @@ export function PortalLoginForm() {
         </>
       ) : (
         <>
-          {mensagem ? <PortalAlert tone="info">{mensagem}</PortalAlert> : null}
+          {mensagem ? (
+            <PortalAlert tone="info">
+              <PortalOtpEnvioMensagem mensagem={mensagem} destinoMascarado={destinoMascarado} />
+            </PortalAlert>
+          ) : null}
           {(devOtp || process.env.NODE_ENV === "development") && (
             <PortalAlert tone="warn">
               {devOtp
@@ -131,6 +138,7 @@ export function PortalLoginForm() {
               setEtapa("cpf");
               setCodigo("");
               setMensagem(null);
+              setDestinoMascarado(null);
               setDevOtp(null);
               setErro(null);
             }}

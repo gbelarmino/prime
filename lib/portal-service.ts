@@ -58,6 +58,7 @@ export async function portalSolicitarOtp(cpf: string): Promise<{
   expiraEmMinutos: number;
   devOtpExposto?: boolean;
   devOtp?: string | null;
+  destinoMascarado?: string | null;
 }> {
   const res = await portalFetch(portalUrl("/api/portal/auth/cpf"), {
     method: "POST",
