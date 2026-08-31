@@ -486,8 +486,20 @@ export function CobrancaGruposWorkspace() {
     if (!grupoSelecionado || !convenioId || !vencimento || parcelaLider == null || parcelaLider < 1) {
       return null;
     }
-    const membros = grupoSelecionado.membros.map((m) => {
+    const membrosOrdenados = [...grupoSelecionado.membros].sort(
+      (a, b) => a.contratoId - b.contratoId,
+    );
+    const pesos = membrosOrdenados.map((m) => valoresMembro[m.contratoId] ?? 0);
+    const principais =
+      memorialAplicado && pesos.every((p) => p >= 0.01)
+        ? rateioProporcional(memorialAplicado.valorPrincipal, pesos)
+        : null;
+
+    const membros = membrosOrdenados.map((m, i) => {
       const base = { contratoId: m.contratoId };
+      if (principais != null) {
+        return { ...base, valorNominal: principais[i] };
+      }
       const valor = valoresMembro[m.contratoId];
       if (valor != null && valor >= 0.01) {
         return { ...base, valorNominal: valor };
@@ -564,17 +576,13 @@ export function CobrancaGruposWorkspace() {
   const multaEmitirN = memorialAplicado?.valorMulta ?? valorMultaEmitir ?? 0;
   const principalResumo =
     memorialAplicado?.valorPrincipal ?? valorTotalConsolidado ?? null;
-  const faceEmitir = useMemo(() => {
+
+  /** Face Unicred: valor presente da calculadora, ou soma dos lotes + encargos. */
+  const faceUnicredEmissao = useMemo(() => {
     if (memorialAplicado) return memorialAplicado.valorTotal;
     if (valorTotalConsolidado == null) return null;
     return roundMoney(valorTotalConsolidado + jurosEmitirN + multaEmitirN);
   }, [memorialAplicado, valorTotalConsolidado, jurosEmitirN, multaEmitirN]);
-
-  /** Face enviado à Unicred: soma dos lotes + encargos (pode divergir do total da calculadora). */
-  const faceUnicredEmissao = useMemo(() => {
-    if (valorTotalConsolidado == null) return faceEmitir;
-    return roundMoney(valorTotalConsolidado + jurosEmitirN + multaEmitirN);
-  }, [valorTotalConsolidado, jurosEmitirN, multaEmitirN, faceEmitir]);
 
   const encargosEmitirValidos =
     faceUnicredEmissao == null || jurosEmitirN + multaEmitirN < faceUnicredEmissao - 0.009;
@@ -584,15 +592,25 @@ export function CobrancaGruposWorkspace() {
     valorTotalConsolidado != null &&
     Math.abs(memorialAplicado.valorPrincipal - valorTotalConsolidado) > 0.009;
 
-  const resumoRateioLocal = useMemo((): ResumoRateioLote[] | null => {
+  /** Principais por lote para rateio/emissão: se veio da calculadora, rateia o principal dela. */
+  const principaisRateio = useMemo((): number[] | null => {
     if (!grupoSelecionado || valorTotalConsolidado == null) return null;
     const membros = [...grupoSelecionado.membros].sort((a, b) => a.contratoId - b.contratoId);
     const pesos = membros.map((m) => valoresMembro[m.contratoId] ?? 0);
     if (pesos.some((p) => p < 0.01)) return null;
-    const jurosPartes = rateioProporcional(jurosEmitirN, pesos);
-    const multaPartes = rateioProporcional(multaEmitirN, pesos);
+    if (memorialAplicado) {
+      return rateioProporcional(memorialAplicado.valorPrincipal, pesos);
+    }
+    return pesos;
+  }, [grupoSelecionado, valorTotalConsolidado, valoresMembro, memorialAplicado]);
+
+  const resumoRateioLocal = useMemo((): ResumoRateioLote[] | null => {
+    if (!grupoSelecionado || principaisRateio == null) return null;
+    const membros = [...grupoSelecionado.membros].sort((a, b) => a.contratoId - b.contratoId);
+    const jurosPartes = rateioProporcional(jurosEmitirN, principaisRateio);
+    const multaPartes = rateioProporcional(multaEmitirN, principaisRateio);
     return membros.map((m, i) => {
-      const principal = pesos[i];
+      const principal = principaisRateio[i] ?? 0;
       const juros = jurosPartes[i] ?? 0;
       const multa = multaPartes[i] ?? 0;
       return {
@@ -605,7 +623,7 @@ export function CobrancaGruposWorkspace() {
         total: roundMoney(principal + juros + multa),
       };
     });
-  }, [grupoSelecionado, valorTotalConsolidado, valoresMembro, jurosEmitirN, multaEmitirN]);
+  }, [grupoSelecionado, principaisRateio, jurosEmitirN, multaEmitirN]);
 
   const mostrarResumoEmissao =
     valorTotalConsolidado != null ||
@@ -1378,19 +1396,21 @@ export function CobrancaGruposWorkspace() {
                               Face Unicred
                             </p>
                             <p className="font-semibold text-emerald-300/90">
-                              {formatMoney(faceUnicredEmissao ?? faceEmitir)}
+                              {formatMoney(faceUnicredEmissao)}
                             </p>
                           </div>
                         </div>
                         {valorTotalConsolidado != null && memorialAplicado ? (
                           <p className="text-xs text-white/45">
-                            Soma dos lotes: {formatMoney(valorTotalConsolidado)}
+                            Face Unicred = valor presente da calculadora (
+                            {formatMoney(memorialAplicado.valorTotal)}). Soma dos lotes na tabela:{" "}
+                            {formatMoney(valorTotalConsolidado)}
                             {principalMemorialDiverge ? (
                               <span className="text-amber-300/85">
                                 {" "}
-                                — diverge do principal da calculadora (
-                                {formatMoney(memorialAplicado.valorPrincipal)}). Recalcule com a
-                                soma dos lotes.
+                                — o rateio usa o principal da calculadora (
+                                {formatMoney(memorialAplicado.valorPrincipal)}) proporcional aos
+                                lotes.
                               </span>
                             ) : null}
                           </p>
