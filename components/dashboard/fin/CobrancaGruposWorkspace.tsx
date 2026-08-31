@@ -1817,7 +1817,6 @@ export function CobrancaGruposWorkspace() {
         visible={memorialOpen}
         onHide={() => setMemorialOpen(false)}
         principalInicial={valorTotalConsolidado}
-        travarPrincipal
         onUsarValor={(aplicacao) => {
           aplicandoMemorialRef.current = true;
           setSimulacao(null);
