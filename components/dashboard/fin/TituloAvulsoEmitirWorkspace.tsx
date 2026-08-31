@@ -16,6 +16,7 @@ import {
 import {
   convenioEmpreendimentoDropdownOptions,
 } from "@/lib/convenio-label";
+import { TituloAvulsoMemorialDialog } from "@/components/dashboard/fin/TituloAvulsoMemorialDialog";
 import { inicioDoDiaHoje, isVencimentoFuturo, normalizarDataCalendario, parseIsoDate } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
@@ -66,7 +67,10 @@ export function TituloAvulsoEmitirWorkspace() {
   const [contextoLoading, setContextoLoading] = useState(false);
   const [numeroParcela, setNumeroParcela] = useState<number | null>(null);
   const [valorNominal, setValorNominal] = useState<number | null>(null);
+  const [valorJuros, setValorJuros] = useState<number | null>(null);
+  const [valorMulta, setValorMulta] = useState<number | null>(null);
   const [vencimento, setVencimento] = useState<Date | null>(null);
+  const [memorialOpen, setMemorialOpen] = useState(false);
 
   const convenioOptions = useMemo(
     () => convenioEmpreendimentoDropdownOptions(convenios),
@@ -75,6 +79,19 @@ export function TituloAvulsoEmitirWorkspace() {
 
   const convenioSelecionado = convenioPorId(convenios, selectedConvenioId);
 
+  const jurosN = valorJuros ?? 0;
+  const multaN = valorMulta ?? 0;
+  const encargosOk =
+    valorNominal != null &&
+    valorNominal > 0 &&
+    jurosN >= 0 &&
+    multaN >= 0 &&
+    jurosN + multaN < valorNominal;
+  const principalDerivado =
+    valorNominal != null && encargosOk
+      ? Math.round((valorNominal - jurosN - multaN) * 100) / 100
+      : null;
+
   const podeEmitir =
     contexto != null &&
     selectedConvenioId != null &&
@@ -82,6 +99,7 @@ export function TituloAvulsoEmitirWorkspace() {
     numeroParcela > 0 &&
     valorNominal != null &&
     valorNominal > 0 &&
+    encargosOk &&
     vencimento != null &&
     isVencimentoFuturo(vencimento) &&
     !contexto.avisoConvenio &&
@@ -144,6 +162,8 @@ export function TituloAvulsoEmitirWorkspace() {
         setContexto(ctx);
         setNumeroParcela(ctx.numeroParcela);
         setValorNominal(ctx.valorNominal ?? null);
+        setValorJuros(null);
+        setValorMulta(null);
         const vencIso =
           ctx.primeiroTituloLote && ctx.dataPrimeiraParcelaContrato
             ? ctx.dataPrimeiraParcelaContrato
@@ -172,6 +192,10 @@ export function TituloAvulsoEmitirWorkspace() {
       toast.error("Preencha contrato, convênio, parcela, valor e vencimento.");
       return;
     }
+    if (!encargosOk) {
+      toast.error("A soma de juros e multa deve ser menor que o valor total do boleto.");
+      return;
+    }
     if (contexto.avisoConvenio) {
       toast.error(contexto.avisoConvenio);
       return;
@@ -196,6 +220,8 @@ export function TituloAvulsoEmitirWorkspace() {
           convenioId: selectedConvenioId,
           valorNominal,
           vencimento: formatDateIso(vencimento),
+          valorJuros: jurosN > 0 ? jurosN : undefined,
+          valorMulta: multaN > 0 ? multaN : undefined,
         },
         idempotencyKey,
       );
@@ -379,7 +405,7 @@ export function TituloAvulsoEmitirWorkspace() {
             </p>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-2">
               <label className={FORM_LABEL_CLASS}>Parcela</label>
               <InputNumber
@@ -393,7 +419,7 @@ export function TituloAvulsoEmitirWorkspace() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className={FORM_LABEL_CLASS}>Valor nominal</label>
+              <label className={FORM_LABEL_CLASS}>Valor total do boleto</label>
               <InputNumber
                 value={valorNominal}
                 onValueChange={(e) => setValorNominal(e.value ?? null)}
@@ -407,7 +433,7 @@ export function TituloAvulsoEmitirWorkspace() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className={FORM_LABEL_CLASS}>Vencimento</label>
+              <label className={FORM_LABEL_CLASS}>Vencimento do boleto</label>
               <Calendar
                 value={vencimento}
                 onChange={(e) => setVencimento(normalizarDataCalendario(e.value))}
@@ -422,16 +448,88 @@ export function TituloAvulsoEmitirWorkspace() {
                 Hoje ou data futura; não precisa coincidir com o dia de vencimento do contrato.
               </p>
             </div>
+            <div className="flex flex-col gap-2">
+              <label className={FORM_LABEL_CLASS}>Juros embutidos (R$)</label>
+              <InputNumber
+                value={valorJuros}
+                onValueChange={(e) => setValorJuros(e.value ?? null)}
+                mode="currency"
+                currency="BRL"
+                locale="pt-BR"
+                minFractionDigits={2}
+                min={0}
+                disabled={!contexto}
+                className="w-full"
+                inputClassName={FORM_INPUT_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className={FORM_LABEL_CLASS}>Multa embutida (R$)</label>
+              <InputNumber
+                value={valorMulta}
+                onValueChange={(e) => setValorMulta(e.value ?? null)}
+                mode="currency"
+                currency="BRL"
+                locale="pt-BR"
+                minFractionDigits={2}
+                min={0}
+                disabled={!contexto}
+                className="w-full"
+                inputClassName={FORM_INPUT_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-2 justify-end">
+              <button
+                type="button"
+                disabled={!contexto}
+                onClick={() => setMemorialOpen(true)}
+                className="rounded-xl border border-violet-400/35 bg-violet-500/15 px-4 py-3 text-xs font-bold uppercase tracking-widest text-violet-100 hover:bg-violet-500/25 disabled:opacity-40"
+              >
+                Calculadora valor presente
+              </button>
+            </div>
           </div>
 
           {contexto && valorNominal != null ? (
-            <p className="text-sm text-white/40">
-              Total a registrar:{" "}
-              <span className="font-semibold text-emerald-300/90">{formatMoney(valorNominal)}</span>
-            </p>
+            <div className="space-y-1 text-sm text-white/40">
+              <p>
+                Total a registrar na Unicred:{" "}
+                <span className="font-semibold text-emerald-300/90">{formatMoney(valorNominal)}</span>
+              </p>
+              {principalDerivado != null ? (
+                <p>
+                  Principal (total − juros − multa):{" "}
+                  <span className="font-semibold text-white/70">{formatMoney(principalDerivado)}</span>
+                  {jurosN > 0 || multaN > 0 ? (
+                    <span className="text-white/35">
+                      {" "}
+                      · juros {formatMoney(jurosN)} · multa {formatMoney(multaN)}
+                    </span>
+                  ) : null}
+                </p>
+              ) : (
+                <p className="text-amber-300/80">
+                  Ajuste juros/multa: a soma deve ser menor que o valor total.
+                </p>
+              )}
+            </div>
           ) : null}
         </section>
       </div>
+
+      <TituloAvulsoMemorialDialog
+        visible={memorialOpen}
+        onHide={() => setMemorialOpen(false)}
+        principalInicial={contexto?.valorNominal ?? valorNominal}
+        onUsarValor={(aplicacao) => {
+          setValorNominal(aplicacao.valorTotal);
+          setValorJuros(aplicacao.valorJuros > 0 ? aplicacao.valorJuros : null);
+          setValorMulta(aplicacao.valorMulta > 0 ? aplicacao.valorMulta : null);
+          toast.success(
+            `Valores aplicados (${aplicacao.diasAtraso} dia(s) de atraso) — confira e emita o boleto.`,
+          );
+        }}
+      />
 
       <div className="mt-8 flex flex-wrap items-center justify-end gap-3 border-t border-white/10 pt-6">
         <Link

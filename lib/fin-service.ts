@@ -135,6 +135,10 @@ export interface TituloCobranca {
   valorJuros?: number | null;
   valorMulta?: number | null;
   valorTarifa?: number | null;
+  /** Juros embutidos no face na emissão (split na liquidação). */
+  valorJurosPrevisto?: number | null;
+  /** Multa embutida no face na emissão (split na liquidação). */
+  valorMultaPrevisto?: number | null;
   vencimento: string;
   dataPagamento?: string | null;
   versao: number;
@@ -528,8 +532,11 @@ export interface TituloAvulsoEmitir {
   contratoId: number;
   numeroParcela: number;
   convenioId: string;
+  /** Face do boleto (principal + juros + multa embutidos). */
   valorNominal: number;
   vencimento: string;
+  valorJuros?: number;
+  valorMulta?: number;
 }
 
 export interface ContratoBalaoPendenteItem {
