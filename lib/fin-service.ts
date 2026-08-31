@@ -636,6 +636,10 @@ export interface CobrancaGrupoEmitirPayload {
   /** Parcela do líder; todos os lotes do grupo usam a mesma numeração. */
   numeroParcela: number;
   membros: CobrancaGrupoEmitirMembro[];
+  /** Juros embutidos no face; rateados proporcionalmente ao principal de cada lote. */
+  valorJuros?: number;
+  /** Multa embutida no face; rateada proporcionalmente ao principal de cada lote. */
+  valorMulta?: number;
 }
 
 export interface CobrancaGrupoEmitirSimulacaoItem {
@@ -644,7 +648,10 @@ export interface CobrancaGrupoEmitirSimulacaoItem {
   quadra?: string | null;
   lote?: number | null;
   numeroParcela: number;
+  /** Principal do lote. */
   valorNominal: number | null;
+  valorJuros?: number | null;
+  valorMulta?: number | null;
   aviso?: string | null;
 }
 
