@@ -39,6 +39,10 @@ export type TituloAvulsoMemorialAplicacao = {
   valorMulta: number;
   valorPrincipal: number;
   diasAtraso: number;
+  vencimentoOriginal: string;
+  dataCalculo: string;
+  multaPercentual: number;
+  jurosMensalPercentual: number;
 };
 
 type TituloAvulsoMemorialDialogProps = {
@@ -46,6 +50,8 @@ type TituloAvulsoMemorialDialogProps = {
   onHide: () => void;
   onUsarValor: (aplicacao: TituloAvulsoMemorialAplicacao) => void;
   principalInicial?: number | null;
+  /** Quando true, o principal fica travado no valor inicial (ex.: soma dos lotes do grupo). */
+  travarPrincipal?: boolean;
 };
 
 export function TituloAvulsoMemorialDialog({
@@ -53,6 +59,7 @@ export function TituloAvulsoMemorialDialog({
   onHide,
   onUsarValor,
   principalInicial,
+  travarPrincipal = false,
 }: TituloAvulsoMemorialDialogProps) {
   const [principal, setPrincipal] = useState<number | null>(null);
   const [vencimentoOriginal, setVencimentoOriginal] = useState<Date | null>(null);
@@ -109,6 +116,10 @@ export function TituloAvulsoMemorialDialog({
       valorMulta: resultado.valorMulta,
       valorPrincipal: resultado.valorNominal,
       diasAtraso: resultado.diasAtraso,
+      vencimentoOriginal: resultado.vencimento,
+      dataCalculo: resultado.dataCalculo,
+      multaPercentual: resultado.multaPercentual,
+      jurosMensalPercentual: resultado.jurosMensalPercentual,
     });
     onHide();
   }
@@ -164,6 +175,7 @@ export function TituloAvulsoMemorialDialog({
             <InputNumber
               value={principal}
               onValueChange={(e) => {
+                if (travarPrincipal) return;
                 setResultado(null);
                 setPrincipal(e.value ?? null);
               }}
@@ -172,9 +184,15 @@ export function TituloAvulsoMemorialDialog({
               locale="pt-BR"
               minFractionDigits={2}
               min={0.01}
+              disabled={travarPrincipal}
               className="w-full"
               inputClassName={DASHBOARD_FORM_INPUT_CLASS}
             />
+            {travarPrincipal ? (
+              <p className="text-[11px] text-white/35">
+                Principal travado na soma dos lotes do grupo.
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-col gap-2">
             <label className={FORM_LABEL_CLASS}>Vencimento original</label>
