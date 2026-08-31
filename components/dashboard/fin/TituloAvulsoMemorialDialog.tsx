@@ -1,34 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { InputNumber } from "primereact/inputnumber";
 import { toast } from "sonner";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
-import { DashboardCalendar } from "@/lib/dashboard-calendar";
+import {
+  DASHBOARD_CALENDAR_INPUT_CLASS,
+  DASHBOARD_FORM_INPUT_CLASS,
+  DashboardCalendar,
+} from "@/lib/dashboard-calendar";
 import {
   calcularMemorialTitulo,
   fetchBoletoEncargosConfig,
   type MemorialCalculoResult,
 } from "@/lib/fin-memorial-calculo";
-import { normalizarDataCalendario } from "@/lib/fin-vencimento";
+import { formatIsoDate, normalizarDataCalendario } from "@/lib/fin-vencimento";
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
-const FORM_INPUT_CLASS =
-  "w-full rounded-xl border border-white/10 bg-white/[0.05] p-3 text-sm text-white placeholder:text-white/25";
 
 const DIALOG_PT = {
-  root: { className: "border border-white/10 bg-[#12141a] text-white shadow-2xl" },
-  header: { className: "border-b border-white/10 bg-transparent text-white" },
-  content: { className: "bg-transparent text-white" },
-  footer: { className: "border-t border-white/10 bg-transparent" },
+  header: {
+    className:
+      "border-b border-white/[0.06] bg-transparent px-6 py-5 font-[family-name:var(--font-playfair)] text-xl font-semibold text-white",
+  },
+  content: { className: "bg-transparent px-6 py-6" },
+  footer: { className: "border-t border-white/[0.06] bg-transparent px-6 py-5" },
+  mask: { className: "backdrop-blur-sm bg-black/40" },
 };
-
-function formatDateIso(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 function formatMoney(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
@@ -62,18 +60,6 @@ export function TituloAvulsoMemorialDialog({
   const [calculando, setCalculando] = useState(false);
   const [encargosLabel, setEncargosLabel] = useState("Multa 2% · Juros 1% a.m.");
 
-  useEffect(() => {
-    if (!visible) return;
-    setPrincipal(principalInicial != null && principalInicial > 0 ? principalInicial : null);
-    setVencimentoOriginal(null);
-    setResultado(null);
-    void fetchBoletoEncargosConfig().then((c) => {
-      setEncargosLabel(
-        `Multa ${c.multaPercentual}% · Juros ${c.jurosMensalPercentual}% a.m. (pro rata 30 dias)`,
-      );
-    });
-  }, [visible, principalInicial]);
-
   const podeCalcular =
     principal != null && principal >= 0.01 && vencimentoOriginal != null;
 
@@ -98,7 +84,7 @@ export function TituloAvulsoMemorialDialog({
       const r = calcularMemorialTitulo(
         {
           valorNominal: principal,
-          vencimento: formatDateIso(vencimentoOriginal),
+          vencimento: formatIsoDate(vencimentoOriginal),
         },
         encargos,
       );
@@ -130,40 +116,51 @@ export function TituloAvulsoMemorialDialog({
   return (
     <DashboardDialog
       visible={visible}
+      onShow={() => {
+        setPrincipal(principalInicial != null && principalInicial > 0 ? principalInicial : null);
+        setVencimentoOriginal(null);
+        setResultado(null);
+        void fetchBoletoEncargosConfig().then((c) => {
+          setEncargosLabel(
+            `Multa ${c.multaPercentual}% · Juros ${c.jurosMensalPercentual}% a.m. (pro rata 30 dias)`,
+          );
+        });
+      }}
       onHide={onHide}
       header="Calculadora de valor presente"
       modal
       draggable={false}
-      className="w-full max-w-lg"
+      className="w-full max-w-lg border border-white/10 bg-[#071C33] shadow-2xl"
       pt={DIALOG_PT}
       footer={
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex justify-end gap-3">
           <button
             type="button"
-            className="rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-bold uppercase tracking-widest text-white/70 hover:bg-white/[0.08]"
             onClick={onHide}
+            className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/60 transition hover:border-white/15 hover:bg-white/[0.08] hover:text-white/90"
           >
             Descartar valor
           </button>
           <button
             type="button"
             disabled={!resultado}
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white hover:bg-emerald-500 disabled:opacity-40"
             onClick={usarValor}
+            className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"
           >
             Usar valor
           </button>
         </div>
       }
     >
-      <div className="flex flex-col gap-4">
-        <p className="text-sm text-white/50 leading-relaxed">
-          Informe o valor principal e o vencimento original da dívida. O sistema calcula multa e
-          juros de mora até hoje ({encargosLabel}) e sugere o total do boleto avulso.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
+      <p className="mb-5 text-sm leading-relaxed text-white/45">
+        Informe o valor principal e o vencimento original da dívida. O sistema calcula multa e juros
+        de mora até hoje ({encargosLabel}) e sugere o total do boleto avulso.
+      </p>
+
+      <div className="flex flex-col gap-5">
+        <div className="grid gap-5 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <label className={FORM_LABEL_CLASS}>Valor principal</label>
+            <label className={FORM_LABEL_CLASS}>Valor principal (R$)</label>
             <InputNumber
               value={principal}
               onValueChange={(e) => {
@@ -176,7 +173,7 @@ export function TituloAvulsoMemorialDialog({
               minFractionDigits={2}
               min={0.01}
               className="w-full"
-              inputClassName={FORM_INPUT_CLASS}
+              inputClassName={DASHBOARD_FORM_INPUT_CLASS}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -189,24 +186,26 @@ export function TituloAvulsoMemorialDialog({
               }}
               placeholder="00/00/0000"
               mask="99/99/9999"
+              className="w-full"
+              inputClassName={DASHBOARD_CALENDAR_INPUT_CLASS}
             />
           </div>
         </div>
+
         <div>
           <button
             type="button"
             disabled={!podeCalcular || calculando}
             onClick={() => void calcular()}
-            className="rounded-xl border border-blue-400/40 bg-blue-500/15 px-4 py-2 text-xs font-bold uppercase tracking-widest text-blue-100 hover:bg-blue-500/25 disabled:opacity-40"
+            className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white/70 transition hover:border-white/15 hover:bg-white/[0.08] hover:text-white/90 disabled:pointer-events-none disabled:opacity-50"
           >
-            {calculando ? "Calculando…" : "Calcular valor presente"}
+            {calculando ? "A calcular…" : "Calcular valor presente"}
           </button>
         </div>
+
         {resultado ? (
-          <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35 mb-2">
-              Memória de cálculo
-            </p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 space-y-1.5">
+            <p className={FORM_LABEL_CLASS + " mb-2"}>Memória de cálculo</p>
             {memoriaLinhas.map((linha) => (
               <p key={linha} className="text-sm text-white/75 font-mono">
                 {linha}
