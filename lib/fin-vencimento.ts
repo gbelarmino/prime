@@ -180,6 +180,22 @@ export function isVencimentoFuturo(vencimento: Date): boolean {
   return compararDiaCalendario(v, new Date()) >= 0;
 }
 
+/** Segunda a sexta (sem calendário de feriados). */
+export function isDiaUtil(vencimento: Date): boolean {
+  const v = normalizarDataCalendario(vencimento);
+  if (!v) return false;
+  const day = v.getDay();
+  return day !== 0 && day !== 6;
+}
+
+/** Estritamente após hoje e em dia útil (seg–sex). */
+export function isVencimentoFuturoDiaUtil(vencimento: Date): boolean {
+  const v = normalizarDataCalendario(vencimento);
+  if (!v) return false;
+  if (compararDiaCalendario(v, new Date()) <= 0) return false;
+  return isDiaUtil(v);
+}
+
 /** Vencimento da 1ª parcela deste lote: hoje ou posterior (data livre). */
 export function isVencimentoValidoParaNovoTitulo(vencimento: Date): boolean {
   return isVencimentoFuturo(vencimento);

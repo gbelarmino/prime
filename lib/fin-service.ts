@@ -671,6 +671,7 @@ export interface CobrancaGrupoLoteResult {
 export interface CobrancaGrupoLegadoManualCreate {
   numeroParcela: number;
   vencimento: string;
+  valorNominal: number;
   membros: CobrancaGrupoEmitirMembro[];
   convenioId?: string;
   statusFinal: TituloLegadoManualStatus;

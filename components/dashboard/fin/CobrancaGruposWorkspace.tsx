@@ -36,6 +36,7 @@ import { convenioEmpreendimentoDropdownOptions } from "@/lib/convenio-label";
 import {
   inicioDoDiaHoje,
   isVencimentoFuturo,
+  isVencimentoFuturoDiaUtil,
   normalizarDataCalendario,
   parseIsoDate,
 } from "@/lib/fin-vencimento";
@@ -292,6 +293,9 @@ export function CobrancaGruposWorkspace() {
   const [calculoDetalheModalOpen, setCalculoDetalheModalOpen] = useState(false);
 
   const [vencimentoLegado, setVencimentoLegado] = useState<Date | null>(null);
+  const [valorNominalLegado, setValorNominalLegado] = useState<number | null>(null);
+  const [valorJurosLegado, setValorJurosLegado] = useState<number | null>(null);
+  const [valorMultaLegado, setValorMultaLegado] = useState<number | null>(null);
   const [statusLegado, setStatusLegado] = useState<TituloLegadoManualStatus>("PAGO");
   const [valorPagoLegado, setValorPagoLegado] = useState<number | null>(null);
   const [dataPagamentoLegado, setDataPagamentoLegado] = useState<Date | null>(null);
@@ -371,6 +375,9 @@ export function CobrancaGruposWorkspace() {
     setConvenioId(vinculo?.convenioId ?? null);
     setDataPrimeiraLote(null);
     setVencimentoLegado(null);
+    setValorNominalLegado(null);
+    setValorJurosLegado(null);
+    setValorMultaLegado(null);
     setValorPagoLegado(null);
     setDataPagamentoLegado(null);
     setObservacaoLegado("");
@@ -516,16 +523,46 @@ export function CobrancaGruposWorkspace() {
 
   const totalLegadoConsolidado = valorTotalConsolidado;
 
+  const vencimentoLegadoValido =
+    vencimentoLegado != null && isVencimentoFuturoDiaUtil(vencimentoLegado);
+
   const podeSalvarLegado =
     grupoSelecionado != null &&
     parcelaLider != null &&
     parcelaLider >= 1 &&
-    vencimentoLegado != null &&
-    buildMembrosPayload(grupoSelecionado, valoresMembro, true) != null &&
+    vencimentoLegadoValido &&
+    valorNominalLegado != null &&
+    valorNominalLegado >= 0.01 &&
+    buildMembrosPayload(grupoSelecionado, valoresMembro, false) != null &&
     (statusLegado !== "PAGO" ||
       (valorPagoLegado != null &&
         valorPagoLegado > 0 &&
         dataPagamentoLegado != null));
+
+  const motivoLegadoBloqueado = useMemo(() => {
+    if (!grupoSelecionado) return null;
+    if (parcelaLider == null || parcelaLider < 1) return "Informe o número da parcela.";
+    if (!vencimentoLegado) return "Informe o vencimento.";
+    if (!isVencimentoFuturoDiaUtil(vencimentoLegado)) {
+      return "O vencimento deve ser uma data futura em dia útil (segunda a sexta).";
+    }
+    if (valorNominalLegado == null || valorNominalLegado < 0.01) {
+      return "Informe o valor do boleto.";
+    }
+    if (statusLegado === "PAGO") {
+      if (valorPagoLegado == null || valorPagoLegado <= 0) return "Informe o valor pago.";
+      if (!dataPagamentoLegado) return "Informe a data de pagamento.";
+    }
+    return null;
+  }, [
+    grupoSelecionado,
+    parcelaLider,
+    vencimentoLegado,
+    valorNominalLegado,
+    statusLegado,
+    valorPagoLegado,
+    dataPagamentoLegado,
+  ]);
 
   const maxParcelasLote = useMemo(() => {
     if (!contextoLider || parcelaInicialLote == null || parcelaInicialLote < 1) return 12;
@@ -585,6 +622,14 @@ export function CobrancaGruposWorkspace() {
       setQuantidadeLote(maxParcelasLote);
     }
   }, [maxParcelasLote, quantidadeLote]);
+
+  useEffect(() => {
+    if (statusLegado !== "PAGO" || valorNominalLegado == null) return;
+    if (valorPagoLegado != null) return;
+    const juros = valorJurosLegado ?? 0;
+    const multa = valorMultaLegado ?? 0;
+    setValorPagoLegado(Math.round((valorNominalLegado + juros + multa) * 100) / 100);
+  }, [statusLegado, valorNominalLegado, valorJurosLegado, valorMultaLegado, valorPagoLegado]);
 
   const convenioNomeSelecionado = useMemo(() => {
     if (contextoLider?.convenioNome && contextoLider.convenioId === convenioId) {
@@ -739,13 +784,14 @@ export function CobrancaGruposWorkspace() {
     if (!grupoSelecionado || !podeSalvarLegado || parcelaLider == null || !vencimentoLegado) {
       return;
     }
-    const membros = buildMembrosPayload(grupoSelecionado, valoresMembro, true);
+    const membros = buildMembrosPayload(grupoSelecionado, valoresMembro, false);
     if (!membros) return;
     setSalvandoLegado(true);
     try {
       const res = await finService.criarTituloLegadoManualCobrancaGrupo(grupoSelecionado.id, {
         numeroParcela: parcelaLider,
         vencimento: formatDateIso(vencimentoLegado),
+        valorNominal: valorNominalLegado!,
         membros,
         convenioId: convenioId ?? undefined,
         statusFinal: statusLegado,
@@ -754,6 +800,8 @@ export function CobrancaGruposWorkspace() {
           ? {
               valorPago: valorPagoLegado,
               dataPagamento: formatDateIso(dataPagamentoLegado),
+              valorJuros: valorJurosLegado ?? undefined,
+              valorMulta: valorMultaLegado ?? undefined,
             }
           : {}),
       });
@@ -1238,9 +1286,11 @@ export function CobrancaGruposWorkspace() {
                 {acaoGrupo === "legado" ? (
                   <div className={`${SUBCARD_CLASS} flex flex-col gap-5`} role="tabpanel">
                     <p className="text-sm text-white/50 leading-relaxed">
-                      Importa parcelas históricas já emitidas ou quitadas (vencimento retroativo
-                      permitido). Informe o número da parcela (todos os lotes do grupo usam o mesmo)
-                      e os valores na tabela acima; status e pagamento quando aplicável.
+                      Lançamento manual consolidado: informe parcela, vencimento (data futura em dia
+                      útil) e valor do boleto. Com status Pago, juros e multa (R$) são gravados na
+                      liquidação. A parcela não pode existir como emitida, registrada, vencida ou
+                      paga em nenhum lote — só cancelada. Rateio por lote na tabela é opcional;
+                      vazio divide o valor igualmente.
                     </p>
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       <FormField
@@ -1263,12 +1313,28 @@ export function CobrancaGruposWorkspace() {
                           useGrouping={false}
                         />
                       </FormField>
-                      <FormField label="Vencimento (legado)">
+                      <FormField
+                        label="Vencimento"
+                        hint="Data futura, segunda a sexta."
+                      >
                         <DashboardCalendar
                           value={vencimentoLegado}
                           onChange={(e) => setVencimentoLegado(normalizarDataCalendario(e.value))}
                           placeholder="00/00/0000"
                           mask="99/99/9999"
+                        />
+                      </FormField>
+                      <FormField label="Valor do boleto (consolidado)">
+                        <InputNumber
+                          value={valorNominalLegado}
+                          onValueChange={(e) => setValorNominalLegado(e.value ?? null)}
+                          mode="currency"
+                          currency="BRL"
+                          locale="pt-BR"
+                          minFractionDigits={2}
+                          min={0.01}
+                          className="w-full"
+                          inputClassName={FORM_INPUT_CLASS}
                         />
                       </FormField>
                       <FormField label="Status final">
@@ -1284,7 +1350,7 @@ export function CobrancaGruposWorkspace() {
                       </FormField>
                     </div>
                     {statusLegado === "PAGO" ? (
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <FormField label="Valor pago (total consolidado)">
                           <InputNumber
                             value={valorPagoLegado}
@@ -1307,6 +1373,32 @@ export function CobrancaGruposWorkspace() {
                             mask="99/99/9999"
                           />
                         </FormField>
+                        <FormField label="Juros (R$)">
+                          <InputNumber
+                            value={valorJurosLegado}
+                            onValueChange={(e) => setValorJurosLegado(e.value ?? null)}
+                            mode="currency"
+                            currency="BRL"
+                            locale="pt-BR"
+                            minFractionDigits={2}
+                            min={0}
+                            className="w-full"
+                            inputClassName={FORM_INPUT_CLASS}
+                          />
+                        </FormField>
+                        <FormField label="Multa (R$)">
+                          <InputNumber
+                            value={valorMultaLegado}
+                            onValueChange={(e) => setValorMultaLegado(e.value ?? null)}
+                            mode="currency"
+                            currency="BRL"
+                            locale="pt-BR"
+                            minFractionDigits={2}
+                            min={0}
+                            className="w-full"
+                            inputClassName={FORM_INPUT_CLASS}
+                          />
+                        </FormField>
                       </div>
                     ) : null}
                     <FormField label="Observação">
@@ -1317,15 +1409,26 @@ export function CobrancaGruposWorkspace() {
                         placeholder="Opcional"
                       />
                     </FormField>
-                    {totalLegadoConsolidado != null ? (
+                    {totalLegadoConsolidado != null &&
+                    valorNominalLegado != null &&
+                    Math.abs(totalLegadoConsolidado - valorNominalLegado) > 0.009 ? (
+                      <p className="text-xs text-amber-300/75">
+                        Soma dos lotes ({formatMoney(totalLegadoConsolidado)}) difere do valor do
+                        boleto ({formatMoney(valorNominalLegado)}). Ajuste os valores ou deixe a
+                        tabela em branco para rateio igual.
+                      </p>
+                    ) : totalLegadoConsolidado != null ? (
                       <p className="text-xs text-white/45">
-                        Total consolidado (soma dos lotes): {formatMoney(totalLegadoConsolidado)}
+                        Rateio por lote (soma): {formatMoney(totalLegadoConsolidado)}
                       </p>
                     ) : (
-                      <p className="text-xs text-amber-300/75">
-                        Informe o valor de cada lote na tabela acima (ou use Simular emissão).
+                      <p className="text-xs text-white/45">
+                        Rateio por lote opcional — vazio divide o valor do boleto igualmente.
                       </p>
                     )}
+                    {motivoLegadoBloqueado && !podeSalvarLegado ? (
+                      <p className="text-xs text-amber-300/75">{motivoLegadoBloqueado}</p>
+                    ) : null}
                     <div>
                       <button
                         type="button"
