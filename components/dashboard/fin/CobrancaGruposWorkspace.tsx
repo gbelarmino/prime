@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Dropdown } from "primereact/dropdown";
@@ -32,7 +32,7 @@ import { buildPreviewLote, resolveMaxParcelasLote } from "@/lib/fin-lote-preview
 import { parcelasReajusteNoIntervalo } from "@/lib/fin-parcela-reajuste";
 import { CobrancaGrupoLotePreviewDialog } from "@/components/dashboard/fin/CobrancaGrupoLotePreviewDialog";
 import { CobrancaGrupoCalculoDetalheDialog } from "@/components/dashboard/fin/CobrancaGrupoCalculoDetalheDialog";
-import { TituloAvulsoMemorialDialog } from "@/components/dashboard/fin/TituloAvulsoMemorialDialog";
+import { CobrancaGrupoTituloAvulsoPanel } from "@/components/dashboard/fin/CobrancaGrupoTituloAvulsoPanel";
 import { convenioEmpreendimentoDropdownOptions } from "@/lib/convenio-label";
 import {
   inicioDoDiaHoje,
@@ -57,11 +57,12 @@ const TAB_ACTIVE =
 const TAB_IDLE =
   "border-transparent text-white/45 hover:border-white/10 hover:bg-white/[0.04] hover:text-white/70";
 
-type AcaoGrupo = "emitir" | "lote" | "legado";
+type AcaoGrupo = "emitir" | "lote" | "avulso" | "legado";
 
 const ACOES_GRUPO: { id: AcaoGrupo; label: string; desc: string }[] = [
   { id: "emitir", label: "Emitir boleto", desc: "Simular e registrar boleto consolidado" },
   { id: "lote", label: "Rascunhos em lote", desc: "Várias parcelas em rascunho (botão NOVO)" },
+  { id: "avulso", label: "Título avulso", desc: "Face + juros/multa com rateio nos lotes" },
   { id: "legado", label: "Legado manual", desc: "Importar parcelas históricas" },
 ];
 
@@ -122,55 +123,6 @@ function loteLabel(quadra?: string | null, lote?: number | null): string {
   if (!quadra && lote == null) return "—";
   return `Q${quadra ?? "?"} L${lote ?? "?"}`;
 }
-
-function roundMoney(v: number): number {
-  return Math.round(v * 100) / 100;
-}
-
-/** Rateio proporcional; o último item absorve a diferença de arredondamento. */
-function rateioProporcional(total: number, pesos: number[]): number[] {
-  const n = pesos.length;
-  if (n === 0) return [];
-  if (!Number.isFinite(total) || total === 0) return pesos.map(() => 0);
-  const soma = pesos.reduce((a, b) => a + b, 0);
-  if (soma <= 0) {
-    const base = roundMoney(total / n);
-    const parts = Array.from({ length: n - 1 }, () => base);
-    parts.push(roundMoney(total - base * (n - 1)));
-    return parts;
-  }
-  const parts: number[] = [];
-  let acumulado = 0;
-  for (let i = 0; i < n - 1; i++) {
-    const parte = roundMoney((total * pesos[i]) / soma);
-    parts.push(parte);
-    acumulado += parte;
-  }
-  parts.push(roundMoney(total - acumulado));
-  return parts;
-}
-
-type ResumoRateioLote = {
-  contratoId: number;
-  numeroContrato: string;
-  lote: string;
-  principal: number;
-  juros: number;
-  multa: number;
-  total: number;
-};
-
-type MemorialAplicadoResumo = {
-  diasAtraso: number;
-  valorPrincipal: number;
-  valorJuros: number;
-  valorMulta: number;
-  valorTotal: number;
-  vencimentoOriginal: string;
-  dataCalculo: string;
-  multaPercentual: number;
-  jurosMensalPercentual: number;
-};
 
 type ValorPorMembro = Record<number, number | null>;
 
@@ -334,11 +286,6 @@ export function CobrancaGruposWorkspace() {
   const [emitindo, setEmitindo] = useState(false);
   const [carregandoContextoEmissao, setCarregandoContextoEmissao] = useState(false);
   const [contextoLider, setContextoLider] = useState<TituloContextoLote | null>(null);
-  const [valorJurosEmitir, setValorJurosEmitir] = useState<number | null>(null);
-  const [valorMultaEmitir, setValorMultaEmitir] = useState<number | null>(null);
-  const [memorialOpen, setMemorialOpen] = useState(false);
-  const [memorialAplicado, setMemorialAplicado] = useState<MemorialAplicadoResumo | null>(null);
-  const aplicandoMemorialRef = useRef(false);
 
   const [quantidadeLote, setQuantidadeLote] = useState<number | null>(1);
   const [parcelaInicialLote, setParcelaInicialLote] = useState<number | null>(null);
@@ -423,10 +370,6 @@ export function CobrancaGruposWorkspace() {
     setParcelaLider(lider?.proximaParcela ?? 1);
     setValoresMembro({});
     setSimulacao(null);
-    setValorJurosEmitir(null);
-    setValorMultaEmitir(null);
-    setMemorialOpen(false);
-    setMemorialAplicado(null);
     const vinculo = empreendimentoConvenios.find(
       (v) =>
         v.nomeEmpreendimento.toLowerCase() === grupoSelecionado.empreendimento.toLowerCase(),
@@ -477,10 +420,8 @@ export function CobrancaGruposWorkspace() {
       vencimento: formatDateIso(venc),
       numeroParcela: parcelaLider,
       membros: grupoSelecionado.membros.map((m) => ({ contratoId: m.contratoId })),
-      valorJuros: valorJurosEmitir != null && valorJurosEmitir > 0 ? valorJurosEmitir : undefined,
-      valorMulta: valorMultaEmitir != null && valorMultaEmitir > 0 ? valorMultaEmitir : undefined,
     };
-  }, [grupoSelecionado, convenioId, parcelaLider, vencimento, valorJurosEmitir, valorMultaEmitir]);
+  }, [grupoSelecionado, convenioId, parcelaLider, vencimento]);
 
   const payloadEmissao = useMemo((): CobrancaGrupoEmitirPayload | null => {
     if (!grupoSelecionado || !convenioId || !vencimento || parcelaLider == null || parcelaLider < 1) {
@@ -494,27 +435,13 @@ export function CobrancaGruposWorkspace() {
       }
       return base;
     });
-    const juros =
-      valorJurosEmitir != null && valorJurosEmitir > 0 ? valorJurosEmitir : undefined;
-    const multa =
-      valorMultaEmitir != null && valorMultaEmitir > 0 ? valorMultaEmitir : undefined;
     return {
       convenioId,
       vencimento: formatDateIso(vencimento),
       numeroParcela: parcelaLider,
       membros,
-      valorJuros: juros,
-      valorMulta: multa,
     };
-  }, [
-    grupoSelecionado,
-    convenioId,
-    vencimento,
-    parcelaLider,
-    valoresMembro,
-    valorJurosEmitir,
-    valorMultaEmitir,
-  ]);
+  }, [grupoSelecionado, convenioId, vencimento, parcelaLider, valoresMembro]);
 
   const avisoPorMembro = useMemo(() => {
     const map: Record<number, string | null> = {};
@@ -557,50 +484,6 @@ export function CobrancaGruposWorkspace() {
     return total;
   }, [grupoSelecionado, valoresMembro]);
 
-  const jurosEmitirN = valorJurosEmitir ?? 0;
-  const multaEmitirN = valorMultaEmitir ?? 0;
-  /** Principal = soma dos valores digitados nos lotes (emissão manual). */
-  const principalResumo = valorTotalConsolidado;
-
-  /** Face Unicred = o que o operador informou: lotes + juros + multa. */
-  const faceUnicredEmissao = useMemo(() => {
-    if (valorTotalConsolidado == null) return null;
-    return roundMoney(valorTotalConsolidado + jurosEmitirN + multaEmitirN);
-  }, [valorTotalConsolidado, jurosEmitirN, multaEmitirN]);
-
-  const encargosEmitirValidos =
-    faceUnicredEmissao == null || jurosEmitirN + multaEmitirN < faceUnicredEmissao - 0.009;
-
-  const resumoRateioLocal = useMemo((): ResumoRateioLote[] | null => {
-    if (!grupoSelecionado || valorTotalConsolidado == null) return null;
-    const membros = [...grupoSelecionado.membros].sort((a, b) => a.contratoId - b.contratoId);
-    const pesos = membros.map((m) => valoresMembro[m.contratoId] ?? 0);
-    if (pesos.some((p) => p < 0.01)) return null;
-    const jurosPartes = rateioProporcional(jurosEmitirN, pesos);
-    const multaPartes = rateioProporcional(multaEmitirN, pesos);
-    return membros.map((m, i) => {
-      const principal = pesos[i];
-      const juros = jurosPartes[i] ?? 0;
-      const multa = multaPartes[i] ?? 0;
-      return {
-        contratoId: m.contratoId,
-        numeroContrato: m.numeroContrato ?? String(m.contratoId),
-        lote: loteLabel(m.quadra, m.lote),
-        principal,
-        juros,
-        multa,
-        total: roundMoney(principal + juros + multa),
-      };
-    });
-  }, [grupoSelecionado, valorTotalConsolidado, valoresMembro, jurosEmitirN, multaEmitirN]);
-
-  const mostrarResumoEmissao =
-    valorTotalConsolidado != null ||
-    memorialAplicado != null ||
-    jurosEmitirN > 0 ||
-    multaEmitirN > 0 ||
-    simulacao != null;
-
   const podeCalcular = payloadCalculo != null && !carregandoContextoEmissao;
 
   const motivoCalcularBloqueado = useMemo(() => {
@@ -635,7 +518,6 @@ export function CobrancaGruposWorkspace() {
   const podeEmitir =
     podeSimular &&
     grupoSelecionado != null &&
-    encargosEmitirValidos &&
     grupoSelecionado.membros.every((m) => {
       const v = valoresMembro[m.contratoId];
       return v != null && v >= 0.01;
@@ -1183,7 +1065,7 @@ export function CobrancaGruposWorkspace() {
                           podeEmitir ? "text-emerald-200/90" : "text-amber-200/90"
                         }`}
                       >
-                        Principal consolidado:{" "}
+                        Total consolidado:{" "}
                         {formatMoney(
                           valorTotalConsolidado ??
                             (simulacao
@@ -1191,17 +1073,6 @@ export function CobrancaGruposWorkspace() {
                               : null),
                         )}
                       </p>
-                      {faceUnicredEmissao != null && (jurosEmitirN > 0 || multaEmitirN > 0) ? (
-                        <p className="text-xs text-white/45 mt-1">
-                          Face Unicred (principal + juros + multa): {formatMoney(faceUnicredEmissao)}
-                          {!encargosEmitirValidos ? (
-                            <span className="text-amber-300/80">
-                              {" "}
-                              — juros + multa devem ser menores que o face.
-                            </span>
-                          ) : null}
-                        </p>
-                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1233,12 +1104,9 @@ export function CobrancaGruposWorkspace() {
                 {acaoGrupo === "emitir" ? (
                   <div className={`${SUBCARD_CLASS} flex flex-col gap-5`} role="tabpanel">
                     <p className="text-sm text-white/50 leading-relaxed">
-                      Emissão manual consolidada: valem os valores informados pelo operador (lotes,
-                      juros e multa). A parcela emitida é a{" "}
-                      <span className="text-white/80 font-medium">
-                        parcela {parcelaLider ?? "—"}
-                      </span>{" "}
-                      definida acima em Valores por lote (mesma numeração em todos os lotes).
+                      Emissão consolidada automática: calcula/simula os valores das parcelas pelos
+                      índices e registra o boleto no líder. Para face com juros/multa manuais, use a
+                      aba Título avulso.
                     </p>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <FormField label="Convênio">
@@ -1252,7 +1120,7 @@ export function CobrancaGruposWorkspace() {
                         />
                       </FormField>
                       <FormField
-                        label="Vencimento do boleto"
+                        label="Vencimento"
                         hint={
                           carregandoContextoEmissao
                             ? "A carregar vencimento sugerido…"
@@ -1268,165 +1136,7 @@ export function CobrancaGruposWorkspace() {
                           disabled={carregandoContextoEmissao}
                         />
                       </FormField>
-                      <FormField label="Juros embutidos (R$)">
-                        <InputNumber
-                          value={valorJurosEmitir}
-                          onValueChange={(e) => {
-                            if (aplicandoMemorialRef.current) return;
-                            setSimulacao(null);
-                            setMemorialAplicado(null);
-                            setValorJurosEmitir(e.value ?? null);
-                          }}
-                          mode="currency"
-                          currency="BRL"
-                          locale="pt-BR"
-                          minFractionDigits={2}
-                          min={0}
-                          className="w-full"
-                          inputClassName={FORM_INPUT_CLASS}
-                        />
-                      </FormField>
-                      <FormField label="Multa embutida (R$)">
-                        <InputNumber
-                          value={valorMultaEmitir}
-                          onValueChange={(e) => {
-                            if (aplicandoMemorialRef.current) return;
-                            setSimulacao(null);
-                            setMemorialAplicado(null);
-                            setValorMultaEmitir(e.value ?? null);
-                          }}
-                          mode="currency"
-                          currency="BRL"
-                          locale="pt-BR"
-                          minFractionDigits={2}
-                          min={0}
-                          className="w-full"
-                          inputClassName={FORM_INPUT_CLASS}
-                        />
-                      </FormField>
                     </div>
-                    <div>
-                      <button
-                        type="button"
-                        disabled={!grupoSelecionado}
-                        onClick={() => setMemorialOpen(true)}
-                        className="rounded-xl border border-violet-400/35 bg-violet-500/15 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-violet-100 hover:bg-violet-500/25 disabled:opacity-40"
-                      >
-                        Calculadora valor presente
-                      </button>
-                      <p className="text-xs text-white/30 mt-2 leading-relaxed">
-                        A calculadora só sugere juros e multa — abra a qualquer momento e edite os
-                        campos depois. O face Unicred é a soma dos lotes + juros + multa informados.
-                      </p>
-                    </div>
-
-                    {mostrarResumoEmissao ? (
-                      <div className="rounded-xl border border-violet-400/25 bg-violet-500/[0.08] p-4 space-y-3">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-200/80">
-                            Resumo da emissão
-                          </p>
-                          <p className="text-[11px] text-violet-100/60">
-                            Parcela {parcelaLider ?? "—"}
-                            {memorialAplicado
-                              ? ` · Calculadora · ${memorialAplicado.diasAtraso} dia(s) de atraso`
-                              : ""}
-                          </p>
-                        </div>
-                        {memorialAplicado ? (
-                          <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 space-y-1 font-mono text-[11px] text-white/60">
-                            <p className="text-white/40 uppercase tracking-wider text-[10px] mb-1">
-                              Memória da calculadora (referência)
-                            </p>
-                            <p>
-                              Principal usado no cálculo:{" "}
-                              {formatMoney(memorialAplicado.valorPrincipal)}
-                            </p>
-                            <p>
-                              Vencimento original: {memorialAplicado.vencimentoOriginal} · cálculo em{" "}
-                              {memorialAplicado.dataCalculo}
-                            </p>
-                            <p>
-                              Multa ({memorialAplicado.multaPercentual}%):{" "}
-                              {formatMoney(memorialAplicado.valorMulta)}
-                            </p>
-                            <p>
-                              Juros ({memorialAplicado.jurosMensalPercentual}% a.m.):{" "}
-                              {formatMoney(memorialAplicado.valorJuros)}
-                            </p>
-                            <p>
-                              Valor presente sugerido: {formatMoney(memorialAplicado.valorTotal)}
-                            </p>
-                          </div>
-                        ) : null}
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 text-sm">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider text-white/35">
-                              Principal (lotes)
-                            </p>
-                            <p className="font-medium text-white/85">
-                              {formatMoney(principalResumo)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider text-white/35">Juros</p>
-                            <p className="font-medium text-white/85">{formatMoney(jurosEmitirN)}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider text-white/35">Multa</p>
-                            <p className="font-medium text-white/85">{formatMoney(multaEmitirN)}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider text-white/35">
-                              Face Unicred
-                            </p>
-                            <p className="font-semibold text-emerald-300/90">
-                              {formatMoney(faceUnicredEmissao)}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-xs text-white/45">
-                          Face = soma dos lotes + juros + multa informados pelo operador.
-                        </p>
-                        {!encargosEmitirValidos ? (
-                          <p className="text-xs text-amber-300/80">
-                            A soma de juros e multa deve ser menor que o face do boleto.
-                          </p>
-                        ) : null}
-                        {resumoRateioLocal && (jurosEmitirN > 0 || multaEmitirN > 0) ? (
-                          <div className="border-t border-white/10 pt-3">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40 mb-2">
-                              Rateio por lote
-                            </p>
-                            <ul className="text-xs text-white/55 space-y-1.5">
-                              {resumoRateioLocal.map((item) => (
-                                <li key={item.contratoId} className="flex flex-wrap gap-x-2">
-                                  <span className="text-white/70">
-                                    {item.numeroContrato} · {item.lote} · parc.{" "}
-                                    {parcelaLider ?? "—"}
-                                  </span>
-                                  <span>
-                                    princ. {formatMoney(item.principal)}
-                                    {item.juros > 0 || item.multa > 0 ? (
-                                      <>
-                                        {" "}
-                                        · juros {formatMoney(item.juros)} · multa{" "}
-                                        {formatMoney(item.multa)} · total{" "}
-                                        {formatMoney(item.total)}
-                                      </>
-                                    ) : null}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : valorTotalConsolidado == null ? (
-                          <p className="text-xs text-amber-200/70">
-                            Informe o valor de cada lote acima para ver o rateio.
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
 
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -1452,9 +1162,6 @@ export function CobrancaGruposWorkspace() {
 
                     {simulacao ? (
                       <div className="rounded-xl border border-white/8 bg-black/20 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">
-                          Simulação (API)
-                        </p>
                         {simulacao && !simulacao.prontoParaEmitir && resumoCalculoIndice ? (
                           <p className="text-xs text-amber-200/75 mb-3 leading-relaxed">
                             {resumoCalculoIndice.tituloBanner}. {resumoCalculoIndice.dicaAcao}
@@ -1470,13 +1177,6 @@ export function CobrancaGruposWorkspace() {
                             <li key={item.contratoId}>
                               {item.numeroContrato} · parc. {item.numeroParcela}:{" "}
                               {formatMoney(item.valorNominal)}
-                              {(item.valorJuros ?? 0) > 0 || (item.valorMulta ?? 0) > 0 ? (
-                                <span className="text-white/35">
-                                  {" "}
-                                  · juros {formatMoney(item.valorJuros)} · multa{" "}
-                                  {formatMoney(item.valorMulta)}
-                                </span>
-                              ) : null}
                               {item.aviso ? (
                                 <span
                                   className="text-amber-300/80"
@@ -1489,9 +1189,9 @@ export function CobrancaGruposWorkspace() {
                             </li>
                           ))}
                         </ul>
-                        {(jurosEmitirN > 0 || multaEmitirN > 0) && simulacao.prontoParaEmitir ? (
+                        {simulacao.prontoParaEmitir ? (
                           <p className="text-xs text-emerald-200/70 mt-3">
-                            Face Unicred: {formatMoney(simulacao.valorTotal)}
+                            Total: {formatMoney(simulacao.valorTotal)}
                           </p>
                         ) : null}
                       </div>
@@ -1499,9 +1199,18 @@ export function CobrancaGruposWorkspace() {
 
                     <p className="text-xs text-white/30 leading-relaxed">
                       Após a baixa do boleto líder, parcelas dos demais lotes são marcadas como
-                      pagas automaticamente (títulos sombra), com juros e multa rateados.
+                      pagas automaticamente (títulos sombra).
                     </p>
                   </div>
+                ) : null}
+
+                {acaoGrupo === "avulso" && grupoSelecionado ? (
+                  <CobrancaGrupoTituloAvulsoPanel
+                    grupo={grupoSelecionado}
+                    convenios={convenios}
+                    convenioIdInicial={convenioId}
+                    parcelaInicial={parcelaLider}
+                  />
                 ) : null}
 
                 {acaoGrupo === "lote" ? (
@@ -1807,34 +1516,6 @@ export function CobrancaGruposWorkspace() {
         }
       />
 
-      <TituloAvulsoMemorialDialog
-        visible={memorialOpen}
-        onHide={() => setMemorialOpen(false)}
-        principalInicial={valorTotalConsolidado}
-        onUsarValor={(aplicacao) => {
-          aplicandoMemorialRef.current = true;
-          setSimulacao(null);
-          setValorJurosEmitir(aplicacao.valorJuros > 0 ? aplicacao.valorJuros : null);
-          setValorMultaEmitir(aplicacao.valorMulta > 0 ? aplicacao.valorMulta : null);
-          setMemorialAplicado({
-            diasAtraso: aplicacao.diasAtraso,
-            valorPrincipal: aplicacao.valorPrincipal,
-            valorJuros: aplicacao.valorJuros,
-            valorMulta: aplicacao.valorMulta,
-            valorTotal: aplicacao.valorTotal,
-            vencimentoOriginal: aplicacao.vencimentoOriginal,
-            dataCalculo: aplicacao.dataCalculo,
-            multaPercentual: aplicacao.multaPercentual,
-            jurosMensalPercentual: aplicacao.jurosMensalPercentual,
-          });
-          toast.success(
-            `Juros e multa sugeridos pela calculadora aplicados nos campos (você pode ajustar).`,
-          );
-          window.setTimeout(() => {
-            aplicandoMemorialRef.current = false;
-          }, 0);
-        }}
-      />
     </div>
   );
 }
