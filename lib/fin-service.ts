@@ -44,6 +44,7 @@ import {
   getFinPorImovelListUrl,
   getFinTituloByIdUrl,
   getFinTituloCancelarUrl,
+  getFinTituloAlterarVencimentoUrl,
   getFinTituloSincronizarStatusUrl,
   getFinTituloHistoricoUrl,
   getFinTituloLiquidarUrl,
@@ -129,6 +130,8 @@ export interface TituloCobranca {
   urlBoleto?: string | null;
   temArquivoBoleto?: boolean;
   codigoInstrucaoBaixa?: string | null;
+  codigoInstrucaoAlteracaoVencimento?: string | null;
+  vencimentoSolicitado?: string | null;
   status: TituloCobrancaStatus;
   valorNominal: number;
   valorPago?: number | null;
@@ -1535,6 +1538,18 @@ export const finService = {
 
   async sincronizarStatus(id: string): Promise<TituloCobranca> {
     const res = await apiFetch(getFinTituloSincronizarStatusUrl(id), { method: "POST" });
+    return parseJson(res);
+  },
+
+  async alterarVencimento(
+    id: string,
+    payload: { novaDataVencimento: string; observacao?: string },
+  ): Promise<TituloCobranca> {
+    const res = await apiFetch(getFinTituloAlterarVencimentoUrl(id), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
     return parseJson(res);
   },
 

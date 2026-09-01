@@ -1346,6 +1346,10 @@ export function getFinTituloSincronizarStatusUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/sincronizar-status`;
 }
 
+export function getFinTituloAlterarVencimentoUrl(id: string): string {
+  return `${getFinTituloByIdUrl(id)}/alterar-vencimento`;
+}
+
 export function getFinTituloLiquidarUrl(id: string): string {
   return `${getFinTituloByIdUrl(id)}/liquidar`;
 }

@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Banknote,
   Ban,
+  CalendarClock,
   Download,
   FileCheck,
   FileText,
@@ -23,6 +24,11 @@ import { cn } from "@/lib/utils";
 import { formatDataPagamentoExibicao } from "@/lib/fin-vencimento";
 import { dashboardCellText, dashboardStatusBadge } from "@/lib/dashboard-datatable";
 import { TituloCancelarDialog, type TituloCancelarPayload } from "@/components/dashboard/fin/TituloCancelarDialog";
+import {
+  TituloAlterarVencimentoDialog,
+  tituloPodeAlterarVencimentoUnicred,
+  type TituloAlterarVencimentoPayload,
+} from "@/components/dashboard/fin/TituloAlterarVencimentoDialog";
 import { canCancelarTituloPago } from "@/lib/auth-storage";
 import { TituloLegadoManualDialog } from "@/components/dashboard/fin/TituloLegadoManualDialog";
 import { TituloBalaoLegadoManualDialog } from "@/components/dashboard/fin/TituloBalaoLegadoManualDialog";
@@ -134,6 +140,7 @@ export function TituloDetalhe({
   const [dataPagamento, setDataPagamento] = useState<Date | null>(new Date());
   const [registrarDialogOpen, setRegistrarDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [alterarVencimentoDialogOpen, setAlterarVencimentoDialogOpen] = useState(false);
   const [editLegadoOpen, setEditLegadoOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -197,14 +204,42 @@ export function TituloDetalhe({
     }
   };
 
+  const confirmarAlterarVencimento = async (payload: TituloAlterarVencimentoPayload) => {
+    setActionLoading(true);
+    try {
+      await finService.alterarVencimento(tituloId, payload);
+      toast.success(
+        "Alteração de vencimento solicitada na Unicred. Aguarde confirmação ou sincronize o status.",
+      );
+      setAlterarVencimentoDialogOpen(false);
+      void load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao alterar vencimento.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const sincronizarStatus = async () => {
     setActionLoading(true);
     try {
+      const vencimentoAnterior = titulo?.vencimento;
+      const alteracaoPendente = Boolean(titulo?.codigoInstrucaoAlteracaoVencimento?.trim());
       const atualizado = await finService.sincronizarStatus(tituloId);
       if (atualizado.status === "CANCELADO") {
         toast.success("Baixa confirmada na Unicred. Título cancelado no Aires.");
       } else if (atualizado.status === "BAIXA_SOLICITADA") {
         toast.info("Ainda aguardando confirmação da baixa na Unicred.");
+      } else if (
+        alteracaoPendente &&
+        !atualizado.codigoInstrucaoAlteracaoVencimento?.trim() &&
+        atualizado.vencimento !== vencimentoAnterior
+      ) {
+        toast.success(
+          `Alteração de vencimento confirmada. Novo vencimento: ${formatBusinessDate(atualizado.vencimento)}.`,
+        );
+      } else if (alteracaoPendente && atualizado.codigoInstrucaoAlteracaoVencimento?.trim()) {
+        toast.info("Ainda aguardando confirmação da alteração de vencimento na Unicred.");
       } else {
         toast.info(
           `Unicred consultada; status no Aires permanece ${atualizado.status} (boleto ainda não baixado no banco).`,
@@ -300,10 +335,15 @@ export function TituloDetalhe({
   const podeCancelar =
     titulo.status === "PAGO"
       ? canCancelarTituloPago()
-      : titulo.status !== "CANCELADO" && titulo.status !== "BAIXA_SOLICITADA";
+      : titulo.status !== "CANCELADO" &&
+        titulo.status !== "BAIXA_SOLICITADA" &&
+        !titulo.codigoInstrucaoAlteracaoVencimento?.trim();
+  const podeAlterarVencimento = tituloPodeAlterarVencimentoUnicred(titulo);
+  const alteracaoVencimentoPendente = Boolean(titulo.codigoInstrucaoAlteracaoVencimento?.trim());
   const podeSincronizar =
     Boolean(titulo.idExternoBanco?.trim()) &&
     (titulo.status === "BAIXA_SOLICITADA" ||
+      alteracaoVencimentoPendente ||
       titulo.status === "EMITIDO" ||
       titulo.status === "REGISTRADO" ||
       titulo.status === "VENCIDO");
@@ -376,6 +416,14 @@ export function TituloDetalhe({
               onClick={() => void sincronizarStatus()}
             />
           )}
+          {!isAtendimentoView && podeAlterarVencimento && (
+            <ActionButton
+              label="Alterar vencimento"
+              icon={<CalendarClock size={14} />}
+              disabled={actionLoading}
+              onClick={() => setAlterarVencimentoDialogOpen(true)}
+            />
+          )}
           {!isAtendimentoView && podeCancelar && (
             <ActionButton
               label={titulo.status === "PAGO" ? "Cancelar pago" : "Cancelar"}
@@ -414,6 +462,20 @@ export function TituloDetalhe({
             <div>
               <span className={LABEL_CLASS}>Instrução de baixa (Unicred)</span>
               <p className={cn(VALUE_CLASS, "font-mono text-sm")}>{titulo.codigoInstrucaoBaixa}</p>
+            </div>
+          ) : null}
+          {titulo.codigoInstrucaoAlteracaoVencimento ? (
+            <div>
+              <span className={LABEL_CLASS}>Instrução alteração vencimento (Unicred)</span>
+              <p className={cn(VALUE_CLASS, "font-mono text-sm")}>
+                {titulo.codigoInstrucaoAlteracaoVencimento}
+              </p>
+            </div>
+          ) : null}
+          {titulo.vencimentoSolicitado ? (
+            <div>
+              <span className={LABEL_CLASS}>Vencimento solicitado</span>
+              <p className={VALUE_CLASS}>{formatBusinessDate(titulo.vencimentoSolicitado)}</p>
             </div>
           ) : null}
           <div>
@@ -591,6 +653,14 @@ export function TituloDetalhe({
             loading={actionLoading}
             onHide={() => setCancelDialogOpen(false)}
             onConfirm={confirmarCancelar}
+          />
+
+          <TituloAlterarVencimentoDialog
+            visible={alterarVencimentoDialogOpen}
+            titulo={titulo}
+            loading={actionLoading}
+            onHide={() => setAlterarVencimentoDialogOpen(false)}
+            onConfirm={confirmarAlterarVencimento}
           />
 
           <TituloRegistrarConvenioDialog
