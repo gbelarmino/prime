@@ -6,13 +6,7 @@ import {
   isApiConfigured,
 } from "@/lib/api-config";
 import { getAuthToken } from "@/lib/auth-storage";
-
-function tryGetFilenameFromDisposition(disposition: string | null): string | null {
-  if (!disposition) return null;
-  // attachment; filename="contrato-123.pdf"
-  const m = disposition.match(/filename=\"?([^\";]+)\"?/i);
-  return m?.[1] ?? null;
-}
+import { tryGetFilenameFromDisposition } from "@/lib/baixar-boleto-pdf";
 
 /** Mensagem de erro da API: vem em JSON quando o Spring recusa, em texto quando estoura. */
 async function extrairMensagemErro(res: Response, padrao: string): Promise<string> {
