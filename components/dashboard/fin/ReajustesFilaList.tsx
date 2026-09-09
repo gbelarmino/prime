@@ -176,14 +176,25 @@ export function ReajustesFilaList() {
     if (!confirmRow || confirmRow.status !== "PRONTO") return;
     setGenerating(true);
     try {
-      const result = await finService.criarTitulosEmLote({
-        contratoId: confirmRow.contratoId,
-        quantidadeParcelas: confirmRow.quantidadeParcelasCiclo,
-        dataPrimeiraParcela: confirmRow.dataAniversarioCiclo.slice(0, 10),
-      });
-      toast.success(
-        `${result.quantidadeCriada} título(s) criados (parcelas ${result.parcelaInicial}–${result.parcelaFinal}).`,
-      );
+      const dataPrimeira = confirmRow.dataAniversarioCiclo.slice(0, 10);
+      if (confirmRow.cobrancaGrupoId) {
+        const result = await finService.criarTitulosLoteCobrancaGrupo(confirmRow.cobrancaGrupoId, {
+          quantidadeParcelas: confirmRow.quantidadeParcelasCiclo,
+          dataPrimeiraParcela: dataPrimeira,
+        });
+        toast.success(
+          `${result.quantidade} rascunho(s) consolidado(s) do grupo ${confirmRow.numeroContratoGrupoBase ?? ""} (parcelas ${result.parcelaInicial}–${result.parcelaFinal}).`.trim(),
+        );
+      } else {
+        const result = await finService.criarTitulosEmLote({
+          contratoId: confirmRow.contratoId,
+          quantidadeParcelas: confirmRow.quantidadeParcelasCiclo,
+          dataPrimeiraParcela: dataPrimeira,
+        });
+        toast.success(
+          `${result.quantidadeCriada} título(s) criados (parcelas ${result.parcelaInicial}–${result.parcelaFinal}).`,
+        );
+      }
       setConfirmRow(null);
       await load();
     } catch (e) {
@@ -395,6 +406,16 @@ export function ReajustesFilaList() {
               </span>
               {confirmRow.nomeCliente ? ` · ${confirmRow.nomeCliente}` : null}
             </p>
+            {confirmRow.cobrancaGrupoId ? (
+              <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
+                Líder do grupo legado{" "}
+                <span className="font-mono font-semibold">
+                  {confirmRow.numeroContratoGrupoBase ?? "—"}
+                </span>
+                . Serão criados rascunhos consolidados no grupo (rateio por lote), não títulos
+                individuais.
+              </p>
+            ) : null}
             <ul className="space-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs">
               <li>
                 Parcelas{" "}
