@@ -403,6 +403,9 @@ export interface ReajusteFilaItem {
   valorParcelaReajustada: number | null;
   status: ReajusteFilaStatus;
   mensagemAviso: string | null;
+  /** Líder de grupo legado: GERAR CICLO cria rascunhos consolidados neste grupo. */
+  cobrancaGrupoId?: string | null;
+  numeroContratoGrupoBase?: string | null;
 }
 
 export interface IndiceEconomicoSyncResult {
