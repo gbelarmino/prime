@@ -30,6 +30,7 @@ import {
   Ticket,
   UserSquare,
   Users,
+  Wrench,
   Zap,
 } from "lucide-react";
 import { ADMIN_DASHBOARD_HOME, WELCOME_DASHBOARD_PATH } from "@/lib/auth-storage";
@@ -227,6 +228,13 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
         href: "/dashboard/financeiro/unicred-webhooks/reprocessar",
         label: "Reprocessar webhooks",
         icon: RefreshCw,
+      },
+      {
+        id: "fin-saneamento-titulos",
+        href: "/dashboard/financeiro/saneamento-titulos",
+        label: "Saneamento de títulos",
+        icon: Wrench,
+        roles: ["ADMIN"],
       },
       { id: "fin-lancamentos", href: "/dashboard/financeiro/lancamentos", label: "Lançamentos", icon: BookOpen },
       { id: "fin-fluxo-receita", href: "/dashboard/financeiro/fluxo-receita", label: "Fluxo de receita", icon: BarChart3 },

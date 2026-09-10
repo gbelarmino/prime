@@ -37,6 +37,7 @@ const API_PATHS = {
   finReajusteSimular: "/api/fin/reajuste/simular",
   finReajustes: "/api/fin/reajustes",
   finCobrancaRegua: "/api/fin/cobranca-regua",
+  finManutencao: "/api/fin/manutencao",
   finCobrancaGrupos: "/api/fin/cobranca-grupos",
   atendimento: "/api/atendimento",
   atendimentoSms: "/api/atendimento/sms",
@@ -1498,6 +1499,15 @@ export function getFinCobrancaReguaTesteTituloResolvidoUrl(
     etapaId,
   });
   return `${getFinCobrancaReguaUrl()}/teste/titulo-resolvido?${params.toString()}`;
+}
+
+export function getFinManutencaoUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.finManutencao);
+}
+
+export function getFinManutencaoContratosCanceladosTitulosAbertosUrl(): string {
+  const base = getFinManutencaoUrl();
+  return base ? `${base}/contratos-cancelados/titulos-abertos` : "";
 }
 
 export function getFinLancamentosUrl(): string {

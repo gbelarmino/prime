@@ -88,6 +88,7 @@ import {
   getFinCobrancaGrupoLiderUrl,
   getFinCobrancaGrupoMembrosUrl,
   getFinCobrancaGrupoDesativarUrl,
+  getFinManutencaoContratosCanceladosTitulosAbertosUrl,
   getImoveisEmpreendimentosUrl,
   getImoveisListUrl,
   getImoveisQuadrasUrl,
@@ -686,6 +687,43 @@ export interface CobrancaGrupoLoteResult {
   parcelaInicial: number;
   parcelaFinal: number;
   titulos: TituloCobranca[];
+}
+
+export interface ContratoCanceladoTitulosSaneamentoRequest {
+  dryRun?: boolean;
+  contratoIds?: number[];
+  motivo?: string;
+}
+
+export interface ContratoCanceladoTitulosSaneamentoTituloItem {
+  tituloId: string;
+  numeroParcela: number | null;
+  statusAnterior: string;
+  cancelarNoBanco: boolean;
+  resultado: string;
+  detalhe: string | null;
+}
+
+export interface ContratoCanceladoTitulosSaneamentoContratoItem {
+  contratoId: number;
+  numeroContrato: string | null;
+  titulos: number;
+  canceladosNoBanco: number;
+  canceladosSoSistema: number;
+  falhas: number;
+  resultado: string;
+  mensagem: string | null;
+  titulosDetalhe: ContratoCanceladoTitulosSaneamentoTituloItem[];
+}
+
+export interface ContratoCanceladoTitulosSaneamentoResponse {
+  dryRun: boolean;
+  motivo: string;
+  contratos: number;
+  titulosPrevistos: number;
+  titulosCancelados: number;
+  titulosComFalha: number;
+  itens: ContratoCanceladoTitulosSaneamentoContratoItem[];
 }
 
 export interface CobrancaGrupoLegadoManualCreate {
@@ -2097,6 +2135,19 @@ export const finService = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+    });
+    return parseJson(res);
+  },
+
+  async sanearTitulosContratosCancelados(
+    payload?: ContratoCanceladoTitulosSaneamentoRequest,
+    options?: FinFetchOptions,
+  ): Promise<ContratoCanceladoTitulosSaneamentoResponse> {
+    const res = await apiFetch(getFinManutencaoContratosCanceladosTitulosAbertosUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload ?? {}),
+      skipLoading: options?.skipLoading,
     });
     return parseJson(res);
   },
