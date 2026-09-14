@@ -52,17 +52,20 @@ function formatMesRange(de?: string | null, ate?: string | null): string {
 function splitRecebido(m: FinFluxoReceitaMes): {
   mesmo: number;
   outro: number;
+  juros: number;
   total: number;
 } {
   const total = m.recebidoLiquido ?? 0;
   const mesmo = m.recebidoMesmoVencimento;
   const outro = m.recebidoOutroVencimento;
-  if (mesmo != null || outro != null) {
+  const juros = m.recebidoJuros;
+  if (mesmo != null || outro != null || juros != null) {
     const mVal = mesmo ?? 0;
     const oVal = outro ?? 0;
-    return { mesmo: mVal, outro: oVal, total: mVal + oVal || total };
+    const jVal = juros ?? 0;
+    return { mesmo: mVal, outro: oVal, juros: jVal, total: mVal + oVal + jVal || total };
   }
-  return { mesmo: total, outro: 0, total };
+  return { mesmo: total, outro: 0, juros: 0, total };
 }
 
 function totaisMes(meses: FinFluxoReceitaMes[]) {
@@ -73,6 +76,7 @@ function totaisMes(meses: FinFluxoReceitaMes[]) {
         recebidoLiquido: acc.recebidoLiquido + split.total,
         recebidoMesmoVencimento: acc.recebidoMesmoVencimento + split.mesmo,
         recebidoOutroVencimento: acc.recebidoOutroVencimento + split.outro,
+        recebidoJuros: acc.recebidoJuros + split.juros,
         emitido: acc.emitido + (m.emitido ?? 0),
         inadimplencia: acc.inadimplencia + (m.inadimplencia ?? 0),
         taxas: acc.taxas + (m.taxas ?? 0),
@@ -82,6 +86,7 @@ function totaisMes(meses: FinFluxoReceitaMes[]) {
       recebidoLiquido: 0,
       recebidoMesmoVencimento: 0,
       recebidoOutroVencimento: 0,
+      recebidoJuros: 0,
       emitido: 0,
       inadimplencia: 0,
       taxas: 0,
@@ -120,6 +125,7 @@ function somarMesesPorChave(mesesLists: FinFluxoReceitaMes[][]): FinFluxoReceita
         recebidoLiquido: 0,
         recebidoMesmoVencimento: 0,
         recebidoOutroVencimento: 0,
+        recebidoJuros: 0,
         emitido: 0,
         inadimplencia: 0,
         taxas: 0,
@@ -127,6 +133,7 @@ function somarMesesPorChave(mesesLists: FinFluxoReceitaMes[][]): FinFluxoReceita
       cur.recebidoLiquido += split.total;
       cur.recebidoMesmoVencimento = (cur.recebidoMesmoVencimento ?? 0) + split.mesmo;
       cur.recebidoOutroVencimento = (cur.recebidoOutroVencimento ?? 0) + split.outro;
+      cur.recebidoJuros = (cur.recebidoJuros ?? 0) + split.juros;
       cur.emitido += m.emitido ?? 0;
       cur.inadimplencia += m.inadimplencia ?? 0;
       cur.taxas += m.taxas ?? 0;
@@ -152,6 +159,7 @@ function buildGraficoItem(
       recebidoLiquido: split.total,
       recebidoMesmoVencimento: split.mesmo,
       recebidoOutroVencimento: split.outro,
+      recebidoJuros: split.juros,
       emitido: m.mes < mesAtual ? 0 : (m.emitido ?? 0),
     };
   });
@@ -167,11 +175,11 @@ function buildGraficoItem(
           key: st.key,
           label: st.label,
           color: st.color,
-          values: mesesGrafico.map((m) =>
-            st.key === "recebidoMesmoVencimento"
-              ? (m.recebidoMesmoVencimento ?? 0)
-              : (m.recebidoOutroVencimento ?? 0),
-          ),
+          values: mesesGrafico.map((m) => {
+            if (st.key === "recebidoMesmoVencimento") return m.recebidoMesmoVencimento ?? 0;
+            if (st.key === "recebidoOutroVencimento") return m.recebidoOutroVencimento ?? 0;
+            return m.recebidoJuros ?? 0;
+          }),
         })),
       };
     }
