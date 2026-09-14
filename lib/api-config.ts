@@ -1732,6 +1732,45 @@ export function getAtendimentoBuscaUrl(
   return `${base}/busca?${params.toString()}`;
 }
 
+export function getAtendimentoBuscaExportExcelUrl(
+  filters?: {
+    contrato?: string;
+    empreendimentos?: string[];
+    quadras?: string[];
+    lotes?: number[];
+    nome?: string;
+    cpf?: string;
+    celular?: string;
+    situacoesFinanceiras?: string[];
+  },
+  sort?: AtendimentoBuscaSort,
+): string {
+  const base = getAtendimentoUrl();
+  if (!base) return "";
+  const sortField = sort?.field?.trim() || "contratoId";
+  const sortDirection = sort?.direction === "asc" ? "asc" : "desc";
+  const params = new URLSearchParams({
+    sort: `${sortField},${sortDirection}`,
+  });
+  if (filters?.contrato?.trim()) params.set("contrato", filters.contrato.trim());
+  for (const emp of filters?.empreendimentos ?? []) {
+    if (emp.trim()) params.append("empreendimento", emp.trim());
+  }
+  for (const qd of filters?.quadras ?? []) {
+    if (qd.trim()) params.append("quadra", qd.trim());
+  }
+  for (const lt of filters?.lotes ?? []) {
+    params.append("lote", String(lt));
+  }
+  if (filters?.nome?.trim()) params.set("nome", filters.nome.trim());
+  if (filters?.cpf?.trim()) params.set("cpf", filters.cpf.trim());
+  if (filters?.celular?.trim()) params.set("celular", filters.celular.trim());
+  for (const sit of filters?.situacoesFinanceiras ?? []) {
+    params.append("situacaoFinanceiro", sit);
+  }
+  return `${base}/busca/exportar-excel?${params.toString()}`;
+}
+
 export function getAtendimentoPainelUrl(contratoId: number): string {
   const base = getAtendimentoUrl();
   if (!base) return "";

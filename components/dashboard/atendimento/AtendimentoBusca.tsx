@@ -7,7 +7,7 @@ import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { MultiSelect } from "primereact/multiselect";
 import { toast } from "sonner";
-import { Eye, Search } from "lucide-react";
+import { Download, Eye, Search } from "lucide-react";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
 import {
   ATENDIMENTO_SITUACAO_FINANCEIRA_OPTIONS,
@@ -154,6 +154,7 @@ export function AtendimentoBusca() {
   const [quadrasLoading, setQuadrasLoading] = useState(false);
   const [lotes, setLotes] = useState<number[]>([]);
   const [lotesLoading, setLotesLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const selectedEmpreendimentos = filters.empreendimentos ?? [];
   const selectedQuadras = filters.quadras ?? [];
@@ -296,6 +297,33 @@ export function AtendimentoBusca() {
   const rows = pageData?.content ?? [];
   const totalRecords = pageData?.totalElements ?? 0;
   const range = pageData ? springPageDisplayRange(pageData) : { from: 0, to: 0 };
+
+  const onExportExcel = async () => {
+    if (!searched || totalRecords === 0) {
+      toast.error("Faça uma busca com resultados antes de exportar.");
+      return;
+    }
+    setExporting(true);
+    try {
+      const blob = await atendimentoService.exportarExcel(applied, {
+        field: sortField,
+        direction: sortOrder === 1 ? "asc" : "desc",
+      });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", "atendimento.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("Planilha baixada com sucesso.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao gerar planilha.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (!isApiConfigured()) {
     return (
@@ -493,6 +521,15 @@ export function AtendimentoBusca() {
               <span className="font-bold text-white">{totalRecords}</span> contrato(s)
             </span>
           )}
+          <button
+            type="button"
+            onClick={() => void onExportExcel()}
+            disabled={!searched || totalRecords === 0 || exporting || loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-6 py-3 text-sm font-bold uppercase tracking-wider text-white/80 transition hover:bg-white/10 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Download size={16} aria-hidden />
+            {exporting ? "Exportando…" : "Excel"}
+          </button>
           <button
             type="button"
             onClick={onSearch}
