@@ -2,6 +2,7 @@ import { apiFetch } from "./api-fetch";
 import { baixarBoletoPdf } from "./baixar-boleto-pdf";
 import {
   getAtendimentoBuscaUrl,
+  getAtendimentoBuscaExportExcelUrl,
   getAtendimentoCobrancaBoletoUnicoUrl,
   getAtendimentoCobrancaEntradaParcelasUrl,
   getAtendimentoCobrancaParcelamentoUrl,
@@ -149,6 +150,19 @@ export const atendimentoService = {
     const url = getAtendimentoBuscaUrl(page, size, filters, sort);
     const res = await apiFetch(url, { skipLoading: options?.skipLoading });
     return parseJson(res);
+  },
+
+  async exportarExcel(
+    filters: AtendimentoBuscaFilters,
+    sort?: AtendimentoBuscaSort,
+  ): Promise<Blob> {
+    const url = getAtendimentoBuscaExportExcelUrl(filters, sort);
+    const res = await apiFetch(url);
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(err.message ?? `Erro HTTP ${res.status}`);
+    }
+    return res.blob();
   },
 
   async getPainel(contratoId: number): Promise<AtendimentoResumoFinanceiro> {
