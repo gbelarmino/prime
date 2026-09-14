@@ -367,12 +367,17 @@ export const FLUXO_RECEITA_SERIES: Omit<FluxoReceitaSerie, "values" | "stacks">[
 export const FLUXO_RECEITA_RECEBIDO_STACKS = [
   {
     key: "recebidoMesmoVencimento",
-    label: "Vencimento no mês",
+    label: "Principal · vencimento no mês",
     color: "#34d399",
   },
   {
     key: "recebidoOutroVencimento",
-    label: "Outros vencimentos",
+    label: "Principal · outros vencimentos",
     color: "#a78bfa",
+  },
+  {
+    key: "recebidoJuros",
+    label: "Juros e multa",
+    color: "#fb923c",
   },
 ] as const;
