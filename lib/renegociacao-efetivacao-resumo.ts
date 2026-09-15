@@ -31,6 +31,7 @@ function labelModalidade(m: ModalidadeRenegociacao): string {
     T4_QUITACAO: "Liquidação antecipada (T4)",
     T5_COM_ENTRADA: "Com entrada (T5)",
     T6_JUDICIAL: "Judicial (T6)",
+    DIFERIMENTO_FIM_CICLO: "Diferir para o fim do ciclo",
   };
   return map[m];
 }
@@ -116,6 +117,17 @@ function resumoTitulos(
 ): string[] {
   if (modalidade === "T1_PARCELAS_VENCIDAS") {
     return resumoTitulosT1(sim);
+  }
+  if (modalidade === "DIFERIMENTO_FIM_CICLO") {
+    const afetados = sim?.titulosAfetados ?? [];
+    if (afetados.length === 0) {
+      return ["Nenhuma parcela selecionada para diferir."];
+    }
+    const nums = afetados.map((t) => t.numeroParcela).sort((a, b) => a - b);
+    return [
+      `${afetados.length} parcela(s) serão marcadas como DIFERIDA_FIM_CICLO: ${nums.join(", ")}.`,
+      "Não há cancelamento nem reemissão imediata; a cobrança volta no fim da grade contratual.",
+    ];
   }
   const afetados = sim?.titulosAfetados ?? [];
   if (afetados.length > 0) {
@@ -235,6 +247,20 @@ export function montarResumoEfetivacao(options: {
         "Não altera versão contratual — apenas títulos de cobrança.",
         "Registra auditoria; processo passa para status EFETIVADO.",
         "Redireciona para a lista de contratos após sucesso.",
+      ],
+    });
+    return { podeEfetivarNoWizard: true, secoes };
+  }
+
+  if (modalidade === "DIFERIMENTO_FIM_CICLO" && processoValido) {
+    secoes.push({
+      titulo: "Ao clicar em Efetivar (neste wizard)",
+      itens: [
+        "Exige aditivo PDF já enviado no passo de documentos.",
+        "Marca as parcelas selecionadas como DIFERIDA_FIM_CICLO (saiem da inadimplência/régua).",
+        "Não cancela nem reemite títulos agora; a reemissão ocorre no fim da grade.",
+        "Não publica nova versão de condições financeiras.",
+        "Registra auditoria; processo passa para status EFETIVADO.",
       ],
     });
     return { podeEfetivarNoWizard: true, secoes };

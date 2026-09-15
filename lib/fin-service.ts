@@ -65,6 +65,7 @@ import {
   getFinTitulosIdsElegiveisRegistroUrl,
   getFinTitulosPdfLoteUrl,
   getFinTitulosMarcarVencidosUrl,
+  getFinTitulosDiferirFimCicloUrl,
   getFinTitulosRegistrarLoteUrl,
   getFinTitulosUrl,
   getFinTituloAvulsoUrl,
@@ -109,7 +110,9 @@ export type TituloCobrancaStatus =
   | "CANCELADO"
   | "BAIXA_SOLICITADA"
   | "ERRO_REGISTRO"
-  | "EM_CONCILIACAO";
+  | "EM_CONCILIACAO"
+  | "DIFERIDA_FIM_CICLO"
+  | "DIFERIDA_CONSUMIDA";
 
 export type TituloTipoParcela = "MENSAL" | "FRACIONADA" | "BALAO";
 
@@ -1575,6 +1578,18 @@ export const finService = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload ?? {}),
+    });
+    return parseJson(res);
+  },
+
+  async diferirFimCiclo(
+    tituloIds: string[],
+    motivo: string,
+  ): Promise<{ diferidos: number; contratoId: number; tituloIds: string[] }> {
+    const res = await apiFetch(getFinTitulosDiferirFimCicloUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tituloIds, motivo }),
     });
     return parseJson(res);
   },

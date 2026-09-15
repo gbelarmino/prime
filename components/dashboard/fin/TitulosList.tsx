@@ -104,6 +104,7 @@ import {
 } from "@/lib/fin-indice-simulacao";
 import { springPageDisplayRange, type SpringPage } from "@/lib/spring-page";
 import { formatBusinessDate } from "@/lib/format-datetime";
+import { buildRenegociacaoDashboardUrl } from "@/lib/renegociacao-routes";
 import {
   buildTitulosListQuery,
   parseTitulosListQuery,
@@ -117,6 +118,8 @@ const STATUS_OPTIONS = [
   { label: "Emitido", value: "EMITIDO" },
   { label: "Pago", value: "PAGO" },
   { label: "Vencido", value: "VENCIDO" },
+  { label: "Diferida fim ciclo", value: "DIFERIDA_FIM_CICLO" },
+  { label: "Diferida consumida", value: "DIFERIDA_CONSUMIDA" },
   { label: "Cancelado", value: "CANCELADO" },
   { label: "Baixa solicitada", value: "BAIXA_SOLICITADA" },
 ];
@@ -130,6 +133,8 @@ const STATUS_TONES: Record<string, string> = {
   EMITIDO: "border-amber-500/25 bg-amber-500/15 text-amber-300",
   PAGO: "border-emerald-500/25 bg-emerald-500/15 text-emerald-300",
   VENCIDO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
+  DIFERIDA_FIM_CICLO: "border-violet-500/25 bg-violet-500/15 text-violet-300",
+  DIFERIDA_CONSUMIDA: "border-white/10 bg-white/10 text-white/40",
   CANCELADO: "border-white/10 bg-white/10 text-white/40",
   BAIXA_SOLICITADA: "border-amber-500/25 bg-amber-500/15 text-amber-300",
   ERRO_REGISTRO: "border-rose-500/25 bg-rose-500/15 text-rose-300",
@@ -236,6 +241,12 @@ function tituloElegivelWhatsApp(status: TituloCobranca["status"]): boolean {
   return status === "EMITIDO" || status === "VENCIDO";
 }
 
+function tituloElegivelDiferirFimCiclo(t: TituloCobranca): boolean {
+  if (t.tipoParcela === "BALAO") return false;
+  if (t.idExternoBanco?.trim()) return false;
+  return t.status === "VENCIDO" || t.status === "EMITIDO" || t.status === "REGISTRADO";
+}
+
 /** Consulta Unicred e, se já BAIXADO, cancela no Aires sem pedir baixa de novo. */
 function tituloPodeSincronizarUnicred(t: TituloCobranca): boolean {
   if (!t.idExternoBanco?.trim()) return false;
@@ -253,7 +264,11 @@ function tituloElegivelPdf(status: TituloCobranca["status"]): boolean {
 
 function tituloSelecionavel(status: TituloCobranca["status"]): boolean {
   return (
-    tituloRegistravel(status) || tituloElegivelWhatsApp(status) || tituloElegivelPdf(status)
+    tituloRegistravel(status) ||
+    tituloElegivelWhatsApp(status) ||
+    tituloElegivelPdf(status) ||
+    status === "REGISTRADO" ||
+    status === "DIFERIDA_FIM_CICLO"
   );
 }
 
@@ -394,6 +409,11 @@ export function TitulosList({
 
   const titulosWhatsAppSelecionados = useMemo(
     () => selectedTitulos.filter((t) => tituloElegivelWhatsApp(t.status)),
+    [selectedTitulos],
+  );
+
+  const titulosDiferiveisSelecionados = useMemo(
+    () => selectedTitulos.filter((t) => tituloElegivelDiferirFimCiclo(t)),
     [selectedTitulos],
   );
 
@@ -1480,6 +1500,26 @@ export function TitulosList({
     setTituloParaCancelar(null);
   };
 
+  const abrirDiferirFimCiclo = () => {
+    if (titulosDiferiveisSelecionados.length === 0) {
+      toast.error("Selecione títulos VENCIDO/EMITIDO/REGISTRADO sem boleto no banco.");
+      return;
+    }
+    const contratos = new Set(titulosDiferiveisSelecionados.map((t) => t.contratoId));
+    if (contratos.size > 1) {
+      toast.error("Selecione títulos de um único contrato para diferir.");
+      return;
+    }
+    const contratoId = titulosDiferiveisSelecionados[0]!.contratoId;
+    router.push(
+      buildRenegociacaoDashboardUrl({
+        contratoId,
+        modalidade: "DIFERIMENTO_FIM_CICLO",
+        tituloIds: titulosDiferiveisSelecionados.map((t) => t.id),
+      }),
+    );
+  };
+
   const confirmarCancelar = async (payload: TituloCancelarPayload) => {
     if (!tituloParaCancelar) return;
     setActionLoading(true);
@@ -2133,6 +2173,16 @@ export function TitulosList({
               >
                 <Download size={14} />
                 Baixar PDF em lote
+              </button>
+              <button
+                type="button"
+                onClick={abrirDiferirFimCiclo}
+                disabled={
+                  actionLoading || selecionandoTodos || titulosDiferiveisSelecionados.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-violet-200 transition hover:bg-violet-500/20 disabled:opacity-50"
+              >
+                Diferir fim do ciclo (renegociação)
               </button>
             </div>
           </div>

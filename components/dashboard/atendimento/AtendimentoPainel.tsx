@@ -195,6 +195,11 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
     return [...painel.titulosVencidos, ...painel.titulosAbertos];
   }, [painel]);
 
+  const titulosDiferidos = useMemo(() => {
+    if (!painel) return [];
+    return painel.titulosDiferidos ?? [];
+  }, [painel]);
+
   const titulosPagos = useMemo(() => painel?.titulosPagos ?? [], [painel]);
 
   const load = useCallback(async (background = false) => {
@@ -422,11 +427,16 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
               CPF {formatCpfDisplay(painel.cpf)}
               {painel.celular ? ` · ${painel.celular}` : ""}
             </p>
-            <div className="mt-3">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               {dashboardStatusBadge(
                 painel.statusFinanceiro,
                 ATENDIMENTO_STATUS_FINANCEIRO_TONES,
               )}
+              {(painel.parcelasDiferidasPendentes ?? 0) > 0 ? (
+                <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-200">
+                  Com parcelas diferidas ({painel.parcelasDiferidasPendentes})
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -507,6 +517,11 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
               />
               <ResumoCard label="Em atraso" value={String(painel.parcelasEmAtraso)} icon={Receipt} />
               <ResumoCard
+                label="Diferidas pendentes"
+                value={String(painel.parcelasDiferidasPendentes ?? 0)}
+                icon={Receipt}
+              />
+              <ResumoCard
                 label="Próximo vencimento"
                 value={formatBusinessDate(painel.proximoVencimento)}
                 icon={Calendar}
@@ -520,7 +535,8 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
                 <Receipt size={16} className="text-blue-400" />
                 Parcelas e balões
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/45">
-                  {titulosPendentes.length} aberto · {titulosPagos.length} pagos
+                  {titulosPendentes.length} aberto · {titulosDiferidos.length} diferidas ·{" "}
+                  {titulosPagos.length} pagos
                 </span>
               </span>
             }
@@ -589,6 +605,59 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
                   body={(row: AtendimentoTituloResumo) => acoesParcelaBody(row, true)}
                   align="right"
                   style={{ width: "7rem" }}
+                />
+              </DataTable>
+            </DashboardDataTableShell>
+            </TabPanel>
+            <TabPanel
+              header={dashboardTabHeader(
+                "Diferidas fim ciclo",
+                titulosDiferidos.length,
+                <ClockAlert />,
+              )}
+            >
+            <p className="mb-3 text-sm text-white/40">
+              Parcelas adiadas para o fim da grade. O valor de face atual é referência; na emissão
+              final será recalculado com o ciclo (6%+índice).
+            </p>
+            <DashboardDataTableShell>
+              <DataTable
+                value={titulosDiferidos}
+                dataKey="id"
+                paginator
+                rows={PAGE_SIZE}
+                paginatorTemplate={PAGINATOR_TEMPLATE}
+                currentPageReportTemplate="{first}–{last} de {totalRecords}"
+                className={DASHBOARD_DATATABLE_CLASS}
+                pt={TABLE_PT}
+                emptyMessage="Nenhuma parcela diferida pendente."
+              >
+                <Column
+                  header="Título"
+                  body={(row: AtendimentoTituloResumo) =>
+                    dashboardCellMono(rotuloTituloAtendimento(row), { size: "parcela" })
+                  }
+                />
+                <Column
+                  header="Vencimento orig."
+                  body={(row: AtendimentoTituloResumo) =>
+                    dashboardCellMono(formatBusinessDate(row.vencimento))
+                  }
+                />
+                <Column
+                  header="Valor face"
+                  body={(row: AtendimentoTituloResumo) =>
+                    dashboardCellMono(formatMoney(row.valorNominal))
+                  }
+                />
+                <Column
+                  header="Status"
+                  body={(row: AtendimentoTituloResumo) =>
+                    dashboardStatusBadge(row.status, {
+                      DIFERIDA_FIM_CICLO:
+                        "border-violet-500/25 bg-violet-500/15 text-violet-300",
+                    })
+                  }
                 />
               </DataTable>
             </DashboardDataTableShell>

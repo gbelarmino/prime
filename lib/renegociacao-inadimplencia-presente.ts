@@ -18,6 +18,7 @@ export type InadimplenciaPresenteAgregado = {
 };
 
 function isVencido(t: AtendimentoTituloResumo, dataReferencia?: string): boolean {
+  if (t.status === "DIFERIDA_FIM_CICLO" || t.status === "DIFERIDA_CONSUMIDA") return false;
   if (t.status === "VENCIDO") return true;
   const ref = dataReferencia ?? hojeNegocioIso();
   return t.vencimento < ref && t.status !== "PAGO" && t.status !== "CANCELADO";

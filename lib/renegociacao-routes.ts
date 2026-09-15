@@ -15,6 +15,7 @@ const MODALIDADES: ModalidadeRenegociacao[] = [
   "T4_QUITACAO",
   "T5_COM_ENTRADA",
   "T6_JUDICIAL",
+  "DIFERIMENTO_FIM_CICLO",
 ];
 
 export function parseModalidadeRenegociacao(
@@ -30,6 +31,8 @@ export function buildRenegociacaoDashboardUrl(options?: {
   contratoId?: number;
   renegociacaoId?: number;
   modalidade?: ModalidadeRenegociacao;
+  /** IDs de títulos pré-selecionados (ex.: diferimento fim de ciclo). */
+  tituloIds?: string[];
 }): string {
   const params = new URLSearchParams();
   if (options?.contratoId != null && options.contratoId > 0) {
@@ -41,8 +44,19 @@ export function buildRenegociacaoDashboardUrl(options?: {
   if (options?.modalidade) {
     params.set("modalidade", options.modalidade);
   }
+  if (options?.tituloIds?.length) {
+    params.set("tituloIds", options.tituloIds.join(","));
+  }
   const qs = params.toString();
   return qs ? `${RENEGOCIACAO_DASHBOARD_PATH}?${qs}` : RENEGOCIACAO_DASHBOARD_PATH;
+}
+
+export function parseTituloIdsQuery(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /** Destino seguro para “ver títulos” após efetivação (rotas existentes no export estático). */

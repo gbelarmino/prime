@@ -610,9 +610,16 @@ export function AtendimentoBusca() {
               field="statusFinanceiro"
               header="Situação"
               sortable
-              body={(row: AtendimentoBuscaItem) =>
-                dashboardStatusBadge(row.statusFinanceiro, ATENDIMENTO_STATUS_FINANCEIRO_TONES)
-              }
+              body={(row: AtendimentoBuscaItem) => (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {dashboardStatusBadge(row.statusFinanceiro, ATENDIMENTO_STATUS_FINANCEIRO_TONES)}
+                  {(row.parcelasDiferidasPendentes ?? 0) > 0 ? (
+                    <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-200">
+                      Diferidas {row.parcelasDiferidasPendentes}
+                    </span>
+                  ) : null}
+                </div>
+              )}
             />
             <Column
               header=""

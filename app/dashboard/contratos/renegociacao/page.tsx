@@ -10,6 +10,7 @@ import { canAccessContratoRenegociacao } from "@/lib/auth-storage";
 import {
   buildRenegociacaoDashboardUrl,
   parseModalidadeRenegociacao,
+  parseTituloIdsQuery,
 } from "@/lib/renegociacao-routes";
 import type { ModalidadeRenegociacao } from "@/lib/renegociacao-types";
 
@@ -23,6 +24,7 @@ export default function ContratoRenegociacaoPage() {
   const modalidadeInicial: ModalidadeRenegociacao | null = parseModalidadeRenegociacao(
     searchParams.get("modalidade"),
   );
+  const tituloIdsInicial = parseTituloIdsQuery(searchParams.get("tituloIds"));
   const hasContrato = Number.isFinite(contratoId) && contratoId > 0;
 
   useEffect(() => {
@@ -54,7 +56,9 @@ export default function ContratoRenegociacaoPage() {
           </h1>
           <p className="mt-2 max-w-xl font-medium leading-relaxed text-white/40">
             {hasContrato
-              ? modalidadeInicial === "T2_SALDO_DEVEDOR"
+              ? modalidadeInicial === "DIFERIMENTO_FIM_CICLO"
+                ? "Diferimento de parcelas para o fim do ciclo — exige aditivo assinado antes da efetivação."
+                : modalidadeInicial === "T2_SALDO_DEVEDOR"
                 ? "Fluxo unificado — inclui o antigo aditivo de saldo devedor (modalidade T2)."
                 : "Simule, formalize e efetive uma nova versão das condições financeiras, preservando o histórico integral do contrato."
               : "Selecione um contrato com status Assinado na tabela (fluxo Clicksign ou registo legado/atípico)."}
@@ -68,6 +72,7 @@ export default function ContratoRenegociacaoPage() {
             contratoId={contratoId}
             renegociacaoIdInicial={renegociacaoId}
             modalidadeInicial={modalidadeInicial}
+            tituloIdsInicial={tituloIdsInicial}
           />
         </div>
       ) : (

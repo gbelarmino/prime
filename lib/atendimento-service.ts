@@ -34,6 +34,7 @@ export interface AtendimentoBuscaItem {
   statusFinanceiro: AtendimentoStatusFinanceiro;
   saldoDevedor: number;
   percentualQuitacao: number;
+  parcelasDiferidasPendentes?: number;
 }
 
 export interface AtendimentoTituloResumo {
@@ -76,6 +77,8 @@ export interface AtendimentoResumoFinanceiro {
   titulosAbertos: AtendimentoTituloResumo[];
   titulosVencidos: AtendimentoTituloResumo[];
   titulosPagos: AtendimentoTituloResumo[];
+  titulosDiferidos?: AtendimentoTituloResumo[];
+  parcelasDiferidasPendentes?: number;
   convenioId: string | null;
   convenioNome: string | null;
   avisoConvenio: string | null;

@@ -11,6 +11,7 @@ import { DataTable } from "primereact/datatable";
 import { Dropdown } from "primereact/dropdown";
 import { InputNumber } from "primereact/inputnumber";
 import { InputTextarea } from "primereact/inputtextarea";
+import { MultiSelect } from "primereact/multiselect";
 import { toast } from "sonner";
 import { FormSection } from "@/components/dashboard/cliente-form/FormSection";
 import { DashboardDataTableShell } from "@/components/dashboard/DashboardDataTableShell";
@@ -32,8 +33,13 @@ import {
   dashboardCellText,
   dashboardDataTablePt,
 } from "@/lib/dashboard-datatable";
+import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
 import { textoSaldoDevedorComMemoria } from "@/lib/atendimento-saldo-memoria";
-import { atendimentoService, type AtendimentoResumoFinanceiro } from "@/lib/atendimento-service";
+import {
+  atendimentoService,
+  type AtendimentoResumoFinanceiro,
+  type AtendimentoTituloResumo,
+} from "@/lib/atendimento-service";
 import { apiFetch } from "@/lib/api-fetch";
 import { getContratoHonorariosByIdUrl } from "@/lib/api-config";
 import { formatBusinessDate } from "@/lib/format-datetime";
@@ -107,10 +113,28 @@ type Props = {
   renegociacaoIdInicial?: number | null;
   /** Ex.: atalho do antigo “Aditivo contrato” (T2). */
   modalidadeInicial?: ModalidadeRenegociacao | null;
+  /** Pré-seleção de títulos (ex.: lista financeira → diferimento). */
+  tituloIdsInicial?: string[] | null;
 };
 
 const LAST_STEP = RENEGOCIACAO_WIZARD_STEPS.length - 1;
 const TABLE_PT = dashboardDataTablePt({ density: "compact", paginator: false });
+const MULTISELECT_PT = dashboardMultiSelectPt();
+
+const STATUS_ELEGIVEIS_DIFERIMENTO = new Set(["VENCIDO", "EMITIDO", "REGISTRADO"]);
+
+function titulosElegiveisDiferimento(
+  financeiro: AtendimentoResumoFinanceiro | null,
+): AtendimentoTituloResumo[] {
+  if (!financeiro) return [];
+  const map = new Map<string, AtendimentoTituloResumo>();
+  for (const t of [...financeiro.titulosAbertos, ...(financeiro.titulosVencidos ?? [])]) {
+    if (t.tipoParcela === "BALAO") continue;
+    if (!STATUS_ELEGIVEIS_DIFERIMENTO.has(t.status)) continue;
+    map.set(t.id, t);
+  }
+  return [...map.values()].sort((a, b) => a.numeroParcela - b.numeroParcela);
+}
 
 const STEP_MOTION = {
   initial: { opacity: 0, y: 10, filter: "blur(10px)" },
@@ -150,6 +174,7 @@ export function RenegociacaoWizard({
   contratoId,
   renegociacaoIdInicial,
   modalidadeInicial = null,
+  tituloIdsInicial = null,
 }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -169,6 +194,9 @@ export function RenegociacaoWizard({
   const [primeiroVencimento, setPrimeiroVencimento] = useState<string | null>(null);
   const [valorEntrada, setValorEntrada] = useState<number | null>(null);
   const [nrProcesso, setNrProcesso] = useState("");
+  const [titulosDiferimentoIds, setTitulosDiferimentoIds] = useState<string[]>(
+    () => tituloIdsInicial?.filter(Boolean) ?? [],
+  );
   const [simulacao, setSimulacao] = useState<RenegociacaoSimulacaoResponse | null>(null);
   const [propostaId, setPropostaId] = useState<number | null>(null);
   const [workflowOk, setWorkflowOk] = useState(false);
@@ -207,6 +235,9 @@ export function RenegociacaoWizard({
   );
 
   const motivoPadraoModalidade = useCallback((m: ModalidadeRenegociacao) => {
+    if (m === "DIFERIMENTO_FIM_CICLO") {
+      return "Diferimento de parcelas para o fim do ciclo (aditivo)";
+    }
     const label = MODALIDADE_OPTIONS.find((o) => o.value === m)?.label;
     return label
       ? `Renegociação — ${label} (fluxo unificado, ex-aditivo quando aplicável)`
@@ -223,6 +254,15 @@ export function RenegociacaoWizard({
   );
 
   const ajudaParametros = modalidade ? AJUDA_PARAMETROS_POR_MODALIDADE[modalidade] : undefined;
+
+  const opcoesDiferimento = useMemo(
+    () =>
+      titulosElegiveisDiferimento(financeiro).map((t) => ({
+        value: t.id,
+        label: `Parcela ${t.numeroParcela} · ${t.status} · ${formatBrl(t.valorNominal)} · venc. ${formatBusinessDate(t.vencimento)}`,
+      })),
+    [financeiro],
+  );
 
   const previewQuitacao = useMemo(() => {
     if (modalidade !== "T4_QUITACAO" || !financeiro) return null;
@@ -497,6 +537,8 @@ export function RenegociacaoWizard({
             primeiroVencimento: primeiroVencimento ?? undefined,
             pctDesconto: pctDesconto ?? undefined,
             valorEntrada: valorEntrada ?? undefined,
+            titulosOrigemIds:
+              modalidade === "DIFERIMENTO_FIM_CICLO" ? titulosDiferimentoIds : undefined,
             condicoes: modalidadeUsaMotorCondicoes(modalidade) ? payload : undefined,
             politicaReajuste: modalidadeUsaMotorCondicoes(modalidade) ? "CADEIA" : undefined,
             confirmarCancelamentoTitulos:
@@ -713,7 +755,9 @@ export function RenegociacaoWizard({
         toast.success(
           modalidade === "T1_PARCELAS_VENCIDAS"
             ? "Renegociação T1 efetivada — todas as operações concluídas."
-            : `Renegociação efetivada. Versão #${res.versaoPublicadaId ?? "—"}.`,
+            : modalidade === "DIFERIMENTO_FIM_CICLO"
+              ? "Diferimento efetivado — parcelas marcadas para o fim do ciclo."
+              : `Renegociação efetivada. Versão #${res.versaoPublicadaId ?? "—"}.`,
         );
       } else {
         toast.warning(res.mensagemResumo || "Efetivação parcial — retome para concluir.");
@@ -749,6 +793,10 @@ export function RenegociacaoWizard({
     if (step === 2) {
       if (modalidade === "T1_PARCELAS_VENCIDAS" && previewT1?.erro) {
         toast.error(previewT1.erro);
+        return;
+      }
+      if (modalidade === "DIFERIMENTO_FIM_CICLO" && titulosDiferimentoIds.length === 0) {
+        toast.error("Selecione ao menos uma parcela para diferir.");
         return;
       }
       await executarSimulacao();
@@ -935,6 +983,39 @@ export function RenegociacaoWizard({
                     )}
                   </>
                 )}
+                {modalidade === "DIFERIMENTO_FIM_CICLO" && (
+                  <div className="w-full">
+                    <label className={RENEGOCIACAO_LABEL_CLASS}>Parcelas a diferir</label>
+                    <MultiSelect
+                      value={titulosDiferimentoIds}
+                      options={opcoesDiferimento}
+                      onChange={(e) => setTitulosDiferimentoIds((e.value as string[]) ?? [])}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder={
+                        opcoesDiferimento.length === 0
+                          ? "Nenhuma parcela elegível (VENCIDO/EMITIDO/REGISTRADO)"
+                          : "Selecione as parcelas"
+                      }
+                      disabled={opcoesDiferimento.length === 0}
+                      filter
+                      display="chip"
+                      className="w-full"
+                      pt={MULTISELECT_PT}
+                    />
+                    <p className={RENEGOCIACAO_HINT_CLASS}>
+                      {ajudaParametros?.descricaoPasso}
+                      {titulosDiferimentoIds.length > 0
+                        ? ` · ${titulosDiferimentoIds.length} selecionada(s).`
+                        : ""}
+                    </p>
+                    <p className="mt-3 rounded-xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-violet-100/90">
+                      Após a simulação: proposta → aprovação → upload do aditivo PDF → efetivar.
+                      Só então as parcelas mudam de status.
+                    </p>
+                  </div>
+                )}
+                {modalidade !== "DIFERIMENTO_FIM_CICLO" && (
                 <div className="grid w-full gap-5 md:grid-cols-2">
                 <div>
                   <label className={RENEGOCIACAO_LABEL_CLASS}>Data do acordo</label>
@@ -1039,6 +1120,7 @@ export function RenegociacaoWizard({
                   </div>
                 )}
                 </div>
+                )}
               </div>
             </FormSection>
           </motion.div>

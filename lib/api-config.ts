@@ -1060,6 +1060,10 @@ export function getFinTitulosMarcarVencidosUrl(): string {
   return `${getFinTitulosUrl()}/jobs/marcar-vencidos`;
 }
 
+export function getFinTitulosDiferirFimCicloUrl(): string {
+  return `${getFinTitulosUrl()}/diferir-fim-ciclo`;
+}
+
 export function getFinTitulosPdfLoteUrl(): string {
   return `${getFinTitulosUrl()}/pdf/lote`;
 }

@@ -6,7 +6,8 @@ export type ModalidadeRenegociacao =
   | "T3_COMPLETA"
   | "T4_QUITACAO"
   | "T5_COM_ENTRADA"
-  | "T6_JUDICIAL";
+  | "T6_JUDICIAL"
+  | "DIFERIMENTO_FIM_CICLO";
 
 export type StatusRenegociacao =
   | "RASCUNHO"
@@ -211,6 +212,12 @@ export const MODALIDADE_OPTIONS: {
     label: "Judicial",
     hint: "Acordo homologado — registro processual obrigatório.",
     juridico: "ACORDO_JUDICIAL",
+  },
+  {
+    value: "DIFERIMENTO_FIM_CICLO",
+    label: "Diferir para o fim do ciclo",
+    hint: "Adia cobrança das parcelas selecionadas; exige aditivo assinado antes de efetivar.",
+    juridico: "ADITIVO",
   },
 ];
 

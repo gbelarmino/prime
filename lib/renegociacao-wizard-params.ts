@@ -74,6 +74,14 @@ export const AJUDA_PARAMETROS_POR_MODALIDADE: Partial<
     quantidadeParcelas: "Parcelas previstas no acordo.",
     desconto: "Desconto homologado (se houver).",
   },
+  DIFERIMENTO_FIM_CICLO: {
+    descricaoPasso:
+      "Selecione as parcelas a diferir. Após aprovação, anexe o aditivo assinado; na efetivação as parcelas passam a DIFERIDA_FIM_CICLO (reemissão só no fim da grade).",
+    parcelaInicial: "Não se aplica — a seleção é por título.",
+    quantidadeParcelas: "Não se aplica.",
+    desconto: "Não se aplica (valores de face permanecem como referência).",
+    ocultarQuantidadeParcelas: true,
+  },
 };
 
 export function primeiraParcelaAberta(

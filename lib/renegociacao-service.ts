@@ -339,7 +339,11 @@ export function modalidadeUsaMotorCondicoes(m: ModalidadeRenegociacao | null): b
 
 /** Modalidades que efetivam títulos diretamente neste wizard (sem versão contratual). */
 export function modalidadeEfetivaNoWizard(m: ModalidadeRenegociacao | null): boolean {
-  return modalidadeUsaMotorCondicoes(m) || m === "T1_PARCELAS_VENCIDAS";
+  return (
+    modalidadeUsaMotorCondicoes(m) ||
+    m === "T1_PARCELAS_VENCIDAS" ||
+    m === "DIFERIMENTO_FIM_CICLO"
+  );
 }
 
 export async function cancelarRenegociacao(
