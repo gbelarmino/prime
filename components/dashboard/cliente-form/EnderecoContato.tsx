@@ -4,6 +4,7 @@ import { useFormContext, Controller, useWatch } from "react-hook-form";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
 import { MultiSelect } from "primereact/multiselect";
+import { InputSwitch } from "primereact/inputswitch";
 import { FormSection } from "./FormSection";
 import { cn } from "@/lib/utils";
 import { getCepUrl } from "@/lib/api-config";
@@ -92,6 +93,7 @@ function CampoCelular({ label, obrigatorio, ddiName, telefoneName }: CampoCelula
 
 export function EnderecoContato() {
   const { register, control, setValue, formState: { errors } } = useFormContext<ContratanteFormValues>();
+  const receberNotificacoes = useWatch({ control, name: "receberNotificacoes" });
 
   const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     const cep = e.target.value.replace(/\D/g, "");
@@ -262,6 +264,28 @@ export function EnderecoContato() {
         {errors.email && <p className={errorClass}>{errors.email.message}</p>}
       </div>
 
+      <div className="md:col-span-2 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <label className={labelClass}>Receber notificações do sistema</label>
+            <p className="mt-1 text-[10px] text-white/35">
+              Quando desligado, a régua de cobrança e demais avisos automáticos
+              (WhatsApp, SMS e e-mail) não são enviados a este cliente.
+            </p>
+          </div>
+          <Controller
+            name="receberNotificacoes"
+            control={control}
+            render={({ field }) => (
+              <InputSwitch
+                checked={field.value === true}
+                onChange={(e) => field.onChange(e.value === true)}
+              />
+            )}
+          />
+        </div>
+      </div>
+
       <div className="md:col-span-2">
         <label className={labelClass}>Canais preferidos de comunicação</label>
         <Controller
@@ -277,6 +301,7 @@ export function EnderecoContato() {
               display="chip"
               placeholder="Seleccione os canais"
               className="w-full"
+              disabled={receberNotificacoes === false}
               pt={dashboardMultiSelectPt()}
             />
           )}
@@ -285,7 +310,8 @@ export function EnderecoContato() {
           <p className={errorClass}>{errors.canaisPreferidos.message}</p>
         ) : (
           <p className="mt-2 text-[10px] text-white/35">
-            Usado pela régua de cobrança e notificações automáticas.
+            Usado pela régua de cobrança e notificações automáticas (quando o
+            cliente recebe notificações).
           </p>
         )}
       </div>

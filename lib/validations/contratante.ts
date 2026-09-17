@@ -131,6 +131,7 @@ export function getContratanteFormSchema(options: ContratanteFormSchemaOptions =
   rendaFamiliar: z.string(),
   email: z.string().email("E-mail inválido.").min(1, "E-mail é obrigatório.").max(150),
   canaisPreferidos: contratanteCanaisPreferidosEnum,
+  receberNotificacoes: z.boolean(),
   conjuge: conjugeFormSchema,
 }).superRefine((data, ctx) => {
   validarCelular(ctx, data.telefoneCelular1, data.ddi1, "telefoneCelular1");
@@ -189,6 +190,7 @@ export type ContratanteApiResponse = {
   rendaFamiliar: number | null;
   email: string | null;
   canaisPreferidos?: ContratanteCanalPreferido[] | null;
+  receberNotificacoes?: boolean | null;
   conjuge: {
     nome: string | null;
     cpf: string | null;
@@ -224,6 +226,7 @@ export function emptyContratanteFormValues(): ContratanteFormValues {
     rendaFamiliar: "",
     email: "",
     canaisPreferidos: ["WHATSAPP", "EMAIL"] as ContratanteCanalPreferido[],
+    receberNotificacoes: true,
     conjuge: {
       nome: "",
       cpf: "",
@@ -276,6 +279,7 @@ export function contratanteResponseToFormValues(data: ContratanteApiResponse): C
     canaisPreferidos: (data.canaisPreferidos?.length
       ? data.canaisPreferidos
       : ["WHATSAPP", "EMAIL"]) as ContratanteCanalPreferido[],
+    receberNotificacoes: data.receberNotificacoes !== false,
     conjuge: {
       nome: cg?.nome ?? "",
       cpf: cg?.cpf ? maskCpf(cg.cpf) : "",
@@ -336,6 +340,7 @@ export function contratanteToApiPayload(values: ContratanteFormValues): Record<s
     rendaFamiliar: values.rendaFamiliar ? currencyToNumber(values.rendaFamiliar).toString() : undefined,
     email: emptyToUndef(values.email),
     canaisPreferidos: values.canaisPreferidos?.length ? values.canaisPreferidos : undefined,
+    receberNotificacoes: values.receberNotificacoes,
     ...(conjuge ? { conjuge } : {}),
   };
 }
