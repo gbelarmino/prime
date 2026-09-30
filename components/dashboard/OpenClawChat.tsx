@@ -3,6 +3,7 @@
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Eraser, Loader2, RefreshCw, Send, User } from "lucide-react";
 import { toast } from "sonner";
+import { ChatMarkdown } from "@/components/dashboard/ChatMarkdown";
 import { apiFetch } from "@/lib/api-fetch";
 import {
   getOpenClawHistoricoUrl,
@@ -307,11 +308,11 @@ export function OpenClawChat() {
                     </div>
                   ) : null}
                   <div
-                    className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                    className={`max-w-[85%] overflow-hidden rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                       isUser
                         ? "rounded-br-md bg-amber-400 text-stone-950"
                         : m.error
-                          ? "rounded-bl-md border border-red-400/30 bg-red-500/10 text-red-200"
+                          ? "whitespace-pre-wrap rounded-bl-md border border-red-400/30 bg-red-500/10 text-red-200"
                           : "rounded-bl-md bg-white/10 text-white/90"
                     }`}
                   >
@@ -328,8 +329,10 @@ export function OpenClawChat() {
                           {formatElapsed(thinkingElapsedMs)} decorridos · pode levar até ~5 min
                         </p>
                       </div>
-                    ) : (
+                    ) : m.error ? (
                       m.content
+                    ) : (
+                      <ChatMarkdown content={m.content} inverted={isUser} />
                     )}
                     {m.runId ? <div className="mt-2 font-mono text-[10px] opacity-60">runId {m.runId}</div> : null}
                   </div>
