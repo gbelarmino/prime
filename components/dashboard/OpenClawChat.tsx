@@ -240,7 +240,7 @@ export function OpenClawChat() {
   const progress = Math.min(100, (thinkingElapsedMs / THINKING_BUDGET_MS) * 100);
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] min-h-[520px] flex-col gap-4 px-4 pb-8">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-white/70">
           {status?.enabled ? "ligado" : "desligado"}

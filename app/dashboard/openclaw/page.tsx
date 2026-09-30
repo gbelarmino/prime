@@ -10,16 +10,16 @@ export const metadata: Metadata = {
 
 export default function DashboardOpenClawPage() {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col px-4">
-        <div className="mb-2 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.4em] text-amber-400">
+    <div className="flex h-[calc(100dvh-8rem)] min-h-0 flex-col gap-4 overflow-hidden">
+      <div className="flex shrink-0 flex-col">
+        <div className="mb-1 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.4em] text-amber-400">
           <Bot size={14} />
           Agente
         </div>
-        <h1 className="mt-1 font-[family-name:var(--font-playfair)] text-4xl font-bold text-white">
+        <h1 className="font-[family-name:var(--font-playfair)] text-3xl font-bold text-white sm:text-4xl">
           OpenClaw
         </h1>
-        <p className="mt-1 max-w-2xl font-medium leading-relaxed text-white/40">
+        <p className="mt-1 max-w-2xl text-sm font-medium leading-relaxed text-white/40">
           Chat com o agente desta VPS, na sessão do Aires. A conversa fica no gateway e é
           recarregada ao abrir a página. Só administradores têm acesso.
         </p>
