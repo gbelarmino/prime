@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="pt" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>OpenClaw</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="assets/audio-data.js"></script>
+    <style>
+      @font-face {
+        font-family: "Geist";
+        src: url("assets/fonts/Geist-latin.woff2") format("woff2");
+        font-weight: 400 700;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Playfair Display";
+        src: url("assets/fonts/Playfair-latin.woff2") format("woff2");
+        font-weight: 600;
+        font-style: normal;
+        font-display: swap;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #020817;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #020817;
+        color: #ffffff;
+        font-family: "Geist", sans-serif;
+      }
+      .clip { position: absolute; inset: 0; }
+      .stage {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px;
+      }
+      .kicker {
+        margin: 0 0 22px;
+        color: #fbbf24;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: 0.38em;
+        text-transform: uppercase;
+      }
+      #hook-title, #outro-title {
+        margin: 0;
+        max-width: 1500px;
+        color: #ffffff;
+        font-family: "Playfair Display", serif;
+        font-size: 92px;
+        font-weight: 600;
+        line-height: 1.05;
+        text-align: center;
+      }
+      #outro-line {
+        margin: 28px 0 0;
+        max-width: 1400px;
+        color: #ffffff;
+        font-size: 36px;
+        font-weight: 400;
+        line-height: 1.35;
+        text-align: center;
+      }
+      #glow {
+        position: absolute;
+        left: 470px;
+        top: 200px;
+        width: 980px;
+        height: 560px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(251, 191, 36, 0.55), rgba(251, 191, 36, 0) 68%);
+        pointer-events: none;
+      }
+      #chat-card {
+        position: relative;
+        width: 1180px;
+        height: 760px;
+        display: flex;
+        flex-direction: column;
+        padding: 36px 40px 28px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .page-title {
+        margin: 6px 0 0;
+        color: #ffffff;
+        font-family: "Playfair Display", serif;
+        font-size: 64px;
+        font-weight: 600;
+        line-height: 1;
+      }
+      .thread {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 18px;
+        min-height: 0;
+        padding: 28px 8px 20px;
+      }
+      .user-row { display: flex; justify-content: flex-end; }
+      #user-bubble {
+        max-width: 70%;
+        padding: 16px 22px;
+        border-radius: 22px 22px 8px 22px;
+        background: #fbbf24;
+        color: #1c1917;
+        font-size: 30px;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+      .assist-slot { position: relative; height: 84px; }
+      #thinking, #file-chip {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+      #thinking {
+        margin: 0;
+        padding: 18px 22px;
+        border-radius: 22px 22px 22px 8px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        font-size: 28px;
+        line-height: 1.3;
+      }
+      #file-chip {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        height: 64px;
+        padding: 0 18px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.45);
+        color: #ffffff;
+        font-size: 26px;
+        font-weight: 600;
+      }
+      #file-chip svg { display: block; }
+      .composer {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        height: 84px;
+        padding: 0 14px 0 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        background: rgba(0, 0, 0, 0.28);
+      }
+      .field {
+        position: relative;
+        flex: 1;
+        height: 44px;
+      }
+      #placeholder, #typed-wrap {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 44px;
+        color: #ffffff;
+        font-size: 28px;
+        line-height: 44px;
+        white-space: nowrap;
+      }
+      #placeholder { color: #e7e5e4; }
+      #typed-wrap { overflow: hidden; width: 0; }
+      #send-btn {
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+        background: #fbbf24;
+        color: #1c1917;
+      }
+      #send-face { width: 28px; height: 28px; }
+      .hint {
+        margin: 12px 0 0;
+        color: #e7e5e4;
+        font-size: 20px;
+      }
+      #hook-kicker,
+      #hook-title,
+      #chat-card,
+      #placeholder,
+      #user-bubble,
+      #thinking,
+      #file-chip,
+      #cursor,
+      #outro-title,
+      #outro-line {
+        opacity: 0;
+      }
+      #cursor {
+        position: absolute;
+        left: 1040px;
+        top: 640px;
+        width: 22px;
+        height: 22px;
+        border: 3px solid #ffffff;
+        border-radius: 50%;
+        background: rgba(251, 191, 36, 0.35);
+        z-index: 4;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="20"
+      data-fps="30"
+    >
+      <section id="bed" class="clip" data-start="0" data-duration="20" data-track-index="0">
+        <div id="glow"></div>
+      </section>
+
+      <section id="scene-hook" class="clip" data-start="0" data-duration="4.8" data-track-index="1">
+        <div class="stage">
+          <p id="hook-kicker" class="kicker">Agente</p>
+          <h1 id="hook-title">Pode pedir uma planilha.</h1>
+        </div>
+      </section>
+
+      <section id="scene-chat" class="clip" data-start="4.8" data-duration="11.6" data-track-index="2">
+        <div class="stage">
+          <div id="chat-card">
+            <p class="kicker">Agente</p>
+            <h2 class="page-title">OpenClaw</h2>
+            <div class="thread">
+              <div class="user-row">
+                <div id="user-bubble">Uma planilha.</div>
+              </div>
+              <div class="assist-slot">
+                <p id="thinking">O OpenClaw está pensando…</p>
+                <div id="file-chip">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>planilha.xlsx</span>
+                </div>
+              </div>
+            </div>
+            <div class="composer">
+              <div class="field">
+                <div id="placeholder">Escreva para o OpenClaw…</div>
+                <div id="typed-wrap"><span>Uma planilha.</span></div>
+              </div>
+              <div id="send-btn" aria-hidden="true">
+                <svg id="send-face" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12h14M13 6l6 6-6 6" stroke="#1c1917" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <p class="hint">Enter envia</p>
+            <div id="cursor"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-outro" class="clip" data-start="16.4" data-duration="3.6" data-track-index="3">
+        <div class="stage">
+          <h1 id="outro-title">OpenClaw</h1>
+          <p id="outro-line">o ficheiro aparece nesta conversa para descarga.</p>
+        </div>
+      </section>
+    </div>
+
+    <audio id="bed-music" data-start="0" data-duration="20" data-track-index="10" data-volume="0.26" src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"></audio>
+    <audio id="sfx-send" data-start="7.05" data-duration="0.1" data-track-index="11" data-volume="0.5" src="assets/sfx/interface/click_001.ogg"></audio>
+    <audio id="sfx-bubble" data-start="8.74" data-duration="0.19" data-track-index="12" data-volume="0.48" src="assets/sfx/interface/drop_002.ogg"></audio>
+    <audio id="sfx-file" data-start="13.11" data-duration="0.12" data-track-index="13" data-volume="0.52" src="assets/sfx/impact/impactSoft_medium_000.ogg"></audio>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#hook-kicker", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.25);
+      tl.fromTo("#hook-title", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.55);
+      tl.to("#hook-kicker", { opacity: 0, duration: 0.3 }, 4.25);
+      tl.to("#hook-title", { opacity: 0, y: -16, duration: 0.35, ease: "power2.in" }, 4.25);
+
+      tl.fromTo("#chat-card", { opacity: 0, y: 32 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, 4.95);
+      tl.fromTo("#placeholder", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 5.55);
+      tl.to("#placeholder", { opacity: 0, duration: 0.2 }, 6.05);
+      tl.fromTo("#typed-wrap", { width: 0 }, { width: 280, duration: 0.9, ease: "none" }, 6.15);
+      tl.fromTo("#cursor", { opacity: 0, x: -220, y: 40 }, { opacity: 1, x: 0, y: 0, duration: 0.4, ease: "power2.out" }, 6.65);
+      tl.to("#send-face", { scale: 0.9, duration: 0.08, yoyo: true, repeat: 1 }, 7.05);
+      tl.to("#cursor", { opacity: 0, duration: 0.2 }, 7.35);
+      // beat-locked: 8.74s
+      tl.fromTo("#user-bubble", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 8.74);
+      tl.fromTo("#thinking", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 10.55);
+      tl.to("#thinking", { opacity: 0, duration: 0.25 }, 12.75);
+      // beat-locked: 13.11s
+      tl.fromTo("#file-chip", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 13.11);
+
+      tl.fromTo("#outro-title", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 16.6);
+      // beat-locked: 17.47s
+      tl.fromTo("#outro-line", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 17.47);
+
+      const audio = window.AUDIO_DATA;
+      if (audio && audio.frames) {
+        const count = Math.min(audio.totalFrames, 600);
+        for (let frame = 0; frame < count; frame++) {
+          const bass = audio.frames[frame].bass || 0;
+          tl.set("#glow", { opacity: 0.1 + bass * 0.55 }, frame / 30);
+        }
+      }
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
