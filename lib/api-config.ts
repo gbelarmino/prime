@@ -647,6 +647,11 @@ export function getOpenClawInstrucaoUrl(): string {
   return base ? `${base}/instrucao` : "";
 }
 
+export function getOpenClawArquivoUrl(nome: string): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.openclaw);
+  return base ? `${base}/arquivos/${encodeURIComponent(nome)}` : "";
+}
+
 export function getUsuarioTrocarSenhaUrl(): string {
   return `${getUsuarioUrl()}/senha`;
 }

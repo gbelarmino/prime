@@ -1,15 +1,17 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
-import { Bot, Eraser, Loader2, RefreshCw, Send, User } from "lucide-react";
+import { Bot, Download, Eraser, FileImage, FileSpreadsheet, FileText, Loader2, RefreshCw, Send, User } from "lucide-react";
 import { toast } from "sonner";
 import { ChatMarkdown } from "@/components/dashboard/ChatMarkdown";
 import { apiFetch } from "@/lib/api-fetch";
 import {
+  getOpenClawArquivoUrl,
   getOpenClawHistoricoUrl,
   getOpenClawInstrucaoUrl,
   getOpenClawStatusUrl,
 } from "@/lib/api-config";
+import { splitOpenClawArquivos } from "@/lib/openclaw-arquivos";
 
 type ChatRole = "user" | "assistant";
 
@@ -81,6 +83,57 @@ async function readError(res: Response): Promise<string> {
   } catch {
     return `HTTP ${res.status}`;
   }
+}
+
+function arquivoIcon(nome: string) {
+  const ext = nome.slice(nome.lastIndexOf(".") + 1).toLowerCase();
+  if (ext === "xlsx" || ext === "csv") return FileSpreadsheet;
+  if (ext === "png" || ext === "jpg" || ext === "jpeg") return FileImage;
+  return FileText;
+}
+
+function OpenClawArquivoButton({ nome }: { nome: string }) {
+  const [busy, setBusy] = useState(false);
+  const Icon = arquivoIcon(nome);
+
+  const baixar = async () => {
+    const url = getOpenClawArquivoUrl(nome);
+    if (!url || busy) return;
+    setBusy(true);
+    try {
+      const res = await apiFetch(url, { skipLoading: true });
+      if (!res.ok) {
+        toast.error(await readError(res));
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = nome;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      toast.error("Não foi possível descarregar o ficheiro.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void baixar()}
+      disabled={busy}
+      className="mt-2 flex max-w-full items-center gap-2 rounded-lg border border-white/15 bg-black/25 px-3 py-1.5 text-left text-xs text-white/90 hover:bg-white/10 disabled:opacity-50"
+    >
+      {busy ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <Icon size={14} className="shrink-0" />}
+      <span className="min-w-0 truncate">{nome}</span>
+      <Download size={14} className="ml-auto shrink-0 opacity-70" />
+    </button>
+  );
 }
 
 export function OpenClawChat() {
@@ -295,11 +348,16 @@ export function OpenClawChat() {
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
             {messages.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/15 px-4 py-10 text-center text-sm text-white/40">
-                Nenhuma mensagem ainda. Escreva abaixo para falar com o OpenClaw do Aires.
+                Nenhuma mensagem ainda. Escreva abaixo para falar com o OpenClaw do Aires. Pode pedir uma
+                planilha: o ficheiro aparece nesta conversa para descarga.
               </div>
             ) : null}
             {messages.map((m) => {
               const isUser = m.role === "user";
+              const partes =
+                !m.pending && !m.error && !isUser
+                  ? splitOpenClawArquivos(m.content)
+                  : { text: m.content, files: [] as string[] };
               return (
                 <div key={m.id} className={`flex gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
                   {!isUser ? (
@@ -332,7 +390,12 @@ export function OpenClawChat() {
                     ) : m.error ? (
                       m.content
                     ) : (
-                      <ChatMarkdown content={m.content} inverted={isUser} />
+                      <>
+                        {partes.text ? <ChatMarkdown content={partes.text} inverted={isUser} /> : null}
+                        {partes.files.map((nome) => (
+                          <OpenClawArquivoButton key={nome} nome={nome} />
+                        ))}
+                      </>
                     )}
                     {m.runId ? <div className="mt-2 font-mono text-[10px] opacity-60">runId {m.runId}</div> : null}
                   </div>
