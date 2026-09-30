@@ -288,6 +288,10 @@ export function canAccessDashboardPath(pathname: string, role?: string | null): 
   if (pathname === auditoriaPrefix || pathname.startsWith(`${auditoriaPrefix}/`)) {
     return r === "ADMIN";
   }
+  const openclawPrefix = "/dashboard/openclaw";
+  if (pathname === openclawPrefix || pathname.startsWith(`${openclawPrefix}/`)) {
+    return r === "ADMIN";
+  }
   if (pathname === CRM_PATH_PREFIX || pathname.startsWith(`${CRM_PATH_PREFIX}/`)) {
     return r === "ADMIN";
   }

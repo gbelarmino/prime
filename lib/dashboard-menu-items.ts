@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import {
   BarChart3,
   BookOpen,
+  Bot,
   Building2,
   Calculator,
   CircleDot,
@@ -142,6 +143,14 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     href: "/dashboard/auditoria",
     label: "Auditoria",
     icon: ScrollText,
+    roles: ["ADMIN"],
+  },
+  {
+    kind: "link",
+    id: "openclaw",
+    href: "/dashboard/openclaw",
+    label: "OpenClaw",
+    icon: Bot,
     roles: ["ADMIN"],
   },
   {

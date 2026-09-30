@@ -43,6 +43,7 @@ const API_PATHS = {
   atendimentoSms: "/api/atendimento/sms",
   chamados: "/api/chamados",
   auditoria: "/api/auditoria",
+  openclaw: "/api/openclaw",
   tenantsMe: "/api/tenants/me",
   authSwitchTenant: "/api/auth/switch-tenant",
   crmLeads: "/api/crm/leads",
@@ -629,6 +630,21 @@ export function getUsuarioSituacaoUrl(id: number): string {
   const base = getUsuarioByIdUrl(id);
   if (!base) return "";
   return `${base}/situacao`;
+}
+
+export function getOpenClawStatusUrl(): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.openclaw);
+  return base ? `${base}/status` : "";
+}
+
+export function getOpenClawHistoricoUrl(limit = 120): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.openclaw);
+  return base ? `${base}/historico?limit=${limit}` : "";
+}
+
+export function getOpenClawInstrucaoUrl(): string {
+  const base = withBase(getApiBaseUrl(), API_PATHS.openclaw);
+  return base ? `${base}/instrucao` : "";
 }
 
 export function getUsuarioTrocarSenhaUrl(): string {
