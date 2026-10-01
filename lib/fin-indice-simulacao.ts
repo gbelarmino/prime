@@ -185,8 +185,9 @@ function buildIndiceLookup(indices: IndiceEconomicoMensal[]): IndiceMensalLookup
 }
 
 export function resolverParcelaAtual(titulos: TituloCobranca[]): number {
-  if (titulos.length === 0) return 0;
-  return Math.max(...titulos.map((t) => t.numeroParcela));
+  const ativos = titulosEfetivosParaVencimento(titulos);
+  if (ativos.length === 0) return 0;
+  return Math.max(...ativos.map((t) => t.numeroParcela));
 }
 
 /** Última parcela cujo vencimento cai no mês de referência ou antes (ex.: mês atual). */
@@ -204,15 +205,16 @@ export function resolverParcelaLimiteMesAtual(opts: {
     referencia = new Date(),
     maxParcelas = 360,
   } = opts;
-  if (titulos.length === 0) return 0;
+  const ativos = titulosEfetivosParaVencimento(titulos);
+  if (ativos.length === 0 && !dataPrimeiraParcelaContrato) return 0;
 
-  const sorted = [...titulos].sort((a, b) => a.numeroParcela - b.numeroParcela);
+  const sorted = [...ativos].sort((a, b) => a.numeroParcela - b.numeroParcela);
   const primeiro = sorted[0];
   const primeiraData = dataPrimeiraParcelaContrato
     ? parseIsoDate(dataPrimeiraParcelaContrato)
-    : parseIsoDate(primeiro.vencimento);
+    : parseIsoDate(primeiro!.vencimento);
   const limiteAnoMes = anoMesFromDate(referencia);
-  const tituloPorParcela = new Map(sorted.map((t) => [t.numeroParcela, t]));
+  const tituloPorParcela = mapaTituloAtivoPorParcela(ativos);
 
   const detalhes = dataPrimeiraParcelaContrato
     ? calcularVencimentosComPrimeiraParcelaDetalhe(
@@ -222,7 +224,7 @@ export function resolverParcelaLimiteMesAtual(opts: {
       )
     : calcularVencimentosParcelasDetalhe(
         diaVencimentoMensal,
-        referenciaAntesPrimeiroVencimento(parseIsoDate(primeiro.vencimento)),
+        referenciaAntesPrimeiroVencimento(parseIsoDate(primeiro!.vencimento)),
         maxParcelas,
       );
 
@@ -287,15 +289,15 @@ export function simularParcelasIndice(opts: {
   if (parcelaLimite < 1) return [];
   if (titulos.length === 0 && !dataPrimeiraParcelaContrato) return [];
 
-  const sorted = [...titulos].sort((a, b) => a.numeroParcela - b.numeroParcela);
-  const titulosCalculo = titulosEfetivosParaVencimento(sorted);
+  const titulosCalculo = titulosEfetivosParaVencimento(titulos);
   const tituloP1 = titulosCalculo.find((t) => t.numeroParcela === 1);
+  const ancoraAtiva = titulosCalculo[0];
   const dataPrimeiraParcela = tituloP1
     ? parseIsoDate(tituloP1.vencimento)
     : dataPrimeiraParcelaContrato
       ? parseIsoDate(dataPrimeiraParcelaContrato)
-      : parseIsoDate(sorted[0]!.vencimento);
-  const tituloPorParcela = new Map(sorted.map((t) => [t.numeroParcela, t]));
+      : parseIsoDate(ancoraAtiva!.vencimento);
+  const tituloPorParcela = mapaTituloAtivoPorParcela(titulosCalculo);
   const lookup = buildIndiceLookup(indices);
   const valoresEmitidos = valoresNominaisEmitidosAtivos(titulosCalculo);
 
@@ -304,7 +306,7 @@ export function simularParcelasIndice(opts: {
   const vencimentoPorParcela =
     vencimentoPorParcelaReferencia ??
     buildVencimentoPorParcelaCalculo({
-      titulos: sorted,
+      titulos: titulosCalculo,
       dataPrimeiraParcelaContrato: formatIsoDate(dataPrimeiraParcela),
       diaVencimentoMensal,
       parcelaMaxima: parcelaLimite,
@@ -554,6 +556,20 @@ export function condicoesFromContexto(ctx: TituloContextoLote): CondicoesValorNo
 
 function titulosEfetivosParaVencimento(titulos: TituloCobranca[]): TituloCobranca[] {
   return titulos.filter((t) => t.status !== "CANCELADO" && t.status !== "RASCUNHO");
+}
+
+/** Um título ativo por parcela. Em duplicata, fica o cadastro mais recente. */
+function mapaTituloAtivoPorParcela(titulos: TituloCobranca[]): Map<number, TituloCobranca> {
+  const ordenados = [...titulosEfetivosParaVencimento(titulos)].sort((a, b) => {
+    const byParcela = a.numeroParcela - b.numeroParcela;
+    if (byParcela !== 0) return byParcela;
+    return (a.cadastroEm ?? "").localeCompare(b.cadastroEm ?? "");
+  });
+  const map = new Map<number, TituloCobranca>();
+  for (const titulo of ordenados) {
+    map.set(titulo.numeroParcela, titulo);
+  }
+  return map;
 }
 
 /** Espelha findValorNominalParcelaAtiva: ativos (não cancelados / não IPTU legado ≥ 8000). */
