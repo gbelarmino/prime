@@ -115,6 +115,8 @@ body {
   border: 1.5px solid var(--aires-checkbox-border) !important;
   background: var(--aires-checkbox-bg) !important;
   color: var(--aires-checkbox-icon) !important;
+  /* Caixa visual: cliques vão para .p-checkbox-input (absolute, z-index 1) */
+  pointer-events: none;
 }
 
 .p-checkbox:not(.p-disabled):has(.p-checkbox-input:hover) .p-checkbox-box,

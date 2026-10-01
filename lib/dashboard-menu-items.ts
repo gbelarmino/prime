@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { ADMIN_DASHBOARD_HOME, WELCOME_DASHBOARD_PATH } from "@/lib/auth-storage";
 import { WHATSAPP_RELAY_UI_ENABLED } from "@/lib/whatsapp-feature";
+import { checkMenuPermission } from "@/lib/permissions-check";
 
 export type MenuIcon = ComponentType<{ size?: number; className?: string }>;
 
@@ -135,6 +136,14 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     href: "/dashboard/usuarios",
     label: "Usuários",
     icon: Users,
+    roles: ["ADMIN"],
+  },
+  {
+    kind: "link",
+    id: "permissoes",
+    href: "/dashboard/permissoes",
+    label: "Permissões",
+    icon: Scale,
     roles: ["ADMIN"],
   },
   {
@@ -332,6 +341,8 @@ export function menuChildVisible(child: MenuChildDef, role: string | null): bool
   if (child.id === "wa-conexao" && !WHATSAPP_RELAY_UI_ENABLED) {
     return false;
   }
+  const fromMatrix = checkMenuPermission(child.id, role);
+  if (fromMatrix != null) return fromMatrix;
   if (!child.roles) return true;
   return Boolean(role && child.roles.includes(role));
 }
@@ -341,6 +352,20 @@ export function menuItemVisible(
   role: string | null,
   crmFunilEnabled: boolean | null,
 ): boolean {
+  const fromMatrix = checkMenuPermission(item.id, role);
+  if (fromMatrix != null) {
+    if (
+      item.kind === "link" &&
+      (item.href === "/dashboard/crm/funil" || item.href.startsWith("/dashboard/crm/"))
+    ) {
+      return fromMatrix && crmFunilEnabled === true;
+    }
+    if (item.kind === "group") {
+      return fromMatrix && item.children.some((c) => menuChildVisible(c, role));
+    }
+    return fromMatrix;
+  }
+
   if (role === "ATENDIMENTO") {
     if (item.kind === "group" && item.prefix === ATENDIMENTO_MENU_PREFIX) {
       return true;

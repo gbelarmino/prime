@@ -1,4 +1,6 @@
 import { readPrimeEnv } from "@/lib/runtime-env";
+import { ACTION_KEYS } from "@/lib/permissions-catalog";
+import { checkPermission } from "@/lib/permissions-check";
 
 /** Token JWT e Role do utilizador — SPA estática no Firebase. */
 const TOKEN_KEY = "aires_auth_token";
@@ -156,12 +158,12 @@ export function isAdministrativo(): boolean {
 
 /** Contratos: sem criar proposta nem ações de fluxo (aprovar/reprovar); pode editar registos existentes. */
 export function isContratosReadOnly(): boolean {
-  return isAdministrativo();
+  return !checkPermission(ACTION_KEYS.contratosCriar) && checkPermission(ACTION_KEYS.contratosEdit);
 }
 
 /** Edição de contratos existentes com as mesmas permissões do Admin (valores, partes, status, condições). */
 export function canEditContratos(): boolean {
-  return isAdmin() || isAdministrativo();
+  return checkPermission(ACTION_KEYS.contratosEdit);
 }
 
 /** Alias semântico para o formulário de edição. */
@@ -171,17 +173,22 @@ export function canEditContratoComoAdmin(): boolean {
 
 /** Registo de contrato já assinado (legado/atípico) — admin e administrativo. */
 export function canRegistrarContratoLegado(): boolean {
-  return isAdmin() || isAdministrativo();
+  return checkPermission(ACTION_KEYS.contratosLegado);
 }
 
 /** Criar e editar imóveis — admin e administrativo. */
 export function canManageImoveis(): boolean {
-  return isAdmin() || isAdministrativo();
+  return checkPermission(ACTION_KEYS.imoveisManage);
 }
 
 /** Cancelar título já pago com reclassificação contábil — admin e administrativo. */
 export function canCancelarTituloPago(): boolean {
-  return isAdmin() || isAdministrativo();
+  return checkPermission(ACTION_KEYS.titulosCancelarPago);
+}
+
+/** Extrato anual (demonstrativo PDF) no back-office — admin e administrativo. */
+export function canDownloadExtratoAnual(): boolean {
+  return checkPermission(ACTION_KEYS.contratosExtratoAnual);
 }
 
 const CONTRATO_ADITIVO_PATH = "/dashboard/contratos/aditivo";
@@ -189,13 +196,12 @@ const CONTRATO_RENEGOCIACAO_PATH = "/dashboard/contratos/renegociacao";
 
 /** Wizard de aditivo / versão de condições — admin, atendimento e administrativo. */
 export function canAccessContratoAditivo(): boolean {
-  const r = getUserRole();
-  return r === "ADMIN" || r === "ATENDIMENTO" || r === "ADMINISTRATIVO";
+  return checkPermission(ACTION_KEYS.contratosAditivo);
 }
 
 /** Módulo unificado de renegociação — mesmas permissões do aditivo. */
 export function canAccessContratoRenegociacao(): boolean {
-  return canAccessContratoAditivo();
+  return checkPermission(ACTION_KEYS.contratosRenegociacao);
 }
 
 function isContratoAditivoPath(pathname: string): boolean {
@@ -219,8 +225,7 @@ function isChamadosPath(pathname: string): boolean {
 
 /** Inbox de chamados do portal — só ADMIN e ADMINISTRATIVO. */
 export function canAccessChamados(): boolean {
-  const r = getUserRole();
-  return r === "ADMIN" || r === "ADMINISTRATIVO";
+  return checkPermission(ACTION_KEYS.chamadosAccess);
 }
 
 function isWhatsAppConexaoPath(pathname: string): boolean {
@@ -286,6 +291,10 @@ export function canAccessDashboardPath(pathname: string, role?: string | null): 
   }
   const auditoriaPrefix = "/dashboard/auditoria";
   if (pathname === auditoriaPrefix || pathname.startsWith(`${auditoriaPrefix}/`)) {
+    return r === "ADMIN";
+  }
+  const permissoesPrefix = "/dashboard/permissoes";
+  if (pathname === permissoesPrefix || pathname.startsWith(`${permissoesPrefix}/`)) {
     return r === "ADMIN";
   }
   const openclawPrefix = "/dashboard/openclaw";

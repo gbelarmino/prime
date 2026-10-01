@@ -59,6 +59,8 @@ import {
   dashboardTabViewPt,
 } from "@/lib/dashboard-datatable";
 import { TituloVencidoMemorialModal } from "@/components/dashboard/atendimento/TituloVencidoMemorialModal";
+import { InteligenciaLeituraCard } from "@/components/dashboard/atendimento/InteligenciaLeituraCard";
+import { vincularAcaoInteligencia } from "@/lib/inteligencia-leitura";
 import { formatCpfDisplay } from "@/lib/format-cpf";
 import { formatBusinessDate, formatBusinessDateTime } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
@@ -171,6 +173,7 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
   const [painel, setPainel] = useState<AtendimentoResumoFinanceiro | null>(null);
   const [ocorrencias, setOcorrencias] = useState<AtendimentoOcorrencia[]>([]);
   const [ocorrenciasIndisponiveis, setOcorrenciasIndisponiveis] = useState(false);
+  const [casoAguardando, setCasoAguardando] = useState<string | null>(null);
 
   const [novaOcorrencia, setNovaOcorrencia] = useState("");
   const [canal, setCanal] = useState<AtendimentoCanal>("TELEFONE");
@@ -259,7 +262,11 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
     }
     setSalvandoOcorrencia(true);
     try {
-      const criada = await atendimentoService.criarOcorrencia(contratoId, { texto, canal });
+      const criada = await atendimentoService.criarOcorrencia(contratoId, {
+        texto,
+        canal,
+        ...(casoAguardando ? { casoId: casoAguardando } : {}),
+      });
       setOcorrencias((prev) => [criada, ...prev]);
       setNovaOcorrencia("");
       toast.success("Ocorrência registrada.");
@@ -304,6 +311,21 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
         observacao: observacao.trim() || undefined,
       });
       toast.success(`${result.titulos.length} boleto(s) gerado(s).`);
+      if (casoAguardando && result.titulos[0]?.id) {
+        try {
+          await vincularAcaoInteligencia(contratoId, casoAguardando, {
+            tipo: "BOLETO",
+            referencia: result.titulos[0].id,
+          });
+          setCasoAguardando(null);
+        } catch (linkError) {
+          toast.error(
+            linkError instanceof Error
+              ? linkError.message
+              : "Boleto gerado, sem vínculo com a leitura.",
+          );
+        }
+      }
       setCobrancaOpen(false);
       setSelectedTitulos([]);
       await load(true);
@@ -460,6 +482,10 @@ export function AtendimentoPainel({ contratoId }: { contratoId: number }) {
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="px-4">
+        <InteligenciaLeituraCard contratoId={contratoId} onCasoAguardando={setCasoAguardando} />
       </div>
 
       <div className="px-4">

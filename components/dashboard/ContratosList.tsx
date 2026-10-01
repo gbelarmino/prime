@@ -49,7 +49,11 @@ import {
   DASHBOARD_SEARCH_ICON_HEADER_CLASS,
   DASHBOARD_SEARCH_INPUT_HEADER_CLASS,
 } from "@/lib/dashboard-datatable";
-import { getUserRole, canAccessContratoRenegociacao } from "@/lib/auth-storage";
+import {
+  getUserRole,
+  canAccessContratoRenegociacao,
+  canDownloadExtratoAnual,
+} from "@/lib/auth-storage";
 import {
   buildRenegociacaoDashboardUrl,
   MODALIDADE_ATALHO_ADITIVO,
@@ -476,8 +480,8 @@ export function ContratosList() {
     }
 
     // Extrato anual: o mesmo demonstrativo que o cliente baixa no portal, para o
-    // back-office atender quem pede por telefone. Só faz sentido com contrato vigente.
-    if (isAssinado) {
+    // back-office atender quem pede por telefone. Só admin/administrativo.
+    if (isAssinado && canDownloadExtratoAnual()) {
       items.push({
         label: "Extrato Anual",
         icon: "pi pi-receipt",

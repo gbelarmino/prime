@@ -17,6 +17,7 @@ const API_PATHS = {
   renegociacoes: "/api/renegociacoes",
   dominios: "/api/dominios",
   usuarios: "/api/usuarios",
+  permissoes: "/api/permissoes",
    dashboard: "/api/dashboard",
   notificacoes: "/api/notificacoes",
   parametros: "/api/parametros",
@@ -632,6 +633,10 @@ export function getUsuarioSituacaoUrl(id: number): string {
   return `${base}/situacao`;
 }
 
+export function getPermissoesBaseUrl(): string {
+  return withBase(getApiBaseUrl(), API_PATHS.permissoes);
+}
+
 export function getOpenClawStatusUrl(): string {
   const base = withBase(getApiBaseUrl(), API_PATHS.openclaw);
   return base ? `${base}/status` : "";
@@ -650,6 +655,26 @@ export function getOpenClawInstrucaoUrl(): string {
 export function getOpenClawArquivoUrl(nome: string): string {
   const base = withBase(getApiBaseUrl(), API_PATHS.openclaw);
   return base ? `${base}/arquivos/${encodeURIComponent(nome)}` : "";
+}
+
+export function getPermissoesCatalogoUrl(): string {
+  const base = getPermissoesBaseUrl();
+  return base ? `${base}/catalogo` : "";
+}
+
+export function getPermissoesMatrizUrl(): string {
+  const base = getPermissoesBaseUrl();
+  return base ? `${base}/matriz` : "";
+}
+
+export function getPermissoesMatrizRestaurarUrl(): string {
+  const base = getPermissoesMatrizUrl();
+  return base ? `${base}/restaurar-defaults` : "";
+}
+
+export function getPermissoesMinhasUrl(): string {
+  const base = getPermissoesBaseUrl();
+  return base ? `${base}/minhas` : "";
 }
 
 export function getUsuarioTrocarSenhaUrl(): string {
@@ -1800,6 +1825,24 @@ export function getAtendimentoPainelUrl(contratoId: number): string {
   const base = getAtendimentoUrl();
   if (!base) return "";
   return `${base}/contratos/${contratoId}/painel`;
+}
+
+export function getAtendimentoInteligenciaUrl(contratoId: number): string {
+  const base = getAtendimentoUrl();
+  if (!base) return "";
+  return `${base}/contratos/${contratoId}/inteligencia`;
+}
+
+export function getAtendimentoInteligenciaDecisaoUrl(contratoId: number): string {
+  const base = getAtendimentoInteligenciaUrl(contratoId);
+  if (!base) return "";
+  return `${base}/decisao`;
+}
+
+export function getAtendimentoInteligenciaAcaoUrl(contratoId: number, casoId: string): string {
+  const base = getAtendimentoInteligenciaUrl(contratoId);
+  if (!base) return "";
+  return `${base}/casos/${casoId}/acao`;
 }
 
 export function getAtendimentoOcorrenciasUrl(contratoId: number): string {

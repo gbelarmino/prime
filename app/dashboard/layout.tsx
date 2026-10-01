@@ -71,6 +71,7 @@ import {
   DashboardMenuCustomizer,
   createDraftPreference,
 } from "@/components/dashboard/DashboardMenuCustomizer";
+import { PermissionsProvider, usePermissions } from "@/lib/permissions-context";
 
 const CONTRATOS_MENU_PATH = "/dashboard/contratos";
 const RENEGOCIACAO_MENU_PREFIX = "/dashboard/contratos/renegociacao";
@@ -239,8 +240,17 @@ function SidebarNavGroup({
 }
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <PermissionsProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </PermissionsProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { loaded: permissionsLoaded, revision: permissionsRevision } = usePermissions();
   const [mounted, setMounted] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [role, setRole] = useState<string | null>(null);
@@ -306,7 +316,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return DASHBOARD_MENU_ITEMS.filter((item) => menuItemVisible(item, role, crmFunilEnabled)).map(
       (item) => (item.kind === "group" ? filterVisibleMenuChildren(item, role) : item),
     );
-  }, [role, crmFunilEnabled]);
+  }, [role, crmFunilEnabled, permissionsLoaded, permissionsRevision]);
 
   const orderedMenuItems = useMemo(() => {
     const pref = menuEditing ? menuDraft : menuPreference;

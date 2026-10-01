@@ -180,7 +180,7 @@ export const atendimentoService = {
 
   async criarOcorrencia(
     contratoId: number,
-    body: { texto: string; canal: AtendimentoCanal },
+    body: { texto: string; canal: AtendimentoCanal; casoId?: string },
   ): Promise<AtendimentoOcorrencia> {
     const res = await apiFetch(getAtendimentoOcorrenciasUrl(contratoId), {
       method: "POST",
