@@ -16,6 +16,7 @@ import { maskPhone } from "@/lib/format-phone";
 import { DDI_PADRAO, placeholderDoPais } from "@/lib/ddi-paises";
 import { DdiSelect } from "@/components/ui/DdiSelect";
 import { maskCurrency } from "@/lib/format-currency";
+import { cortarLimiteUnicred, UNICRED_PAGADOR } from "@/lib/unicred-pagador-limites";
 import { toast } from "sonner";
 
 const UFs = [
@@ -117,11 +118,22 @@ export function EnderecoContato() {
         return;
       }
 
-      if (data.logradouro) setValue("endereco", data.logradouro);
-      if (data.bairro) setValue("bairro", data.bairro);
-      if (data.localidade) setValue("cidade", data.localidade);
-      if (data.uf) setValue("uf", data.uf);
-      
+      const endereco = cortarLimiteUnicred(data.logradouro, UNICRED_PAGADOR.logradouro);
+      const bairro = cortarLimiteUnicred(data.bairro, UNICRED_PAGADOR.bairro);
+      const cidade = cortarLimiteUnicred(data.localidade, UNICRED_PAGADOR.cidade);
+      const encurtado =
+        (data.logradouro && endereco.length < data.logradouro.length) ||
+        (data.bairro && bairro.length < data.bairro.length) ||
+        (data.localidade && cidade.length < data.localidade.length);
+
+      if (data.logradouro) setValue("endereco", endereco, { shouldValidate: true });
+      if (data.bairro) setValue("bairro", bairro, { shouldValidate: true });
+      if (data.localidade) setValue("cidade", cidade, { shouldValidate: true });
+      if (data.uf) setValue("uf", data.uf, { shouldValidate: true });
+
+      if (encurtado) {
+        toast.message("Parte do endereço do CEP foi encurtada para caber no limite da Unicred.");
+      }
       toast.success("Endereço preenchido!");
     } catch (error) {
       console.error("Erro ao buscar CEP:", error);
@@ -153,6 +165,7 @@ export function EnderecoContato() {
         <div className="md:col-span-3">
           <label className={labelClass}>Logradouro <span className="text-rose-400">*</span></label>
           <InputText 
+            maxLength={UNICRED_PAGADOR.logradouro}
             className={cn(inputClass, "w-full", errors.endereco && "border-rose-400/50")} 
             {...register("endereco")} 
           />
@@ -166,6 +179,7 @@ export function EnderecoContato() {
             render={({ field }) => (
               <InputText 
                 {...field}
+                maxLength={UNICRED_PAGADOR.numero}
                 className={cn(inputClass, "w-full", errors.numero && "border-rose-400/50")} 
               />
             )}
@@ -176,12 +190,18 @@ export function EnderecoContato() {
 
       <div>
         <label className={labelClass}>Complemento</label>
-        <InputText className={cn(inputClass, "w-full")} {...register("complemento")} />
+        <InputText
+          maxLength={UNICRED_PAGADOR.complemento}
+          className={cn(inputClass, "w-full", errors.complemento && "border-rose-400/50")}
+          {...register("complemento")}
+        />
+        {errors.complemento && <p className={errorClass}>{errors.complemento.message}</p>}
       </div>
 
       <div>
         <label className={labelClass}>Bairro <span className="text-rose-400">*</span></label>
         <InputText 
+          maxLength={UNICRED_PAGADOR.bairro}
           className={cn(inputClass, "w-full", errors.bairro && "border-rose-400/50")} 
           {...register("bairro")} 
         />
@@ -205,6 +225,7 @@ export function EnderecoContato() {
       <div>
         <label className={labelClass}>Cidade <span className="text-rose-400">*</span></label>
         <InputText 
+          maxLength={UNICRED_PAGADOR.cidade}
           className={cn(inputClass, "w-full", errors.cidade && "border-rose-400/50")} 
           {...register("cidade")} 
         />
@@ -257,6 +278,7 @@ export function EnderecoContato() {
         <label className={labelClass}>E-mail <span className="text-rose-400">*</span></label>
         <InputText 
           type="email"
+          maxLength={UNICRED_PAGADOR.email}
           placeholder="exemplo@email.com"
           className={cn(inputClass, "w-full", errors.email && "border-rose-400/50")} 
           {...register("email")} 

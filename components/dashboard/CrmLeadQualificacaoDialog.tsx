@@ -22,6 +22,7 @@ import { maskPhone } from "@/lib/format-phone";
 import { DDI_PADRAO, placeholderDoPais } from "@/lib/ddi-paises";
 import { DdiSelect } from "@/components/ui/DdiSelect";
 import { fetchCepLookup, maskCepInput } from "@/lib/crm-cep-lookup";
+import { cortarLimiteUnicred, UNICRED_PAGADOR } from "@/lib/unicred-pagador-limites";
 import {
   CRM_QUAL_CALENDAR_PT,
   CRM_QUAL_DROPDOWN_PT,
@@ -129,10 +130,21 @@ export function CrmLeadQualificacaoDialog({
         toast.error("CEP não encontrado.");
         return;
       }
-      if (data.logradouro) setValue("endereco", data.logradouro, { shouldValidate: true });
-      if (data.bairro) setValue("bairro", data.bairro, { shouldValidate: true });
-      if (data.localidade) setValue("cidade", data.localidade, { shouldValidate: true });
+      const endereco = cortarLimiteUnicred(data.logradouro, UNICRED_PAGADOR.logradouro);
+      const bairro = cortarLimiteUnicred(data.bairro, UNICRED_PAGADOR.bairro);
+      const cidade = cortarLimiteUnicred(data.localidade, UNICRED_PAGADOR.cidade);
+      const encurtado =
+        (data.logradouro && endereco.length < data.logradouro.length) ||
+        (data.bairro && bairro.length < data.bairro.length) ||
+        (data.localidade && cidade.length < data.localidade.length);
+
+      if (data.logradouro) setValue("endereco", endereco, { shouldValidate: true });
+      if (data.bairro) setValue("bairro", bairro, { shouldValidate: true });
+      if (data.localidade) setValue("cidade", cidade, { shouldValidate: true });
       if (data.uf) setValue("uf", data.uf, { shouldValidate: true });
+      if (encurtado) {
+        toast.message("Parte do endereço do CEP foi encurtada para caber no limite da Unicred.");
+      }
       toast.success("Endereço preenchido!");
     } catch {
       toast.error("Não foi possível consultar o CEP.");
@@ -221,6 +233,7 @@ export function CrmLeadQualificacaoDialog({
             </p>
             <FormField label="Nome completo" required error={errors.nome?.message} className="sm:col-span-2">
               <InputText
+                maxLength={UNICRED_PAGADOR.nome}
                 className={cn(CRM_QUAL_INPUT_CLASS, "uppercase w-full", errors.nome && "border-rose-400/50")}
                 {...register("nome", {
                   onChange: (e) => {
@@ -231,6 +244,7 @@ export function CrmLeadQualificacaoDialog({
             </FormField>
             <FormField label="E-mail" required error={errors.email?.message}>
               <InputText
+                maxLength={UNICRED_PAGADOR.email}
                 className={cn(CRM_QUAL_INPUT_CLASS, "w-full", errors.email && "border-rose-400/50")}
                 {...register("email")}
               />
@@ -483,6 +497,7 @@ export function CrmLeadQualificacaoDialog({
               className="sm:col-span-2"
             >
               <InputText
+                maxLength={UNICRED_PAGADOR.logradouro}
                 className={cn(CRM_QUAL_INPUT_CLASS, "w-full", errors.endereco && "border-rose-400/50")}
                 {...register("endereco")}
               />
@@ -494,22 +509,29 @@ export function CrmLeadQualificacaoDialog({
                 render={({ field }) => (
                   <InputText
                     {...field}
+                    maxLength={UNICRED_PAGADOR.numero}
                     className={cn(CRM_QUAL_INPUT_CLASS, "w-full", errors.numero && "border-rose-400/50")}
                   />
                 )}
               />
             </FormField>
             <FormField label="Complemento" error={errors.complemento?.message}>
-              <InputText className={cn(CRM_QUAL_INPUT_CLASS, "w-full")} {...register("complemento")} />
+              <InputText
+                maxLength={UNICRED_PAGADOR.complemento}
+                className={cn(CRM_QUAL_INPUT_CLASS, "w-full", errors.complemento && "border-rose-400/50")}
+                {...register("complemento")}
+              />
             </FormField>
             <FormField label="Bairro" required error={errors.bairro?.message}>
               <InputText
+                maxLength={UNICRED_PAGADOR.bairro}
                 className={cn(CRM_QUAL_INPUT_CLASS, "w-full", errors.bairro && "border-rose-400/50")}
                 {...register("bairro")}
               />
             </FormField>
             <FormField label="Cidade" required error={errors.cidade?.message}>
               <InputText
+                maxLength={UNICRED_PAGADOR.cidade}
                 className={cn(CRM_QUAL_INPUT_CLASS, "w-full", errors.cidade && "border-rose-400/50")}
                 {...register("cidade")}
               />

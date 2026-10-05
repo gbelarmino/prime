@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { msgLimiteUnicred, UNICRED_PAGADOR } from "@/lib/unicred-pagador-limites";
 import { isValidCpf, maskCpf } from "@/lib/format-cpf";
 import { isValidPhone, maskPhone } from "@/lib/format-phone";
 import { acharPaisPorDdi, juntarDdi, separarDdi } from "@/lib/ddi-paises";
@@ -101,7 +102,7 @@ export function getContratanteFormSchema(options: ContratanteFormSchemaOptions =
   const requireDataNascimento = options.requireDataNascimento === true;
 
   return z.object({
-  nome: z.string().min(3, "Nome é obrigatório.").max(150, "Nome muito longo."),
+  nome: z.string().min(3, "Nome é obrigatório.").max(UNICRED_PAGADOR.nome, msgLimiteUnicred(UNICRED_PAGADOR.nome)),
   sexo: sexoEnum,
   rg: z.string().min(1, "RG é obrigatório.").max(20),
   orgaoEmissor: z.string().min(1, "Órgão emissor é obrigatório.").max(30),
@@ -115,12 +116,12 @@ export function getContratanteFormSchema(options: ContratanteFormSchemaOptions =
   estadoCivil: estadoCivilEnum,
   nacionalidade: z.string().min(1, "Nacionalidade é obrigatória.").max(50),
   profissao: z.string().min(1, "Profissão é obrigatória.").max(80, "Profissão muito longa."),
-  endereco: z.string().min(1, "Logradouro é obrigatório.").max(200),
-  numero: z.string().min(1, "Número é obrigatório.").max(20),
-  complemento: z.string().max(100),
-  bairro: z.string().min(1, "Bairro é obrigatório.").max(100),
+  endereco: z.string().min(1, "Logradouro é obrigatório.").max(UNICRED_PAGADOR.logradouro, msgLimiteUnicred(UNICRED_PAGADOR.logradouro)),
+  numero: z.string().min(1, "Número é obrigatório.").max(UNICRED_PAGADOR.numero, msgLimiteUnicred(UNICRED_PAGADOR.numero)),
+  complemento: z.string().max(UNICRED_PAGADOR.complemento, msgLimiteUnicred(UNICRED_PAGADOR.complemento)),
+  bairro: z.string().min(1, "Bairro é obrigatório.").max(UNICRED_PAGADOR.bairro, msgLimiteUnicred(UNICRED_PAGADOR.bairro)),
   pontoReferencia: z.string().max(150),
-  cidade: z.string().min(1, "Cidade é obrigatória.").max(100),
+  cidade: z.string().min(1, "Cidade é obrigatória.").max(UNICRED_PAGADOR.cidade, msgLimiteUnicred(UNICRED_PAGADOR.cidade)),
   uf: z.string().min(1, "UF é obrigatória.").max(2),
   cep: z.string().min(1, "CEP é obrigatório.").max(9),
   // A validação do número depende do DDI escolhido, que é campo irmão — feita no superRefine abaixo.
@@ -129,7 +130,7 @@ export function getContratanteFormSchema(options: ContratanteFormSchemaOptions =
   telefoneCelular2: z.string(),
   ddi2: z.string(),
   rendaFamiliar: z.string(),
-  email: z.string().email("E-mail inválido.").min(1, "E-mail é obrigatório.").max(150),
+  email: z.string().email("E-mail inválido.").min(1, "E-mail é obrigatório.").max(UNICRED_PAGADOR.email, msgLimiteUnicred(UNICRED_PAGADOR.email)),
   canaisPreferidos: contratanteCanaisPreferidosEnum,
   receberNotificacoes: z.boolean(),
   conjuge: conjugeFormSchema,

@@ -8,6 +8,7 @@ import { FormSection } from "./FormSection";
 import { cn } from "@/lib/utils";
 import { maskCpf } from "@/lib/format-cpf";
 import type { ContratanteFormValues } from "@/lib/validations/contratante";
+import { UNICRED_PAGADOR } from "@/lib/unicred-pagador-limites";
 
 const sexoOptions = [
   { label: "Masculino", value: "MASCULINO" },
@@ -38,6 +39,7 @@ export function DadosPessoais({ dataNascimentoObrigatoria = false }: DadosPessoa
       <div className="md:col-span-2">
         <label className={labelClass}>Nome Completo <span className="text-rose-400">*</span></label>
         <InputText 
+          maxLength={UNICRED_PAGADOR.nome}
           className={cn(inputClass, "uppercase", errors.nome && "border-rose-400/50")}
           {...register("nome", {
             onChange: (e) => {

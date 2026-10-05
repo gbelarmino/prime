@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { msgLimiteUnicred, UNICRED_PAGADOR } from "@/lib/unicred-pagador-limites";
 import { isValidCpf } from "@/lib/format-cpf";
 import { isValidPhone, maskPhone } from "@/lib/format-phone";
 import { acharPaisPorDdi, juntarDdi, separarDdi } from "@/lib/ddi-paises";
@@ -30,8 +31,8 @@ const estadoCivilSchema = z
   });
 
 export const crmLeadQualificacaoSchema = z.object({
-  nome: z.string().min(3, "Nome é obrigatório.").max(150, "Nome muito longo."),
-  email: z.string().email("E-mail inválido.").min(1, "E-mail é obrigatório.").max(150),
+  nome: z.string().min(3, "Nome é obrigatório.").max(UNICRED_PAGADOR.nome, msgLimiteUnicred(UNICRED_PAGADOR.nome)),
+  email: z.string().email("E-mail inválido.").min(1, "E-mail é obrigatório.").max(UNICRED_PAGADOR.email, msgLimiteUnicred(UNICRED_PAGADOR.email)),
   ddi: z.string(),
   // O formato depende do DDI (campo irmão), validado no superRefine abaixo.
   telefone: z.string().min(1, "Telefone é obrigatório."),
@@ -45,11 +46,11 @@ export const crmLeadQualificacaoSchema = z.object({
   nacionalidade: z.string().min(1, "Nacionalidade é obrigatória.").max(50),
   profissao: z.string().min(1, "Profissão é obrigatória.").max(80),
   cep: z.string().min(1, "CEP é obrigatório.").max(9),
-  endereco: z.string().min(1, "Logradouro é obrigatório.").max(200),
-  numero: z.string().min(1, "Número é obrigatório.").max(20),
-  complemento: z.string().max(100),
-  bairro: z.string().min(1, "Bairro é obrigatório.").max(100),
-  cidade: z.string().min(1, "Cidade é obrigatória.").max(100),
+  endereco: z.string().min(1, "Logradouro é obrigatório.").max(UNICRED_PAGADOR.logradouro, msgLimiteUnicred(UNICRED_PAGADOR.logradouro)),
+  numero: z.string().min(1, "Número é obrigatório.").max(UNICRED_PAGADOR.numero, msgLimiteUnicred(UNICRED_PAGADOR.numero)),
+  complemento: z.string().max(UNICRED_PAGADOR.complemento, msgLimiteUnicred(UNICRED_PAGADOR.complemento)),
+  bairro: z.string().min(1, "Bairro é obrigatório.").max(UNICRED_PAGADOR.bairro, msgLimiteUnicred(UNICRED_PAGADOR.bairro)),
+  cidade: z.string().min(1, "Cidade é obrigatória.").max(UNICRED_PAGADOR.cidade, msgLimiteUnicred(UNICRED_PAGADOR.cidade)),
   uf: z.string().min(1, "UF é obrigatória.").max(2),
 }).superRefine((data, ctx) => {
   if (!data.telefone?.trim() || isValidPhone(data.telefone, data.ddi)) return;
