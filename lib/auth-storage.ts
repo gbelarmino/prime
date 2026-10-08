@@ -31,6 +31,7 @@ const ADMINISTRATIVO_ALLOWED_PREFIXES = [
   "/dashboard/whatsapp/modelos",
   "/dashboard/email/fila",
   "/dashboard/sms/fila",
+  "/dashboard/openclaw",
 ] as const;
 
 const CRM_PATH_PREFIX = "/dashboard/crm";
@@ -299,7 +300,7 @@ export function canAccessDashboardPath(pathname: string, role?: string | null): 
   }
   const openclawPrefix = "/dashboard/openclaw";
   if (pathname === openclawPrefix || pathname.startsWith(`${openclawPrefix}/`)) {
-    return r === "ADMIN";
+    return r === "ADMIN" || r === "ADMINISTRATIVO";
   }
   if (pathname === CRM_PATH_PREFIX || pathname.startsWith(`${CRM_PATH_PREFIX}/`)) {
     return r === "ADMIN";

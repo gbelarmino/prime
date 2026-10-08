@@ -21,7 +21,7 @@ export default function DashboardOpenClawPage() {
         </h1>
         <p className="mt-1 max-w-2xl text-sm font-medium leading-relaxed text-white/40">
           Chat com o agente desta VPS, na sessão do Aires. A conversa fica no gateway e é
-          recarregada ao abrir a página. Só administradores têm acesso.
+          recarregada ao abrir a página. Acesso dos perfis Admin e Administrativo.
         </p>
       </div>
       <OpenClawChat />

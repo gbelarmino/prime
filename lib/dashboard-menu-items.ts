@@ -160,7 +160,7 @@ export const DASHBOARD_MENU_ITEMS: (MenuLinkItem | MenuGroupItem)[] = [
     href: "/dashboard/openclaw",
     label: "OpenClaw",
     icon: Bot,
-    roles: ["ADMIN"],
+    roles: ["ADMIN", "ADMINISTRATIVO"],
   },
   {
     kind: "link",
