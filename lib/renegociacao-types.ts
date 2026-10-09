@@ -180,8 +180,8 @@ export const MODALIDADE_OPTIONS: {
   {
     value: "T1_PARCELAS_VENCIDAS",
     label: "Parcelas vencidas",
-    hint: "Mora a VP diluída em N parcelas, somada às próximas N vincendas (confissão/termo).",
-    juridico: "CONFISSAO_DIVIDA / TERMO_PARCELAMENTO",
+    hint: "Mora a VP diluída em N parcelas, somada às próximas N vincendas. A minuta do aditivo é gerada para assinatura.",
+    juridico: "ADITIVO",
   },
   {
     value: "T2_SALDO_DEVEDOR",

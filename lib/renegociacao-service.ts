@@ -11,6 +11,7 @@ import {
   getRenegociacaoGerarDocumentosUrl,
   getRenegociacaoDocumentosUrl,
   getRenegociacaoDocumentoUploadUrl,
+  getRenegociacaoAditivoPdfUrl,
   getRenegociacaoPropostaPdfUrl,
   getRenegociacaoPropostaUrl,
   getRenegociacaoSimularUrl,
@@ -160,6 +161,23 @@ export async function baixarPropostaPdfT1(
   const filename =
     tryGetFilenameFromDisposition(res.headers.get("Content-Disposition")) ??
     `proposta-t1-contrato-${contratoId}.pdf`;
+  baixarBlob(blob, filename);
+}
+
+/** PDF do termo aditivo T1, com a proposta comercial anexada. */
+export async function baixarAditivoPdfT1(
+  contratoId: number,
+  renegociacaoId: number,
+  simulacaoId: number,
+): Promise<void> {
+  const url = getRenegociacaoAditivoPdfUrl(contratoId, renegociacaoId, simulacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  const blob = await res.blob();
+  const filename =
+    tryGetFilenameFromDisposition(res.headers.get("Content-Disposition")) ??
+    `aditivo-t1-contrato-${contratoId}.pdf`;
   baixarBlob(blob, filename);
 }
 

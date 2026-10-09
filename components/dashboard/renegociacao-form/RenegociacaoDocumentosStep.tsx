@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, ExternalLink, FileUp, Loader2, Upload } from "lucide-react";
+import { CheckCircle2, Download, ExternalLink, FileUp, Loader2, Upload } from "lucide-react";
 import { Button } from "primereact/button";
 import { toast } from "sonner";
 import { getRenegociacaoDocumentoDownloadUrl } from "@/lib/api-config";
@@ -25,6 +25,9 @@ type Props = {
   tiposEsperados?: string[];
   somenteLeitura?: boolean;
   onDocumentosChange?: (documentos: DocumentoRenegociacao[], completos: boolean) => void;
+  /** Minuta gerada do aditivo T1, para impressão e assinatura antes do upload. */
+  onBaixarAditivo?: () => void;
+  baixandoAditivo?: boolean;
 };
 
 export function RenegociacaoDocumentosStep({
@@ -33,6 +36,8 @@ export function RenegociacaoDocumentosStep({
   tiposEsperados,
   somenteLeitura = false,
   onDocumentosChange,
+  onBaixarAditivo,
+  baixandoAditivo = false,
 }: Props) {
   const [documentos, setDocumentos] = useState<DocumentoRenegociacao[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -49,13 +54,27 @@ export function RenegociacaoDocumentosStep({
     onDocumentosChangeRef.current?.(lista, documentosRenegociacaoCompletos(lista));
   }, []);
 
+  const restringirAosEsperados = useCallback(
+    (lista: DocumentoRenegociacao[]) => {
+      const esperados = (tiposEsperados ?? []).filter(Boolean);
+      if (esperados.length === 0) return lista;
+      const permitidos = new Set(esperados);
+      return lista.filter((d) => permitidos.has(d.tipo));
+    },
+    [tiposEsperados],
+  );
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErroCarga(null);
     try {
-      let lista = await listarDocumentosRenegociacao(contratoId, renegociacaoId);
+      let lista = restringirAosEsperados(
+        await listarDocumentosRenegociacao(contratoId, renegociacaoId),
+      );
       if (lista.length === 0 && !somenteLeitura) {
-        lista = await gerarDocumentosRenegociacao(contratoId, renegociacaoId);
+        lista = restringirAosEsperados(
+          await gerarDocumentosRenegociacao(contratoId, renegociacaoId),
+        );
       }
       if (lista.length === 0 && !somenteLeitura) {
         setErroCarga("Nenhum instrumento foi gerado para este processo.");
@@ -73,7 +92,7 @@ export function RenegociacaoDocumentosStep({
     } finally {
       setCarregando(false);
     }
-  }, [contratoId, renegociacaoId, somenteLeitura, notificar]);
+  }, [contratoId, renegociacaoId, somenteLeitura, notificar, restringirAosEsperados]);
 
   useEffect(() => {
     void carregar();
@@ -237,6 +256,22 @@ export function RenegociacaoDocumentosStep({
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
                 ) : null}
               </div>
+
+              {doc.tipo === "ADITIVO" && onBaixarAditivo && !somenteLeitura ? (
+                <Button
+                  type="button"
+                  severity="secondary"
+                  loading={baixandoAditivo}
+                  disabled={baixandoAditivo}
+                  onClick={onBaixarAditivo}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 text-xs font-black uppercase tracking-widest text-white"
+                >
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Download className="h-4 w-4" />
+                    Baixar minuta
+                  </span>
+                </Button>
+              ) : null}
 
               {!somenteLeitura ? (
                 <>

@@ -493,6 +493,15 @@ export function getRenegociacaoPropostaPdfUrl(
   return b ? `${b}/${renegociacaoId}/simulacoes/${simulacaoId}/proposta-pdf` : "";
 }
 
+export function getRenegociacaoAditivoPdfUrl(
+  contratoId: number,
+  renegociacaoId: number,
+  simulacaoId: number,
+): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/simulacoes/${simulacaoId}/aditivo-pdf` : "";
+}
+
 export function getRenegociacaoCancelarUrl(contratoId: number, renegociacaoId: number): string {
   const b = getRenegociacaoBaseUrl(contratoId);
   return b ? `${b}/${renegociacaoId}/cancelar` : "";

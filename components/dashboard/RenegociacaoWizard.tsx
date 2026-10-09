@@ -58,6 +58,7 @@ import {
   modalidadeEfetivaNoWizard,
   modalidadeUsaMotorCondicoes,
   alinharSimulacaoQuitacaoT4,
+  baixarAditivoPdfT1,
   baixarPropostaPdfT1,
   simularQuitacaoLocal,
   simularRenegociacao,
@@ -205,6 +206,7 @@ export function RenegociacaoWizard({
   const [processoRetomado, setProcessoRetomado] = useState(false);
   const [encargos, setEncargos] = useState<BoletoEncargosConfig | null>(null);
   const [baixandoProposta, setBaixandoProposta] = useState(false);
+  const [baixandoAditivo, setBaixandoAditivo] = useState(false);
   const [efetivacaoResultado, setEfetivacaoResultado] = useState<EfetivarRenegociacaoResultado | null>(
     null,
   );
@@ -674,6 +676,24 @@ export function RenegociacaoWizard({
       toast.error(e instanceof Error ? e.message : "Falha ao baixar proposta");
     } finally {
       setBaixandoProposta(false);
+    }
+  };
+
+  const baixarAditivoT1Pdf = async () => {
+    const procId = renegociacaoId;
+    const simId = simulacao?.simulacaoId;
+    if (procId == null || procId <= 0 || simId == null) {
+      toast.error("Simule novamente pelo backend para gerar o PDF do aditivo.");
+      return;
+    }
+    setBaixandoAditivo(true);
+    try {
+      await baixarAditivoPdfT1(contratoId, procId, simId);
+      toast.success("Aditivo T1 baixado.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao baixar aditivo");
+    } finally {
+      setBaixandoAditivo(false);
     }
   };
 
@@ -1296,7 +1316,11 @@ export function RenegociacaoWizard({
           <motion.div key="d" {...STEP_MOTION}>
             <FormSection
               title="Documentos"
-              description="Anexe os instrumentos jurídicos assinados (PDF ou imagem). Todos os arquivos são obrigatórios para efetivar."
+              description={
+                modalidade === "T1_PARCELAS_VENCIDAS"
+                  ? "Baixe a minuta do aditivo (com a proposta em anexo), colete as assinaturas e envie o PDF assinado."
+                  : "Anexe os instrumentos jurídicos assinados (PDF ou imagem). Todos os arquivos são obrigatórios para efetivar."
+              }
             >
               {renegociacaoId != null && renegociacaoId > 0 ? (
                 <RenegociacaoDocumentosStep
@@ -1304,6 +1328,12 @@ export function RenegociacaoWizard({
                   renegociacaoId={renegociacaoId}
                   tiposEsperados={simulacao?.instrumentosSugeridos}
                   somenteLeitura={processoJaEfetivado}
+                  onBaixarAditivo={
+                    modalidade === "T1_PARCELAS_VENCIDAS" && simulacao?.simulacaoId != null
+                      ? () => void baixarAditivoT1Pdf()
+                      : undefined
+                  }
+                  baixandoAditivo={baixandoAditivo}
                   onDocumentosChange={(lista, completos) => {
                     setDocumentosProcesso(lista);
                     setDocumentosOk(completos);
@@ -1367,6 +1397,14 @@ export function RenegociacaoWizard({
                     renegociacaoId={renegociacaoId}
                     tiposEsperados={simulacao?.instrumentosSugeridos}
                     somenteLeitura={processoFechado || processoJaEfetivado}
+                    onBaixarAditivo={
+                      modalidade === "T1_PARCELAS_VENCIDAS" &&
+                      simulacao?.simulacaoId != null &&
+                      !processoFechado
+                        ? () => void baixarAditivoT1Pdf()
+                        : undefined
+                    }
+                    baixandoAditivo={baixandoAditivo}
                     onDocumentosChange={(lista, completos) => {
                       setDocumentosProcesso(lista);
                       setDocumentosOk(completos);
@@ -1437,8 +1475,24 @@ export function RenegociacaoWizard({
                 label="Baixar proposta"
                 icon={<Download className="mr-2 h-4 w-4" />}
                 loading={baixandoProposta}
-                disabled={loading || baixandoProposta}
+                disabled={loading || baixandoProposta || baixandoAditivo}
                 onClick={baixarPropostaT1Pdf}
+                severity="secondary"
+                className="rounded-full border-white/10 bg-white/5 text-white"
+              />
+            )}
+          {step === 3 &&
+            modalidade === "T1_PARCELAS_VENCIDAS" &&
+            simulacao?.simulacaoId != null &&
+            renegociacaoId != null &&
+            renegociacaoId > 0 && (
+              <Button
+                type="button"
+                label="Baixar aditivo"
+                icon={<Download className="mr-2 h-4 w-4" />}
+                loading={baixandoAditivo}
+                disabled={loading || baixandoProposta || baixandoAditivo}
+                onClick={() => void baixarAditivoT1Pdf()}
                 severity="secondary"
                 className="rounded-full border-white/10 bg-white/5 text-white"
               />
