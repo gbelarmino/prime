@@ -458,7 +458,12 @@ export function getRenegociacaoBaseUrl(contratoId: number): string {
   return `${base}/${contratoId}/renegociacoes`;
 }
 
-export function getRenegociacoesConsultaUrl(page = 0, size = 25, q?: string): string {
+export function getRenegociacoesConsultaUrl(
+  page = 0,
+  size = 25,
+  q?: string,
+  filtro?: { status?: string[]; criadoDe?: string; criadoAte?: string },
+): string {
   const base = withBase(getApiBaseUrl(), API_PATHS.renegociacoes);
   if (!base) return "";
   const params = new URLSearchParams({
@@ -467,6 +472,11 @@ export function getRenegociacoesConsultaUrl(page = 0, size = 25, q?: string): st
   });
   const term = q?.trim();
   if (term) params.set("q", term);
+  for (const status of filtro?.status ?? []) {
+    if (status) params.append("status", status);
+  }
+  if (filtro?.criadoDe) params.set("criadoDe", filtro.criadoDe);
+  if (filtro?.criadoAte) params.set("criadoAte", filtro.criadoAte);
   return `${base}/consulta?${params.toString()}`;
 }
 
@@ -530,6 +540,16 @@ export function getRenegociacaoGerarDocumentosUrl(contratoId: number, renegociac
 export function getRenegociacaoDocumentosUrl(contratoId: number, renegociacaoId: number): string {
   const b = getRenegociacaoBaseUrl(contratoId);
   return b ? `${b}/${renegociacaoId}/documentos` : "";
+}
+
+export function getRenegociacaoAssinaturaUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/assinatura` : "";
+}
+
+export function getRenegociacaoEnviarClicksignUrl(contratoId: number, renegociacaoId: number): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/enviar-clicksign` : "";
 }
 
 export function getRenegociacaoDocumentoUploadUrl(

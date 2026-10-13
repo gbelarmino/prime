@@ -10,6 +10,7 @@ export const RENEGOCIACAO_WIZARD_STEPS = [
   { id: "simulacao", label: "Simulação", icon: "pi pi-chart-line" },
   { id: "aprovacao", label: "Aprovação", icon: "pi pi-verified" },
   { id: "documentos", label: "Documentos", icon: "pi pi-file-pdf" },
+  { id: "assinatura", label: "Assinatura", icon: "pi pi-pencil" },
   { id: "efetivacao", label: "Efetivação", icon: "pi pi-check-circle" },
 ] as const;
 

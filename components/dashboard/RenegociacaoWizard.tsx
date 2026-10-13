@@ -81,6 +81,7 @@ import { InadimplenciaPresenteCard } from "@/components/dashboard/renegociacao-f
 import { QuitacaoLiquidacaoMemoriaCard } from "@/components/dashboard/renegociacao-form/QuitacaoLiquidacaoMemoriaCard";
 import { T1AcordoDetalheCard } from "@/components/dashboard/renegociacao-form/T1AcordoDetalheCard";
 import { RenegociacaoDocumentosStep } from "@/components/dashboard/renegociacao-form/RenegociacaoDocumentosStep";
+import { RenegociacaoAssinaturaStep } from "@/components/dashboard/renegociacao-form/RenegociacaoAssinaturaStep";
 import { RenegociacaoEfetivacaoResumo } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResumo";
 import { RenegociacaoEfetivacaoResultado } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResultado";
 import {
@@ -119,6 +120,7 @@ type Props = {
 };
 
 const LAST_STEP = RENEGOCIACAO_WIZARD_STEPS.length - 1;
+const ASSINATURA_STEP = RENEGOCIACAO_WIZARD_STEPS.findIndex((s) => s.id === "assinatura");
 const TABLE_PT = dashboardDataTablePt({ density: "compact", paginator: false });
 const MULTISELECT_PT = dashboardMultiSelectPt();
 
@@ -218,8 +220,8 @@ export function RenegociacaoWizard({
     statusProcesso != null && renegociacaoEstaFechada(statusProcesso);
 
   useEffect(() => {
-    if (processoFechado && step !== 6) {
-      setStep(6);
+    if (processoFechado && step !== LAST_STEP) {
+      setStep(LAST_STEP);
     }
   }, [processoFechado, step]);
 
@@ -354,8 +356,7 @@ export function RenegociacaoWizard({
         if (
           det.status === "EFETIVADO" ||
           det.status === "EFETIVACAO_PARCIAL" ||
-          det.status === "ASSINADO" ||
-          det.status === "AGUARDANDO_ASSINATURA"
+          det.status === "ASSINADO"
         ) {
           setDocumentosOk(true);
         }
@@ -370,7 +371,7 @@ export function RenegociacaoWizard({
             });
         }
         if (renegociacaoEstaFechada(det.status) || det.status === "EFETIVACAO_PARCIAL") {
-          setStep(6);
+          setStep(LAST_STEP);
         }
         if (det.status === "EFETIVACAO_PARCIAL" || det.status === "EFETIVADO") {
           listarOperacoesEfetivacao(contratoId, id)
@@ -736,15 +737,17 @@ export function RenegociacaoWizard({
   const processarDocumentos = async () => {
     const procId = renegociacaoId;
     if (procId == null || procId <= 0) return;
-    if (!documentosRenegociacaoCompletos(documentosProcesso)) {
+    if (modalidade !== "T1_PARCELAS_VENCIDAS" && !documentosRenegociacaoCompletos(documentosProcesso)) {
       toast.error("Envie todos os instrumentos jurídicos antes de continuar.");
       return;
     }
     setLoading(true);
     try {
-      setDocumentosOk(true);
-      toast.success("Documentos registrados no processo.");
-      setStep(6);
+      if (modalidade !== "T1_PARCELAS_VENCIDAS") {
+        setDocumentosOk(true);
+        toast.success("Documentos registrados no processo.");
+      }
+      setStep(ASSINATURA_STEP);
     } finally {
       setLoading(false);
     }
@@ -770,7 +773,7 @@ export function RenegociacaoWizard({
       );
       setEfetivacaoResultado(res);
       setStatusProcesso(res.status);
-      setStep(6);
+      setStep(LAST_STEP);
       if (res.concluida && res.status === "EFETIVADO") {
         toast.success(
           modalidade === "T1_PARCELAS_VENCIDAS"
@@ -1318,7 +1321,7 @@ export function RenegociacaoWizard({
               title="Documentos"
               description={
                 modalidade === "T1_PARCELAS_VENCIDAS"
-                  ? "Baixe a minuta do aditivo (com a proposta em anexo), colete as assinaturas e envie o PDF assinado."
+                  ? "Baixe a minuta se quiser. A assinatura na Clicksign fica no próximo passo; o PDF assinado também pode ser enviado aqui."
                   : "Anexe os instrumentos jurídicos assinados (PDF ou imagem). Todos os arquivos são obrigatórios para efetivar."
               }
             >
@@ -1348,7 +1351,42 @@ export function RenegociacaoWizard({
           </motion.div>
         )}
 
-        {step === 6 && (
+        {step === ASSINATURA_STEP && (
+          <motion.div key="assinatura" {...STEP_MOTION}>
+            <FormSection
+              title="Assinatura"
+              description={
+                modalidade === "T1_PARCELAS_VENCIDAS"
+                  ? "Envie o aditivo para a Clicksign e acompanhe as assinaturas."
+                  : "Confirme os instrumentos enviados antes de efetivar."
+              }
+            >
+              {renegociacaoId != null && renegociacaoId > 0 ? (
+                <RenegociacaoAssinaturaStep
+                  contratoId={contratoId}
+                  renegociacaoId={renegociacaoId}
+                  modalidadeT1={modalidade === "T1_PARCELAS_VENCIDAS"}
+                  somenteLeitura={processoFechado || processoJaEfetivado}
+                  baixandoAditivo={baixandoAditivo}
+                  onBaixarAditivo={
+                    modalidade === "T1_PARCELAS_VENCIDAS" && simulacao?.simulacaoId != null
+                      ? () => void baixarAditivoT1Pdf()
+                      : undefined
+                  }
+                  onDocumentoPronto={(pronto) => {
+                    if (pronto) setDocumentosOk(true);
+                  }}
+                />
+              ) : (
+                <p className="text-sm text-amber-200/80">
+                  Conclua a proposta para enviar o aditivo à assinatura.
+                </p>
+              )}
+            </FormSection>
+          </motion.div>
+        )}
+
+        {step === LAST_STEP && (
           <motion.div key="e" {...STEP_MOTION}>
             <FormSection
               title={processoFechado ? "Efetivação (visualização)" : "Efetivação"}
@@ -1514,10 +1552,16 @@ export function RenegociacaoWizard({
                 step === 4
                   ? "Gerar proposta"
                   : step === 5
-                    ? documentosOk
-                      ? "Continuar para efetivação"
-                      : "Envie todos os documentos"
-                    : "Continuar"
+                    ? modalidade === "T1_PARCELAS_VENCIDAS"
+                      ? "Continuar para assinatura"
+                      : documentosOk
+                        ? "Continuar"
+                        : "Envie todos os documentos"
+                    : step === ASSINATURA_STEP
+                      ? documentosOk
+                        ? "Continuar para efetivação"
+                        : "Aguarde a assinatura"
+                      : "Continuar"
               }
               icon={<ArrowRight className="mr-2 h-4 w-4" />}
               onClick={avancar}
@@ -1528,7 +1572,11 @@ export function RenegociacaoWizard({
                 (step === 1 && !modalidade) ||
                 (step === 3 && !simulacao) ||
                 (step >= 4 && (renegociacaoId == null || renegociacaoId <= 0)) ||
-                (step === 5 && !documentosOk && !processoJaEfetivado)
+                (step === 5 &&
+                  modalidade !== "T1_PARCELAS_VENCIDAS" &&
+                  !documentosOk &&
+                  !processoJaEfetivado) ||
+                (step === ASSINATURA_STEP && !documentosOk && !processoJaEfetivado)
               }
               className="rounded-full border-0 bg-violet-600 px-6 font-black uppercase tracking-widest"
             />

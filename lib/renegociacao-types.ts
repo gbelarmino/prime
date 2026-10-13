@@ -312,6 +312,23 @@ export type DocumentoRenegociacao = {
   arquivoEnviado: boolean;
 };
 
+export type AssinaturaEventoRenegociacao = {
+  id: number;
+  evento: string;
+  signatario: string | null;
+  recebidoEm: string;
+};
+
+export type AssinaturaRenegociacao = {
+  renegociacaoId: number;
+  documentoId: number | null;
+  statusDocumento: string;
+  provedorAssinatura: string | null;
+  envelopeId: string | null;
+  enviadoClicksign: boolean;
+  eventos: AssinaturaEventoRenegociacao[];
+};
+
 export const DOCUMENTO_RENEGOCIACAO_LABEL: Record<TipoDocumentoRenegociacao, string> = {
   ADITIVO: "Aditivo contratual",
   CONFISSAO_DIVIDA: "Confissão de dívida",

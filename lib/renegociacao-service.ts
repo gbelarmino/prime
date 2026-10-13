@@ -12,6 +12,8 @@ import {
   getRenegociacaoDocumentosUrl,
   getRenegociacaoDocumentoUploadUrl,
   getRenegociacaoAditivoPdfUrl,
+  getRenegociacaoAssinaturaUrl,
+  getRenegociacaoEnviarClicksignUrl,
   getRenegociacaoPropostaPdfUrl,
   getRenegociacaoPropostaUrl,
   getRenegociacaoSimularUrl,
@@ -21,6 +23,7 @@ import {
 import type {
   CriarRenegociacaoRequest,
   DocumentoRenegociacao,
+  AssinaturaRenegociacao,
   EfetivacaoOperacao,
   EfetivarRenegociacaoResultado,
   ModalidadeRenegociacao,
@@ -64,8 +67,9 @@ export async function listarRenegociacoesConsulta(
   page: number,
   size: number,
   q?: string,
+  filtro?: { status?: string[]; criadoDe?: string; criadoAte?: string },
 ): Promise<import("./spring-page").SpringPage<RenegociacaoConsultaItem>> {
-  const url = getRenegociacoesConsultaUrl(page, size, q);
+  const url = getRenegociacoesConsultaUrl(page, size, q, filtro);
   if (!url) throw new Error("API não configurada");
   const res = await apiFetch(url);
   if (!res.ok) throw new Error(await parseError(res));
@@ -430,6 +434,28 @@ export async function listarDocumentosRenegociacao(
   const url = getRenegociacaoDocumentosUrl(contratoId, renegociacaoId);
   if (!url) throw new Error("API não configurada");
   const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function obterAssinaturaRenegociacao(
+  contratoId: number,
+  renegociacaoId: number,
+): Promise<AssinaturaRenegociacao> {
+  const url = getRenegociacaoAssinaturaUrl(contratoId, renegociacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function enviarAditivoClicksign(
+  contratoId: number,
+  renegociacaoId: number,
+): Promise<AssinaturaRenegociacao> {
+  const url = getRenegociacaoEnviarClicksignUrl(contratoId, renegociacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url, { method: "POST" });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }

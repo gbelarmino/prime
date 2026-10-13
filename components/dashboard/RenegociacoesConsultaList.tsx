@@ -4,11 +4,12 @@ import { useCallback, useRef, useState, type MouseEvent } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, GitCompareArrows, Eye, Ban, User } from "lucide-react";
+import { Search, GitCompareArrows, Eye, Ban, User, X } from "lucide-react";
 import { DataTable, type DataTablePageEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
+import { MultiSelect } from "primereact/multiselect";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
 import { toast } from "sonner";
@@ -31,14 +32,26 @@ import {
 import { renegociacaoStatusBadge } from "@/lib/renegociacao-status-badge";
 import { cn } from "@/lib/utils";
 import { formatBusinessDateTime } from "@/lib/format-datetime";
+import { DashboardCalendar } from "@/lib/dashboard-calendar";
+import { dashboardMultiSelectPt } from "@/lib/dashboard-multiselect";
+import { formatIsoDate, normalizarDataCalendario } from "@/lib/fin-vencimento";
 import { buildRenegociacaoDashboardUrl } from "@/lib/renegociacao-routes";
 import { cancelarRenegociacao } from "@/lib/renegociacao-service";
 import type { RenegociacaoConsultaItem } from "@/lib/renegociacao-types";
 import {
   MODALIDADE_OPTIONS,
+  STATUS_RENEGOCIACAO_LABEL,
   renegociacaoEstaFechada,
   renegociacaoPodeSerCancelada,
+  type StatusRenegociacao,
 } from "@/lib/renegociacao-types";
+
+const STATUS_FILTRO_OPTIONS = (Object.keys(STATUS_RENEGOCIACAO_LABEL) as StatusRenegociacao[]).map(
+  (value) => ({ label: STATUS_RENEGOCIACAO_LABEL[value], value }),
+);
+
+const FILTRO_CALENDAR_INPUT =
+  "w-full rounded-xl rounded-r-none border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white";
 
 const PAGE_SIZE = 10;
 
@@ -53,10 +66,18 @@ export function RenegociacoesConsultaList() {
   const [menuModel, setMenuModel] = useState<MenuItem[]>([]);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [statusFiltro, setStatusFiltro] = useState<StatusRenegociacao[]>([]);
+  const [criadoDe, setCriadoDe] = useState<Date | null>(null);
+  const [criadoAte, setCriadoAte] = useState<Date | null>(null);
 
   const buildUrl = useCallback(
-    (page: number, size: number, q: string) => getRenegociacoesConsultaUrl(page, size, q),
-    [],
+    (page: number, size: number, q: string) =>
+      getRenegociacoesConsultaUrl(page, size, q, {
+        status: statusFiltro.length > 0 ? statusFiltro : undefined,
+        criadoDe: criadoDe ? formatIsoDate(criadoDe) : undefined,
+        criadoAte: criadoAte ? formatIsoDate(criadoAte) : undefined,
+      }),
+    [statusFiltro, criadoDe, criadoAte],
   );
 
   const {
@@ -76,6 +97,29 @@ export function RenegociacoesConsultaList() {
 
   const rows = pageData?.content ?? [];
   const totalRecords = pageData?.totalElements ?? 0;
+  const filtrosAtivos = statusFiltro.length > 0 || criadoDe != null || criadoAte != null;
+
+  const aplicarStatus = (next: StatusRenegociacao[]) => {
+    setStatusFiltro(next);
+    setPage(0);
+  };
+
+  const aplicarCriadoDe = (next: Date | null) => {
+    setCriadoDe(next);
+    setPage(0);
+  };
+
+  const aplicarCriadoAte = (next: Date | null) => {
+    setCriadoAte(next);
+    setPage(0);
+  };
+
+  const limparFiltros = () => {
+    setStatusFiltro([]);
+    setCriadoDe(null);
+    setCriadoAte(null);
+    setPage(0);
+  };
 
   const onPageChange = (event: DataTablePageEvent) => {
     setPage(event.page ?? 0);
@@ -185,7 +229,7 @@ export function RenegociacoesConsultaList() {
   };
 
   const header = (
-    <div className="flex w-full min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex w-full min-w-0 flex-col gap-4">
       <div className="relative min-w-0 w-full md:max-w-md">
         <Search className={DASHBOARD_SEARCH_ICON_HEADER_CLASS} size={18} aria-hidden />
         <InputText
@@ -196,22 +240,79 @@ export function RenegociacoesConsultaList() {
           pt={{ root: { className: "w-full min-w-0" } }}
         />
       </div>
-      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <div className="text-sm whitespace-nowrap text-white/40">
-          <span className="font-bold text-white">{totalRecords}</span> renegociações encontradas
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[14rem] flex-1 sm:max-w-xs">
+          <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-white/35">
+            Status
+          </span>
+          <MultiSelect
+            value={statusFiltro}
+            options={STATUS_FILTRO_OPTIONS}
+            optionLabel="label"
+            optionValue="value"
+            onChange={(e) => aplicarStatus((e.value as StatusRenegociacao[] | null) ?? [])}
+            placeholder="Todos os status"
+            display="chip"
+            maxSelectedLabels={2}
+            selectedItemsLabel="{0} status"
+            filter
+            pt={dashboardMultiSelectPt()}
+            className="w-full"
+          />
         </div>
-        <Link href="/dashboard/contratos/renegociacao" className="shrink-0">
-          <Button
+        <div className="w-[11.5rem]">
+          <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-white/35">
+            Criação de
+          </span>
+          <DashboardCalendar
+            value={criadoDe}
+            onChange={(e) => aplicarCriadoDe(normalizarDataCalendario(e.value))}
+            maxDate={criadoAte ?? undefined}
+            placeholder="dd/mm/aaaa"
+            inputClassName={FILTRO_CALENDAR_INPUT}
+            className="w-full"
+          />
+        </div>
+        <div className="w-[11.5rem]">
+          <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-white/35">
+            Criação até
+          </span>
+          <DashboardCalendar
+            value={criadoAte}
+            onChange={(e) => aplicarCriadoAte(normalizarDataCalendario(e.value))}
+            minDate={criadoDe ?? undefined}
+            placeholder="dd/mm/aaaa"
+            inputClassName={FILTRO_CALENDAR_INPUT}
+            className="w-full"
+          />
+        </div>
+        {filtrosAtivos ? (
+          <button
             type="button"
-            className={cn(
-              "w-full border border-violet-500/30 bg-violet-600/20 text-violet-200",
-              "hover:bg-violet-600/30 sm:w-auto",
-            )}
+            onClick={limparFiltros}
+            className="mb-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white"
           >
-            <GitCompareArrows className="mr-2 h-4 w-4" aria-hidden />
-            Nova renegociação
-          </Button>
-        </Link>
+            <X size={12} />
+            Limpar
+          </button>
+        ) : null}
+        <div className="mb-1 flex shrink-0 flex-col gap-3 sm:ml-auto sm:flex-row sm:items-center sm:justify-end">
+          <div className="text-sm whitespace-nowrap text-white/40">
+            <span className="font-bold text-white">{totalRecords}</span> renegociações encontradas
+          </div>
+          <Link href="/dashboard/contratos/renegociacao" className="shrink-0">
+            <Button
+              type="button"
+              className={cn(
+                "w-full border border-violet-500/30 bg-violet-600/20 text-violet-200",
+                "hover:bg-violet-600/30 sm:w-auto",
+              )}
+            >
+              <GitCompareArrows className="mr-2 h-4 w-4" aria-hidden />
+              Nova renegociação
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );
