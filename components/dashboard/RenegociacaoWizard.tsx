@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Calculator, Download, Scale } from "lucide-react";
+import { ArrowRight, Calculator, Download, Eye, Scale } from "lucide-react";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
@@ -60,6 +60,7 @@ import {
   alinharSimulacaoQuitacaoT4,
   baixarAditivoPdfT1,
   baixarPropostaPdfT1,
+  verAditivoPdfT1,
   simularQuitacaoLocal,
   simularRenegociacao,
   simularViaCondicoesVersao,
@@ -693,6 +694,23 @@ export function RenegociacaoWizard({
       toast.success("Aditivo T1 baixado.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao baixar aditivo");
+    } finally {
+      setBaixandoAditivo(false);
+    }
+  };
+
+  const verAditivoT1Pdf = async () => {
+    const procId = renegociacaoId;
+    const simId = simulacao?.simulacaoId;
+    if (procId == null || procId <= 0 || simId == null) {
+      toast.error("A simulação desta renegociação não está disponível para abrir o aditivo.");
+      return;
+    }
+    setBaixandoAditivo(true);
+    try {
+      await verAditivoPdfT1(contratoId, procId, simId);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao abrir o aditivo");
     } finally {
       setBaixandoAditivo(false);
     }
@@ -1472,6 +1490,17 @@ export function RenegociacaoWizard({
                       label="Painel de atendimento"
                     />
                   </Link>
+                ) : processoJaEfetivado && modalidade === "T1_PARCELAS_VENCIDAS" ? (
+                  <Button
+                    type="button"
+                    label="Ver aditivo"
+                    icon={<Eye className="mr-2 h-4 w-4" />}
+                    loading={baixandoAditivo}
+                    disabled={baixandoAditivo || simulacao?.simulacaoId == null}
+                    onClick={() => void verAditivoT1Pdf()}
+                    severity="secondary"
+                    className="rounded-full border-white/10 bg-white/5 text-white"
+                  />
                 ) : null}
               </div>
             </FormSection>

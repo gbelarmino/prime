@@ -185,6 +185,31 @@ export async function baixarAditivoPdfT1(
   baixarBlob(blob, filename);
 }
 
+/** Abre o PDF do aditivo T1 no visualizador do navegador. */
+export async function verAditivoPdfT1(
+  contratoId: number,
+  renegociacaoId: number,
+  simulacaoId: number,
+): Promise<void> {
+  const url = getRenegociacaoAditivoPdfUrl(contratoId, renegociacaoId, simulacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  const bruto = await res.blob();
+  const pdf = bruto.type === "application/pdf" ? bruto : new Blob([bruto], { type: "application/pdf" });
+  const objectUrl = URL.createObjectURL(pdf);
+  const aba = window.open(objectUrl, "_blank", "noopener");
+  if (!aba) {
+    const filename =
+      tryGetFilenameFromDisposition(res.headers.get("Content-Disposition")) ??
+      `aditivo-t1-contrato-${contratoId}.pdf`;
+    URL.revokeObjectURL(objectUrl);
+    baixarBlob(pdf, filename);
+    return;
+  }
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
 /** Ponte Fase 1: T2/T3 usam motor de condições até o endpoint unificado existir. */
 export async function simularViaCondicoesVersao(
   contratoId: number,
