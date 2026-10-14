@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Calculator, Download, Eye, Scale } from "lucide-react";
+import { ArrowRight, Calculator, Download, Eye, Scale, Send } from "lucide-react";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
@@ -60,7 +60,10 @@ import {
   alinharSimulacaoQuitacaoT4,
   baixarAditivoPdfT1,
   baixarPropostaPdfT1,
+  enviarAditivoClicksign,
+  obterAssinaturaRenegociacao,
   verAditivoPdfT1,
+  verDocumentoRenegociacao,
   simularQuitacaoLocal,
   simularRenegociacao,
   simularViaCondicoesVersao,
@@ -83,6 +86,9 @@ import { QuitacaoLiquidacaoMemoriaCard } from "@/components/dashboard/renegociac
 import { T1AcordoDetalheCard } from "@/components/dashboard/renegociacao-form/T1AcordoDetalheCard";
 import { RenegociacaoDocumentosStep } from "@/components/dashboard/renegociacao-form/RenegociacaoDocumentosStep";
 import { RenegociacaoAssinaturaStep } from "@/components/dashboard/renegociacao-form/RenegociacaoAssinaturaStep";
+import { getTenantId } from "@/lib/auth-storage";
+import { isRenegociacaoAssinaturaEvent } from "@/lib/renegociacao-assinatura-realtime";
+import { subscribeRealtime } from "@/lib/realtime-socket";
 import { RenegociacaoEfetivacaoResumo } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResumo";
 import { RenegociacaoEfetivacaoResultado } from "@/components/dashboard/renegociacao-form/RenegociacaoEfetivacaoResultado";
 import {
@@ -94,6 +100,7 @@ import {
   type EfetivarRenegociacaoResultado,
   type StatusRenegociacao,
   type DocumentoRenegociacao,
+  type AssinaturaRenegociacao,
 } from "@/lib/renegociacao-types";
 import {
   condicoesToApiPayload,
@@ -210,6 +217,8 @@ export function RenegociacaoWizard({
   const [encargos, setEncargos] = useState<BoletoEncargosConfig | null>(null);
   const [baixandoProposta, setBaixandoProposta] = useState(false);
   const [baixandoAditivo, setBaixandoAditivo] = useState(false);
+  const [enviandoClicksign, setEnviandoClicksign] = useState(false);
+  const [assinaturaEfetivada, setAssinaturaEfetivada] = useState<AssinaturaRenegociacao | null>(null);
   const [efetivacaoResultado, setEfetivacaoResultado] = useState<EfetivarRenegociacaoResultado | null>(
     null,
   );
@@ -219,6 +228,43 @@ export function RenegociacaoWizard({
     statusProcesso === "EFETIVADO" || efetivacaoResultado?.concluida === true;
   const processoFechado =
     statusProcesso != null && renegociacaoEstaFechada(statusProcesso);
+  const versaoAssinadaDisponivel =
+    assinaturaEfetivada?.statusDocumento === "ASSINADO" &&
+    assinaturaEfetivada.provedorAssinatura === "CLICKSIGN" &&
+    assinaturaEfetivada.documentoId != null;
+  const aguardandoAssinaturaClicksign =
+    assinaturaEfetivada?.enviadoClicksign === true && !versaoAssinadaDisponivel;
+
+  const carregarAssinaturaEfetivada = useCallback(async () => {
+    if (
+      !processoJaEfetivado ||
+      modalidade !== "T1_PARCELAS_VENCIDAS" ||
+      renegociacaoId == null ||
+      renegociacaoId <= 0
+    ) {
+      return;
+    }
+    try {
+      setAssinaturaEfetivada(await obterAssinaturaRenegociacao(contratoId, renegociacaoId));
+    } catch {
+      /* a minuta gerada continua disponível */
+    }
+  }, [contratoId, modalidade, processoJaEfetivado, renegociacaoId]);
+
+  useEffect(() => {
+    void carregarAssinaturaEfetivada();
+  }, [carregarAssinaturaEfetivada]);
+
+  useEffect(() => {
+    if (renegociacaoId == null || renegociacaoId <= 0) return;
+    const tenantId = getTenantId();
+    return subscribeRealtime((data) => {
+      if (!isRenegociacaoAssinaturaEvent(data)) return;
+      if (data.renegociacaoId !== renegociacaoId) return;
+      if (tenantId != null && data.tenantId !== tenantId) return;
+      void carregarAssinaturaEfetivada();
+    });
+  }, [carregarAssinaturaEfetivada, renegociacaoId]);
 
   useEffect(() => {
     if (processoFechado && step !== LAST_STEP) {
@@ -701,6 +747,18 @@ export function RenegociacaoWizard({
 
   const verAditivoT1Pdf = async () => {
     const procId = renegociacaoId;
+    const documentoAssinadoId = versaoAssinadaDisponivel ? assinaturaEfetivada?.documentoId : null;
+    if (procId != null && procId > 0 && documentoAssinadoId != null) {
+      setBaixandoAditivo(true);
+      try {
+        await verDocumentoRenegociacao(contratoId, procId, documentoAssinadoId);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Falha ao abrir o aditivo assinado");
+      } finally {
+        setBaixandoAditivo(false);
+      }
+      return;
+    }
     const simId = simulacao?.simulacaoId;
     if (procId == null || procId <= 0 || simId == null) {
       toast.error("A simulação desta renegociação não está disponível para abrir o aditivo.");
@@ -713,6 +771,20 @@ export function RenegociacaoWizard({
       toast.error(e instanceof Error ? e.message : "Falha ao abrir o aditivo");
     } finally {
       setBaixandoAditivo(false);
+    }
+  };
+
+  const enviarAditivoEfetivado = async () => {
+    const procId = renegociacaoId;
+    if (procId == null || procId <= 0) return;
+    setEnviandoClicksign(true);
+    try {
+      setAssinaturaEfetivada(await enviarAditivoClicksign(contratoId, procId));
+      toast.success("Aditivo enviado para assinatura na Clicksign.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao enviar para a Clicksign.");
+    } finally {
+      setEnviandoClicksign(false);
     }
   };
 
@@ -1491,16 +1563,40 @@ export function RenegociacaoWizard({
                     />
                   </Link>
                 ) : processoJaEfetivado && modalidade === "T1_PARCELAS_VENCIDAS" ? (
-                  <Button
-                    type="button"
-                    label="Ver aditivo"
-                    icon={<Eye className="mr-2 h-4 w-4" />}
-                    loading={baixandoAditivo}
-                    disabled={baixandoAditivo || simulacao?.simulacaoId == null}
-                    onClick={() => void verAditivoT1Pdf()}
-                    severity="secondary"
-                    className="rounded-full border-white/10 bg-white/5 text-white"
-                  />
+                  <>
+                    {aguardandoAssinaturaClicksign ? (
+                      <p className="mr-auto text-sm text-amber-100/90">
+                        Aguardando a assinatura na Clicksign.
+                      </p>
+                    ) : null}
+                    {assinaturaEfetivada != null &&
+                    !versaoAssinadaDisponivel &&
+                    !aguardandoAssinaturaClicksign ? (
+                      <Button
+                        type="button"
+                        label="Enviar para Clicksign"
+                        icon={<Send className="mr-2 h-4 w-4" />}
+                        loading={enviandoClicksign}
+                        disabled={enviandoClicksign || baixandoAditivo}
+                        onClick={() => void enviarAditivoEfetivado()}
+                        className="rounded-full border-0 bg-violet-600 px-6 text-white"
+                      />
+                    ) : null}
+                    <Button
+                      type="button"
+                      label={versaoAssinadaDisponivel ? "Ver aditivo assinado" : "Ver aditivo"}
+                      icon={<Eye className="mr-2 h-4 w-4" />}
+                      loading={baixandoAditivo}
+                      disabled={
+                        baixandoAditivo ||
+                        enviandoClicksign ||
+                        (!versaoAssinadaDisponivel && simulacao?.simulacaoId == null)
+                      }
+                      onClick={() => void verAditivoT1Pdf()}
+                      severity="secondary"
+                      className="rounded-full border-white/10 bg-white/5 text-white"
+                    />
+                  </>
                 ) : null}
               </div>
             </FormSection>

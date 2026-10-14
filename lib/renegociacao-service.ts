@@ -11,6 +11,7 @@ import {
   getRenegociacaoGerarDocumentosUrl,
   getRenegociacaoDocumentosUrl,
   getRenegociacaoDocumentoUploadUrl,
+  getRenegociacaoDocumentoDownloadUrl,
   getRenegociacaoAditivoPdfUrl,
   getRenegociacaoAssinaturaUrl,
   getRenegociacaoEnviarClicksignUrl,
@@ -195,14 +196,29 @@ export async function verAditivoPdfT1(
   if (!url) throw new Error("API não configurada");
   const res = await apiFetch(url);
   if (!res.ok) throw new Error(await parseError(res));
+  await abrirPdfNoNavegador(res, `aditivo-t1-contrato-${contratoId}.pdf`);
+}
+
+/** Abre o PDF já gravado no processo (a versão assinada, quando a Clicksign fechou). */
+export async function verDocumentoRenegociacao(
+  contratoId: number,
+  renegociacaoId: number,
+  documentoId: number,
+): Promise<void> {
+  const url = getRenegociacaoDocumentoDownloadUrl(contratoId, renegociacaoId, documentoId, false);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  await abrirPdfNoNavegador(res, `aditivo-assinado-${renegociacaoId}.pdf`);
+}
+
+async function abrirPdfNoNavegador(res: Response, fallbackName: string): Promise<void> {
   const bruto = await res.blob();
   const pdf = bruto.type === "application/pdf" ? bruto : new Blob([bruto], { type: "application/pdf" });
   const objectUrl = URL.createObjectURL(pdf);
   const aba = window.open(objectUrl, "_blank", "noopener");
   if (!aba) {
-    const filename =
-      tryGetFilenameFromDisposition(res.headers.get("Content-Disposition")) ??
-      `aditivo-t1-contrato-${contratoId}.pdf`;
+    const filename = tryGetFilenameFromDisposition(res.headers.get("Content-Disposition")) ?? fallbackName;
     URL.revokeObjectURL(objectUrl);
     baixarBlob(pdf, filename);
     return;
