@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import type { WhatsAppConversa } from "@/lib/atendimento-chat-service";
+import { janelaEstadoEfetivo, janelaPodeTextoLivre } from "@/lib/whatsapp-janela";
 import { ConversaListItem } from "./ConversaListItem";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,22 @@ export function ConversaInboxColumn({
     let list = conversas;
     if (soNaoLidas) {
       list = list.filter((c) => (c.naoLidas ?? 0) > 0);
+    } else if (filtroStatus === "ABERTA") {
+      // Chip "Abertas" = janela Meta aberta (texto livre), não o status do ticket.
+      // Status ABERTA no banco inclui cobranças só outbound ("Sem inbound").
+      list = list.filter((c) => {
+        const st = (c.status ?? "").toUpperCase();
+        if (st === "RESOLVIDA") return false;
+        const janela = janelaEstadoEfetivo(
+          c.janelaEstado,
+          c.janelaExpiraEm,
+          c.janelaRestanteSegundos ?? 0,
+          listNow,
+        );
+        return janelaPodeTextoLivre(janela);
+      });
+    } else if (filtroStatus === "PENDENTE" || filtroStatus === "RESOLVIDA") {
+      list = list.filter((c) => (c.status ?? "").toUpperCase() === filtroStatus);
     }
     if (buscaDeferred) {
       list = list.filter((c) => {
@@ -55,7 +72,7 @@ export function ConversaInboxColumn({
       });
     }
     return list;
-  }, [conversas, soNaoLidas, buscaDeferred]);
+  }, [conversas, soNaoLidas, buscaDeferred, filtroStatus, listNow]);
 
   return (
     <aside className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[var(--wa-desk-surface)]">
@@ -117,7 +134,8 @@ export function ConversaInboxColumn({
           </Chip>
           {(
             [
-              ["ABERTA", "Abertas"],
+              // ABERTA = janela Meta (texto livre); PENDENTE/RESOLVIDA = status do ticket
+              ["ABERTA", "Janela aberta"],
               ["PENDENTE", "Pendentes"],
               ["RESOLVIDA", "Resolvidas"],
             ] as const
@@ -156,7 +174,15 @@ export function ConversaInboxColumn({
         ))}
         {!loading && filtradas.length === 0 ? (
           <li className="px-3 py-8 text-center text-sm text-white/30">
-            {buscaDeferred || soNaoLidas ? "Nenhum resultado" : "Nenhuma conversa"}
+            {buscaDeferred || soNaoLidas
+              ? "Nenhum resultado"
+              : filtroStatus === "ABERTA"
+                ? "Nenhuma janela aberta"
+                : filtroStatus === "PENDENTE"
+                  ? "Nenhuma pendente"
+                  : filtroStatus === "RESOLVIDA"
+                    ? "Nenhuma resolvida"
+                    : "Nenhuma conversa"}
           </li>
         ) : null}
       </ul>

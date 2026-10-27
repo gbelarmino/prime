@@ -81,3 +81,33 @@ export function janelaAvatarRingClass(estado: string | null | undefined): string
   if (e === "FECHADA") return "wa-desk__avatar-ring--fechada";
   return "wa-desk__avatar-ring--sem_inbound";
 }
+
+/** Badge do status do ticket (ABERTA / PENDENTE / RESOLVIDA), distinto da janela Meta. */
+export function conversaStatusBadge(status: string | null | undefined): {
+  label: string;
+  className: string;
+} {
+  const s = (status ?? "").toUpperCase();
+  if (s === "ABERTA") {
+    return {
+      label: "Em aberto",
+      className: "bg-blue-500/15 text-blue-200/90 ring-blue-400/35",
+    };
+  }
+  if (s === "PENDENTE") {
+    return {
+      label: "Pendente",
+      className: "bg-amber-500/15 text-amber-200/90 ring-amber-400/35",
+    };
+  }
+  if (s === "RESOLVIDA") {
+    return {
+      label: "Resolvida",
+      className: "bg-white/5 text-white/45 ring-white/15",
+    };
+  }
+  return {
+    label: status || "—",
+    className: "bg-white/5 text-white/45 ring-white/15",
+  };
+}

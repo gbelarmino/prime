@@ -1,8 +1,14 @@
 "use client";
 
 import type { WhatsAppConversa } from "@/lib/atendimento-chat-service";
-import { janelaBadgeClass, janelaBadgeLabel, segundosAte } from "@/lib/whatsapp-janela";
 import {
+  janelaBadgeClass,
+  janelaBadgeLabel,
+  janelaEstadoEfetivo,
+  segundosAte,
+} from "@/lib/whatsapp-janela";
+import {
+  conversaStatusBadge,
   formatHoraRelativaLista,
   iniciaisTitulo,
   janelaAvatarRingClass,
@@ -23,9 +29,16 @@ export function ConversaListItem({ conversa: c, selected, flash, nowMs, onSelect
   const restante = c.janelaExpiraEm
     ? segundosAte(c.janelaExpiraEm, nowMs)
     : (c.janelaRestanteSegundos ?? 0);
+  const janela = janelaEstadoEfetivo(
+    c.janelaEstado,
+    c.janelaExpiraEm,
+    c.janelaRestanteSegundos ?? 0,
+    nowMs,
+  );
+  const statusBadge = conversaStatusBadge(c.status);
   const hora = formatHoraRelativaLista(c.dataUltimaMensagem, nowMs);
   const preview = c.ultimaMensagemPreview?.trim() || "Sem mensagens";
-  const fechando = (c.janelaEstado ?? "").toUpperCase() === "FECHANDO";
+  const fechando = janela === "FECHANDO";
 
   return (
     <li role="option" aria-selected={selected}>
@@ -42,7 +55,7 @@ export function ConversaListItem({ conversa: c, selected, flash, nowMs, onSelect
         <span
           className={cn(
             "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold tracking-wide text-white/80",
-            janelaAvatarRingClass(c.janelaEstado),
+            janelaAvatarRingClass(janela),
           )}
           aria-hidden
         >
@@ -71,11 +84,17 @@ export function ConversaListItem({ conversa: c, selected, flash, nowMs, onSelect
               </span>
             ) : null}
           </span>
-          <span className="mt-1 flex items-center gap-1.5">
+          <span className="mt-1 flex flex-wrap items-center gap-1.5">
             <span
-              className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset ${janelaBadgeClass(c.janelaEstado)}`}
+              className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset ${janelaBadgeClass(janela)}`}
             >
-              {janelaBadgeLabel(c.janelaEstado, restante)}
+              {janelaBadgeLabel(janela, restante)}
+            </span>
+            <span
+              className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset ${statusBadge.className}`}
+              title="Status do atendimento"
+            >
+              {statusBadge.label}
             </span>
           </span>
         </span>

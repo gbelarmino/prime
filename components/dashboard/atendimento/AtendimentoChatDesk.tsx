@@ -218,9 +218,13 @@ export function AtendimentoChatDesk() {
   const carregarConversas = useCallback(async () => {
     setLoadingConversas(true);
     try {
-      const list = await atendimentoChatService.listarConversas(
-        filtroStatus || undefined,
-      );
+      // "Abertas" filtra janela Meta no client — busca a lista completa.
+      // Pendentes/Resolvidas usam o status do ticket na API.
+      const statusApi =
+        filtroStatus === "PENDENTE" || filtroStatus === "RESOLVIDA"
+          ? filtroStatus
+          : undefined;
+      const list = await atendimentoChatService.listarConversas(statusApi);
       setConversas(list);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha ao listar conversas");

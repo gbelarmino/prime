@@ -43,6 +43,27 @@ export function janelaPodeTextoLivre(estado: string | null | undefined): boolean
   return e === "ABERTA" || e === "FECHANDO";
 }
 
+/**
+ * Estado da janela Meta “ao vivo”: se o countdown zerou, trata como FECHADA
+ * (o backend pode ainda devolver ABERTA/FECHANDO até o próximo refresh).
+ */
+export function janelaEstadoEfetivo(
+  estado: string | null | undefined,
+  expiraEmIso: string | null | undefined,
+  restanteSegundosFallback = 0,
+  nowMs = Date.now(),
+): JanelaEstadoUi {
+  const raw = (estado ?? "SEM_INBOUND").toUpperCase();
+  if (raw === "SEM_INBOUND") return "SEM_INBOUND";
+  const restante = expiraEmIso
+    ? segundosAte(expiraEmIso, nowMs)
+    : Math.max(0, restanteSegundosFallback);
+  if (restante <= 0) return "FECHADA";
+  if (raw === "FECHANDO") return "FECHANDO";
+  if (raw === "FECHADA") return "FECHADA";
+  return "ABERTA";
+}
+
 export function janelaHeaderText(
   estado: string | null | undefined,
   restanteSegundos: number,
