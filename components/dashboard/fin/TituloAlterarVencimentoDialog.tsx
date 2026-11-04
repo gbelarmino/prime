@@ -23,7 +23,6 @@ const DIALOG_PT = {
     className:
       "border-b border-white/[0.06] bg-transparent px-6 py-5 font-[family-name:var(--font-playfair)] text-xl font-semibold text-white",
   },
-  // overflow-visible: o painel do Calendar não pode ser cortado/bloquear clique no Dialog
   content: { className: "bg-transparent overflow-visible px-6 py-6" },
   footer: { className: "border-t border-white/[0.06] bg-transparent px-6 py-5" },
   mask: { className: "backdrop-blur-sm bg-black/40" },
@@ -39,6 +38,12 @@ function toIsoDate(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function startOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 type TituloAlterarVencimentoDialogProps = {
@@ -59,29 +64,31 @@ export function TituloAlterarVencimentoDialog({
   const [novaData, setNovaData] = useState<Date | null>(null);
   const [observacao, setObservacao] = useState("");
 
-  const vencimentoAtual = titulo?.vencimento ? parseIsoDate(titulo.vencimento) : null;
+  // Chave estável (ISO) — evita recriar Date a cada render e resetar a seleção.
+  const vencimentoAtualIso = titulo?.vencimento ?? null;
 
   const minDate = useMemo(() => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    if (!vencimentoAtual) return hoje;
-    const diaAposVencimento = new Date(vencimentoAtual);
+    const hoje = startOfDay(new Date());
+    if (!vencimentoAtualIso) return hoje;
+    const diaAposVencimento = parseIsoDate(vencimentoAtualIso);
     diaAposVencimento.setDate(diaAposVencimento.getDate() + 1);
     return diaAposVencimento > hoje ? diaAposVencimento : hoje;
-  }, [vencimentoAtual]);
+  }, [vencimentoAtualIso]);
+
+  const minDateIso = useMemo(() => toIsoDate(minDate), [minDate]);
 
   const maxDate = useMemo(() => {
     if (!titulo?.cadastroEm) return undefined;
-    const base = new Date(titulo.cadastroEm);
+    const base = startOfDay(new Date(titulo.cadastroEm));
     base.setFullYear(base.getFullYear() + 10);
     return base;
   }, [titulo?.cadastroEm]);
 
   useEffect(() => {
     if (!visible) return;
-    setNovaData(minDate);
+    setNovaData(parseIsoDate(minDateIso));
     setObservacao("");
-  }, [visible, minDate, titulo?.id]);
+  }, [visible, minDateIso, titulo?.id]);
 
   const confirmDisabled = !novaData || loading;
 
@@ -129,25 +136,31 @@ export function TituloAlterarVencimentoDialog({
             <span className="font-medium text-white">{formatBusinessDate(titulo.vencimento)}</span>
           </p>
         ) : null}
-        <div className="relative z-20">
+        <div>
           <label className={FORM_LABEL_CLASS}>Nova data de vencimento</label>
-          <p className="mb-2 text-xs text-white/40">
+          <p className="mb-3 text-xs text-white/40">
             Só datas a partir de{" "}
-            <span className="font-medium text-white/70">{formatBusinessDate(toIsoDate(minDate))}</span>{" "}
+            <span className="font-medium text-white/70">{formatBusinessDate(minDateIso)}</span>{" "}
             (dia seguinte ao vencimento atual). Dias cinza estão bloqueados de propósito.
           </p>
-          <DashboardCalendar
-            value={novaData}
-            onChange={(e) => setNovaData((e.value as Date | null) ?? null)}
-            minDate={minDate}
-            maxDate={maxDate}
-            // Overlay no body + Dialog: cliques no dia eram engolidos. Mantém o painel no modal.
-            appendTo="self"
-            panelClassName="z-[2000]"
-            className="w-full"
-            inputClassName={FORM_INPUT_CLASS}
-            disabled={loading}
-          />
+          <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] p-2">
+            <DashboardCalendar
+              value={novaData}
+              onChange={(e) => setNovaData((e.value as Date | null) ?? null)}
+              minDate={minDate}
+              maxDate={maxDate}
+              // Inline: sem overlay — evita conflito de clique com o Dialog.
+              inline
+              className="w-full border-0 bg-transparent"
+              disabled={loading}
+            />
+          </div>
+          {novaData ? (
+            <p className="mt-2 text-sm text-white/60">
+              Selecionado:{" "}
+              <span className="font-medium text-white">{formatBusinessDate(toIsoDate(novaData))}</span>
+            </p>
+          ) : null}
         </div>
         <div>
           <label className={FORM_LABEL_CLASS}>Observação (opcional)</label>
