@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DashboardDialog } from "@/components/dashboard/DashboardDialog";
-import { Calendar } from "primereact/calendar";
 import { InputTextarea } from "primereact/inputtextarea";
 import type { TituloCobranca } from "@/lib/fin-service";
 import { formatBusinessDate } from "@/lib/format-datetime";
+import {
+  DashboardCalendar,
+  DASHBOARD_FORM_INPUT_CLASS,
+} from "@/lib/dashboard-calendar";
 
 export type TituloAlterarVencimentoPayload = {
   novaDataVencimento: string;
@@ -13,15 +16,15 @@ export type TituloAlterarVencimentoPayload = {
 };
 
 const FORM_LABEL_CLASS = "text-[10px] font-bold uppercase tracking-[0.2em] text-white/35";
-const FORM_INPUT_CLASS =
-  "w-full rounded-xl border border-white/10 bg-white/[0.05] p-3 text-sm text-white placeholder:text-white/25";
+const FORM_INPUT_CLASS = DASHBOARD_FORM_INPUT_CLASS;
 
 const DIALOG_PT = {
   header: {
     className:
       "border-b border-white/[0.06] bg-transparent px-6 py-5 font-[family-name:var(--font-playfair)] text-xl font-semibold text-white",
   },
-  content: { className: "bg-transparent px-6 py-6" },
+  // overflow-visible: o painel do Calendar não pode ser cortado/bloquear clique no Dialog
+  content: { className: "bg-transparent overflow-visible px-6 py-6" },
   footer: { className: "border-t border-white/[0.06] bg-transparent px-6 py-5" },
   mask: { className: "backdrop-blur-sm bg-black/40" },
 };
@@ -126,15 +129,21 @@ export function TituloAlterarVencimentoDialog({
             <span className="font-medium text-white">{formatBusinessDate(titulo.vencimento)}</span>
           </p>
         ) : null}
-        <div>
+        <div className="relative z-20">
           <label className={FORM_LABEL_CLASS}>Nova data de vencimento</label>
-          <Calendar
+          <p className="mb-2 text-xs text-white/40">
+            Só datas a partir de{" "}
+            <span className="font-medium text-white/70">{formatBusinessDate(toIsoDate(minDate))}</span>{" "}
+            (dia seguinte ao vencimento atual). Dias cinza estão bloqueados de propósito.
+          </p>
+          <DashboardCalendar
             value={novaData}
             onChange={(e) => setNovaData((e.value as Date | null) ?? null)}
-            dateFormat="dd/mm/yy"
             minDate={minDate}
             maxDate={maxDate}
-            showIcon
+            // Overlay no body + Dialog: cliques no dia eram engolidos. Mantém o painel no modal.
+            appendTo="self"
+            panelClassName="z-[2000]"
             className="w-full"
             inputClassName={FORM_INPUT_CLASS}
             disabled={loading}
