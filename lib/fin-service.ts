@@ -31,6 +31,7 @@ import {
   getFinConciliacaoSessaoUrl,
   getFinConciliacaoSessoesUrl,
   getFinUnicredWebhookConciliacaoByIdUrl,
+  getFinUnicredWebhookConciliacaoBuscarTitulosUrl,
   getFinUnicredWebhookConciliacaoCriarTituloUrl,
   getFinUnicredWebhookConciliacaoIgnorarUrl,
   getFinUnicredWebhookConciliacaoListUrl,
@@ -1919,6 +1920,16 @@ export const finService = {
     options?: FinFetchOptions,
   ): Promise<UnicredWebhookConciliacaoDetalhe> {
     const res = await apiFetch(getFinUnicredWebhookConciliacaoByIdUrl(id), {
+      skipLoading: options?.skipLoading,
+    });
+    return parseJson(res);
+  },
+
+  async buscarTitulosUnicredConciliacao(
+    opts: { nossoNumero?: string; tituloId?: string },
+    options?: FinFetchOptions,
+  ): Promise<TituloCobranca[]> {
+    const res = await apiFetch(getFinUnicredWebhookConciliacaoBuscarTitulosUrl(opts), {
       skipLoading: options?.skipLoading,
     });
     return parseJson(res);

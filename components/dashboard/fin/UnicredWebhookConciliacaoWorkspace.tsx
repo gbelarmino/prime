@@ -130,6 +130,50 @@ function rotuloParcelaTitulo(t: TituloCobranca): string {
   return `P${t.numeroParcela}`;
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function TituloVinculoCard({
+  titulo,
+  selected,
+  onSelect,
+}: {
+  titulo: TituloCobranca;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "w-full rounded-xl border px-3 py-2.5 text-left text-sm transition",
+        selected
+          ? "border-emerald-500/40 bg-emerald-500/10"
+          : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
+      )}
+    >
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="font-mono text-white/85">{titulo.numeroContrato ?? "—"}</span>
+        <span className="text-white/45"> · {rotuloParcelaTitulo(titulo)}</span>
+        <span className="tabular-nums text-white/75">{formatMoney(titulo.valorNominal)}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
+          {titulo.status}
+        </span>
+      </div>
+      {titulo.nomeCliente ? (
+        <p className="mt-1 truncate text-xs text-white/55">{titulo.nomeCliente}</p>
+      ) : null}
+      <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-white/40">
+        <span className="font-mono">Nº {titulo.nossoNumero || "—"}</span>
+        <span>Venc. {formatVencimento(titulo.vencimento)}</span>
+        {titulo.convenioNome ? <span>{titulo.convenioNome}</span> : null}
+      </div>
+      <p className="mt-1 break-all font-mono text-[10px] text-white/25">{titulo.id}</p>
+    </button>
+  );
+}
+
 export function UnicredWebhookConciliacaoWorkspace() {
   const router = useRouter();
   const [statusFiltro, setStatusFiltro] = useState<UnicredWebhookConciliacaoStatus | "">("PENDENTE");
@@ -154,6 +198,11 @@ export function UnicredWebhookConciliacaoWorkspace() {
   const [dialogTabIndex, setDialogTabIndex] = useState(0);
   const [tituloSelecionado, setTituloSelecionado] = useState<TituloCobranca | null>(null);
   const [tituloIdManual, setTituloIdManual] = useState("");
+  const [buscaNossoNumero, setBuscaNossoNumero] = useState("");
+  const [buscaTituloUuid, setBuscaTituloUuid] = useState("");
+  const [titulosBusca, setTitulosBusca] = useState<TituloCobranca[]>([]);
+  const [buscaLoading, setBuscaLoading] = useState(false);
+  const [buscaFeita, setBuscaFeita] = useState(false);
   const [observacao, setObservacao] = useState("");
   const [convenios, setConvenios] = useState<ConvenioBanco[]>([]);
   const [criarContratoId, setCriarContratoId] = useState<number | null>(null);
@@ -252,6 +301,10 @@ export function UnicredWebhookConciliacaoWorkspace() {
     setDialogOpen(true);
     setTituloSelecionado(null);
     setTituloIdManual("");
+    setBuscaNossoNumero("");
+    setBuscaTituloUuid("");
+    setTitulosBusca([]);
+    setBuscaFeita(false);
     setDialogTabIndex(0);
     setObservacao("");
     try {
@@ -292,10 +345,52 @@ export function UnicredWebhookConciliacaoWorkspace() {
     setDetalhe(null);
   };
 
+  const selecionarTitulo = (t: TituloCobranca) => {
+    setTituloSelecionado(t);
+    setTituloIdManual(t.id);
+  };
+
+  const buscarTitulosManual = async () => {
+    const nosso = buscaNossoNumero.trim();
+    const uuid = buscaTituloUuid.trim();
+    if (!nosso && !uuid) {
+      toast.error("Informe o nosso número ou o UUID do título");
+      return;
+    }
+    if (uuid && !UUID_RE.test(uuid)) {
+      toast.error("UUID do título inválido");
+      return;
+    }
+    setBuscaLoading(true);
+    setBuscaFeita(true);
+    try {
+      const encontrados = await finService.buscarTitulosUnicredConciliacao(
+        { nossoNumero: nosso || undefined, tituloId: uuid || undefined },
+        { skipLoading: true },
+      );
+      setTitulosBusca(encontrados);
+      if (encontrados.length === 0) {
+        setTituloSelecionado(null);
+        setTituloIdManual("");
+        toast.message("Nenhum título encontrado com esses dados");
+      } else if (encontrados.length === 1) {
+        selecionarTitulo(encontrados[0]);
+      } else {
+        setTituloSelecionado(null);
+        setTituloIdManual("");
+      }
+    } catch (e) {
+      setTitulosBusca([]);
+      toast.error(e instanceof Error ? e.message : "Falha ao buscar títulos");
+    } finally {
+      setBuscaLoading(false);
+    }
+  };
+
   const executarVincular = async () => {
     const tituloId = tituloSelecionado?.id ?? tituloIdManual.trim();
     if (!selectedId || !tituloId) {
-      toast.error("Selecione um título ou informe o UUID");
+      toast.error("Selecione um título na lista ou busque pelo nosso número / UUID");
       return;
     }
     setActionLoading(true);
@@ -876,57 +971,97 @@ export function UnicredWebhookConciliacaoWorkspace() {
                         ) : (
                           <div className="flex flex-col gap-2">
                             {detalhe.sugestoesTitulos.map((t) => (
-                              <button
+                              <TituloVinculoCard
                                 key={t.id}
-                                type="button"
-                                onClick={() => {
-                                  setTituloSelecionado(t);
-                                  setTituloIdManual(t.id);
-                                }}
-                                className={cn(
-                                  "w-full rounded-xl border px-3 py-2.5 text-left text-sm transition",
-                                  tituloSelecionado?.id === t.id
-                                    ? "border-emerald-500/40 bg-emerald-500/10"
-                                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05]",
-                                )}
-                              >
-                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                  <span className="font-mono text-white/85">{t.numeroContrato}</span>
-                                  <span className="text-white/45"> · {rotuloParcelaTitulo(t)}</span>
-                                  <span className="tabular-nums text-white/75">
-                                    {formatMoney(t.valorNominal)}
-                                  </span>
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">
-                                    {t.status}
-                                  </span>
-                                </div>
-                                <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-white/40">
-                                  <span className="font-mono">Nº {t.nossoNumero || "—"}</span>
-                                  <span>Venc. {formatVencimento(t.vencimento)}</span>
-                                </div>
-                              </button>
+                                titulo={t}
+                                selected={tituloSelecionado?.id === t.id}
+                                onSelect={() => selecionarTitulo(t)}
+                              />
                             ))}
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className={FORM_LABEL_CLASS}>Ou informe o UUID do título</label>
-                        <InputText
-                          value={tituloIdManual}
-                          placeholder="UUID do título no sistema"
-                          className={cn(FORM_INPUT_CLASS, "font-mono")}
-                          onChange={(e) => {
-                            const id = e.target.value;
-                            setTituloIdManual(id);
-                            const trimmed = id.trim();
-                            if (!trimmed) {
-                              setTituloSelecionado(null);
-                              return;
-                            }
-                            const found = detalhe.sugestoesTitulos.find((t) => t.id === trimmed);
-                            setTituloSelecionado(found ?? ({ id: trimmed } as TituloCobranca));
-                          }}
-                        />
+
+                      <div className="flex flex-col gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                        <p className="text-xs text-white/40">
+                          Ou busque manualmente pelo nosso número e/ou UUID do título no Aires. Se
+                          houver mais de um resultado, escolha o correto na lista.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="flex flex-col gap-2">
+                            <label className={FORM_LABEL_CLASS}>Nosso número</label>
+                            <InputText
+                              value={buscaNossoNumero}
+                              placeholder="Ex.: 00000017922"
+                              className={cn(FORM_INPUT_CLASS, "font-mono")}
+                              disabled={buscaLoading}
+                              onChange={(e) => setBuscaNossoNumero(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void buscarTitulosManual();
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className={FORM_LABEL_CLASS}>UUID do título (Aires)</label>
+                            <InputText
+                              value={buscaTituloUuid}
+                              placeholder="UUID do título no sistema"
+                              className={cn(FORM_INPUT_CLASS, "font-mono")}
+                              disabled={buscaLoading}
+                              onChange={(e) => setBuscaTituloUuid(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void buscarTitulosManual();
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            disabled={buscaLoading}
+                            onClick={() => void buscarTitulosManual()}
+                            className={BTN_SECONDARY}
+                          >
+                            {buscaLoading ? "A buscar…" : "Buscar título"}
+                          </button>
+                        </div>
+                        {buscaFeita ? (
+                          <div
+                            className={cn(
+                              DASHBOARD_DATATABLE_INSET_SHELL_CLASS,
+                              "max-h-56 overflow-y-auto p-2",
+                            )}
+                          >
+                            {titulosBusca.length === 0 ? (
+                              <p className="px-3 py-4 text-center text-sm text-white/40">
+                                Nenhum título encontrado.
+                              </p>
+                            ) : (
+                              <div className="flex flex-col gap-2">
+                                {titulosBusca.length > 1 ? (
+                                  <p className="px-1 text-xs text-amber-200/80">
+                                    {titulosBusca.length} títulos com esse critério — selecione o
+                                    correto.
+                                  </p>
+                                ) : null}
+                                {titulosBusca.map((t) => (
+                                  <TituloVinculoCard
+                                    key={t.id}
+                                    titulo={t}
+                                    selected={tituloSelecionado?.id === t.id}
+                                    onSelect={() => selecionarTitulo(t)}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </TabPanel>

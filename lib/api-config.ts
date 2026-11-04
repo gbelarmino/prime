@@ -2022,6 +2022,19 @@ export function getFinUnicredWebhookConciliacaoPendentesUrl(): string {
   return base ? `${base}/pendentes/contagem` : "";
 }
 
+export function getFinUnicredWebhookConciliacaoBuscarTitulosUrl(opts: {
+  nossoNumero?: string;
+  tituloId?: string;
+}): string {
+  const base = getFinUnicredWebhookConciliacaoUrl();
+  if (!base) return "";
+  const params = new URLSearchParams();
+  if (opts.nossoNumero?.trim()) params.set("nossoNumero", opts.nossoNumero.trim());
+  if (opts.tituloId?.trim()) params.set("tituloId", opts.tituloId.trim());
+  const q = params.toString();
+  return q ? `${base}/titulos?${q}` : `${base}/titulos`;
+}
+
 export function getFinUnicredWebhookConciliacaoByIdUrl(id: string): string {
   const base = getFinUnicredWebhookConciliacaoUrl();
   return base ? `${base}/${id}` : "";
