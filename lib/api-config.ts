@@ -640,6 +640,12 @@ export function getUsuarioMeAvatarUrl(): string {
   return `${getUsuarioMeUrl()}/avatar`;
 }
 
+/** GET — foto de perfil de um usuário (ADMIN). */
+export function getUsuarioAvatarUrl(id: number): string {
+  const base = getUsuarioByIdUrl(id);
+  return base ? `${base}/avatar` : "";
+}
+
 export function getUsuariosListUrl(page = 0, size = 100, q?: string, perfil?: string, situacao?: number | null): string {
   const base = getUsuarioUrl();
   if (!base) return "";

@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api-fetch";
-import { getUsuarioMeAvatarUrl } from "@/lib/api-config";
+import { getUsuarioAvatarUrl, getUsuarioMeAvatarUrl } from "@/lib/api-config";
 
 export const USUARIO_AVATAR_CHANGED_EVENT = "aires:usuario-avatar-changed";
 
@@ -8,9 +8,7 @@ export function notifyUsuarioAvatarChanged(): void {
   window.dispatchEvent(new Event(USUARIO_AVATAR_CHANGED_EVENT));
 }
 
-/** Carrega o avatar do usuário autenticado como object URL (revogar com URL.revokeObjectURL). */
-export async function fetchUsuarioMeAvatarObjectUrl(): Promise<string | null> {
-  const url = getUsuarioMeAvatarUrl();
+async function fetchAvatarObjectUrl(url: string): Promise<string | null> {
   if (!url) return null;
   const response = await apiFetch(url, { skipLoading: true });
   if (response.status === 404) return null;
@@ -18,6 +16,16 @@ export async function fetchUsuarioMeAvatarObjectUrl(): Promise<string | null> {
   const blob = await response.blob();
   if (!blob.type.startsWith("image/") && blob.size === 0) return null;
   return URL.createObjectURL(blob);
+}
+
+/** Carrega o avatar do usuário autenticado como object URL (revogar com URL.revokeObjectURL). */
+export async function fetchUsuarioMeAvatarObjectUrl(): Promise<string | null> {
+  return fetchAvatarObjectUrl(getUsuarioMeAvatarUrl());
+}
+
+/** Carrega o avatar de um usuário (ADMIN) como object URL. */
+export async function fetchUsuarioAvatarObjectUrl(id: number): Promise<string | null> {
+  return fetchAvatarObjectUrl(getUsuarioAvatarUrl(id));
 }
 
 export async function uploadUsuarioMeAvatar(file: File): Promise<{ temAvatar: boolean }> {

@@ -4,13 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { 
   Search, 
-  Pencil, 
-  Trash2, 
-  Users,
   Mail,
-  ShieldCheck,
-  CircleDot,
-  Shield
 } from "lucide-react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -28,6 +22,7 @@ import {
   DASHBOARD_SEARCH_INPUT_HEADER_CLASS,
 } from "@/lib/dashboard-datatable";
 import type { UsuarioApiResponse } from "@/lib/validations/usuario";
+import { UsuarioListAvatar } from "@/components/dashboard/UsuarioListAvatar";
 
 export function UsuariosList() {
   const [perfil, setPerfil] = useState<string | null>(null);
@@ -134,24 +129,26 @@ export function UsuariosList() {
   const rows = pageData?.content ?? [];
   const totalRecords = pageData?.totalElements ?? 0;
 
-  const nameBodyTemplate = (rowData: any) => {
-    const rawValue = rowData.perfil || rowData.role || rowData.tipoUsuario || rowData.permissao;
-    const profileValue = typeof rawValue === 'object' && rawValue !== null 
-      ? (rawValue.nome || rawValue.descricao || rawValue.nomePerfil)
+  const nameBodyTemplate = (rowData: UsuarioApiResponse & { perfil?: unknown }) => {
+    const rawValue = rowData.perfil || rowData.role;
+    const profileValue = typeof rawValue === "object" && rawValue !== null
+      ? ((rawValue as { nome?: string; descricao?: string; nomePerfil?: string }).nome
+        || (rawValue as { descricao?: string }).descricao
+        || (rawValue as { nomePerfil?: string }).nomePerfil)
       : rawValue;
     const rawPerfil = String(profileValue || "").toUpperCase();
     const isLocalAdmin = rawPerfil === "ADMIN" || rawPerfil === "1";
-    
+
     return (
       <div className="flex items-center gap-3">
-        <div className={cn(
-          "w-10 h-10 rounded-2xl flex items-center justify-center transition-colors",
-          isLocalAdmin ? "bg-amber-500/10 text-amber-400" : "bg-blue-500/10 text-blue-400"
-        )}>
-          {isLocalAdmin ? <Shield size={18} /> : <Users size={18} />}
-        </div>
-        <div className="flex flex-col">
-          <span className="font-semibold text-white leading-tight">{rowData.nome}</span>
+        <UsuarioListAvatar
+          usuarioId={rowData.id}
+          nome={rowData.nome}
+          temAvatar={Boolean(rowData.temAvatar)}
+          isAdmin={isLocalAdmin}
+        />
+        <div className="flex flex-col min-w-0">
+          <span className="font-semibold text-white leading-tight truncate">{rowData.nome}</span>
           <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold mt-1">ID: #{rowData.id}</span>
         </div>
       </div>

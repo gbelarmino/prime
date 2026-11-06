@@ -23,6 +23,7 @@ export type UsuarioApiResponse = {
   email: string;
   role: "ADMIN" | "ADMINISTRATIVO" | "CORRETOR" | "IMOBILIARIA" | "ATENDIMENTO"; // Backend usa 'role'
   situacao: number; // Backend usa 1, 2, 3
+  temAvatar?: boolean;
   dataCriacao?: string;
 };
 
