@@ -50,7 +50,13 @@ export default function RootLayout({
         <PrimeReactProvider value={{ ripple: true }}>
           <PrimeEnvLoader />
           {children}
-          <Toaster richColors position="top-right" />
+          <Toaster
+            richColors
+            position="top-right"
+            // Abaixo do header sticky do dashboard (h-20)
+            offset={{ top: "5.5rem", right: 16 }}
+            mobileOffset={{ top: "5.5rem", right: 12 }}
+          />
           <GlobalSpinner />
         </PrimeReactProvider>
       </body>
