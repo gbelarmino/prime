@@ -635,6 +635,11 @@ export function getUsuarioMeUrl(): string {
   return `${getUsuarioUrl()}/me`;
 }
 
+/** GET/POST/DELETE — foto de perfil do usuário autenticado. */
+export function getUsuarioMeAvatarUrl(): string {
+  return `${getUsuarioMeUrl()}/avatar`;
+}
+
 export function getUsuariosListUrl(page = 0, size = 100, q?: string, perfil?: string, situacao?: number | null): string {
   const base = getUsuarioUrl();
   if (!base) return "";

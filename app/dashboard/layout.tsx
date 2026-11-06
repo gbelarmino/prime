@@ -50,6 +50,12 @@ import {
 } from "@/hooks/use-chamados-abertos";
 import { useRealtimeSocketKeeper } from "@/hooks/use-realtime-socket-keeper";
 import { useCrmFunilEnabled } from "@/hooks/use-crm-funil-enabled";
+import { apiFetch } from "@/lib/api-fetch";
+import { getUsuarioMeUrl } from "@/lib/api-config";
+import {
+  USUARIO_AVATAR_CHANGED_EVENT,
+  fetchUsuarioMeAvatarObjectUrl,
+} from "@/lib/usuario-avatar";
 import {
   ATENDIMENTO_MENU_PREFIX,
   DASHBOARD_MENU_ITEMS,
@@ -261,6 +267,9 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const [menuEditing, setMenuEditing] = useState(false);
   const [menuPreference, setMenuPreference] = useState<MenuPreference | null>(null);
   const [menuDraft, setMenuDraft] = useState<MenuPreference | null>(null);
+  const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
+  const [avatarRevision, setAvatarRevision] = useState(0);
+  const headerAvatarUrlRef = useRef<string | null>(null);
   const menuUser = useRef<Menu>(null);
 
   const userEmail = mounted ? (getUserEmail() || "...") : "";
@@ -289,6 +298,59 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
     setAdmin(isAuthAdmin());
     setRole(getUserRole());
   }, [pathname, router]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const onAvatarChanged = () => setAvatarRevision((n) => n + 1);
+    window.addEventListener(USUARIO_AVATAR_CHANGED_EVENT, onAvatarChanged);
+    return () => window.removeEventListener(USUARIO_AVATAR_CHANGED_EVENT, onAvatarChanged);
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    let cancelled = false;
+
+    const applyAvatarUrl = (next: string | null) => {
+      const prev = headerAvatarUrlRef.current;
+      if (prev && prev !== next) URL.revokeObjectURL(prev);
+      headerAvatarUrlRef.current = next;
+      setHeaderAvatarUrl(next);
+    };
+
+    const load = async () => {
+      try {
+        const meRes = await apiFetch(getUsuarioMeUrl(), { skipLoading: true });
+        if (!meRes.ok) return;
+        const me = (await meRes.json()) as { temAvatar?: boolean };
+        if (!me.temAvatar) {
+          if (!cancelled) applyAvatarUrl(null);
+          return;
+        }
+        const objectUrl = await fetchUsuarioMeAvatarObjectUrl();
+        if (cancelled) {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        applyAvatarUrl(objectUrl);
+      } catch {
+        // header segue com inicial
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, avatarRevision]);
+
+  useEffect(() => {
+    return () => {
+      if (headerAvatarUrlRef.current) {
+        URL.revokeObjectURL(headerAvatarUrlRef.current);
+        headerAvatarUrlRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;
@@ -637,8 +699,13 @@ function DashboardLayoutInner({ children }: { children: ReactNode }) {
                 </span>
               </div>
               
-              <div className="w-10 h-10 rounded-full bg-[#1E293B] border border-white/10 flex items-center justify-center text-amber-500 font-bold text-lg shadow-inner group-hover:border-amber-500/30 transition-colors">
-                {userInitial}
+              <div className="w-10 h-10 rounded-full bg-[#1E293B] border border-white/10 flex items-center justify-center text-amber-500 font-bold text-lg shadow-inner group-hover:border-amber-500/30 transition-colors overflow-hidden">
+                {headerAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={headerAvatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  userInitial
+                )}
               </div>
               
               <ChevronDown size={16} className="text-white/20 group-hover:text-white/40 transition-colors" />
