@@ -16,6 +16,7 @@ const MODALIDADES: ModalidadeRenegociacao[] = [
   "T5_COM_ENTRADA",
   "T6_JUDICIAL",
   "DIFERIMENTO_FIM_CICLO",
+  "DISTRATO",
 ];
 
 export function parseModalidadeRenegociacao(

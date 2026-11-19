@@ -512,6 +512,15 @@ export function getRenegociacaoAditivoPdfUrl(
   return b ? `${b}/${renegociacaoId}/simulacoes/${simulacaoId}/aditivo-pdf` : "";
 }
 
+export function getRenegociacaoDistratoPdfUrl(
+  contratoId: number,
+  renegociacaoId: number,
+  simulacaoId: number,
+): string {
+  const b = getRenegociacaoBaseUrl(contratoId);
+  return b ? `${b}/${renegociacaoId}/simulacoes/${simulacaoId}/distrato-pdf` : "";
+}
+
 export function getRenegociacaoCancelarUrl(contratoId: number, renegociacaoId: number): string {
   const b = getRenegociacaoBaseUrl(contratoId);
   return b ? `${b}/${renegociacaoId}/cancelar` : "";

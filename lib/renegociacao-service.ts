@@ -13,6 +13,7 @@ import {
   getRenegociacaoDocumentoUploadUrl,
   getRenegociacaoDocumentoDownloadUrl,
   getRenegociacaoAditivoPdfUrl,
+  getRenegociacaoDistratoPdfUrl,
   getRenegociacaoAssinaturaUrl,
   getRenegociacaoEnviarClicksignUrl,
   getRenegociacaoPropostaPdfUrl,
@@ -197,6 +198,23 @@ export async function verAditivoPdfT1(
   const res = await apiFetch(url);
   if (!res.ok) throw new Error(await parseError(res));
   await abrirPdfNoNavegador(res, `aditivo-t1-contrato-${contratoId}.pdf`);
+}
+
+/** PDF da minuta de distrato após simulação persistida. */
+export async function baixarDistratoPdf(
+  contratoId: number,
+  renegociacaoId: number,
+  simulacaoId: number,
+): Promise<void> {
+  const url = getRenegociacaoDistratoPdfUrl(contratoId, renegociacaoId, simulacaoId);
+  if (!url) throw new Error("API não configurada");
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(await parseError(res));
+  const blob = await res.blob();
+  const filename =
+    tryGetFilenameFromDisposition(res.headers.get("Content-Disposition")) ??
+    `distrato-contrato-${contratoId}.pdf`;
+  baixarBlob(blob, filename);
 }
 
 /** Abre o PDF já gravado no processo (a versão assinada, quando a Clicksign fechou). */
@@ -405,7 +423,8 @@ export function modalidadeEfetivaNoWizard(m: ModalidadeRenegociacao | null): boo
   return (
     modalidadeUsaMotorCondicoes(m) ||
     m === "T1_PARCELAS_VENCIDAS" ||
-    m === "DIFERIMENTO_FIM_CICLO"
+    m === "DIFERIMENTO_FIM_CICLO" ||
+    m === "DISTRATO"
   );
 }
 

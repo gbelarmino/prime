@@ -32,6 +32,7 @@ function labelModalidade(m: ModalidadeRenegociacao): string {
     T5_COM_ENTRADA: "Com entrada (T5)",
     T6_JUDICIAL: "Judicial (T6)",
     DIFERIMENTO_FIM_CICLO: "Diferir para o fim do ciclo",
+    DISTRATO: "Distrato",
   };
   return map[m];
 }
@@ -129,6 +130,16 @@ function resumoTitulos(
       "Não há cancelamento nem reemissão imediata; a cobrança volta no fim da grade contratual.",
     ];
   }
+  if (modalidade === "DISTRATO") {
+    const afetados = sim?.titulosAfetados ?? [];
+    return [
+      afetados.length > 0
+        ? `Cancelar ${afetados.length} título(s) em aberto (boletos e cobranças futuras).`
+        : "Não há títulos em aberto a cancelar.",
+      "Títulos já pagos permanecem; o valor retido/restituído segue a composição do distrato.",
+      "O contrato passa a CANCELADO e o lote é liberado (DISPONÍVEL), se não houver outro contrato ativo.",
+    ];
+  }
   const afetados = sim?.titulosAfetados ?? [];
   if (afetados.length > 0) {
     return [
@@ -207,6 +218,14 @@ export function montarResumoEfetivacao(options: {
         ? resumoValoresT4(simulacao, inadimplenciaQuitacao)
         : modalidade === "T1_PARCELAS_VENCIDAS"
           ? resumoValoresT1(simulacao)
+          : modalidade === "DISTRATO"
+            ? [
+                `Total pago: ${formatBrl(simulacao.memoriaCalculo?.vlPrincipal ?? simulacao.totalAnterior)}`,
+                `Retenção: ${formatBrl(simulacao.memoriaCalculo?.vlTotal ?? simulacao.totalNovo)}`,
+                `Multa efetiva: ${formatBrl(simulacao.memoriaCalculo?.vlMulta ?? 0)}`,
+                `A restituir: ${formatBrl(simulacao.memoriaCalculo?.vlValorPresente ?? simulacao.saldoDevedor)}`,
+                `Alçada: nível ${simulacao.nrNivelAprovacaoRequerido}`,
+              ]
           : [
               `Total anterior: ${formatBrl(simulacao.totalAnterior)}`,
               `Total após negociação: ${formatBrl(simulacao.totalNovo)}`,
@@ -218,7 +237,8 @@ export function montarResumoEfetivacao(options: {
     if (
       (simulacao.cronogramaFuturo?.length ?? 0) > 0 &&
       modalidade !== "T4_QUITACAO" &&
-      modalidade !== "T1_PARCELAS_VENCIDAS"
+      modalidade !== "T1_PARCELAS_VENCIDAS" &&
+      modalidade !== "DISTRATO"
     ) {
       valores.push(
         `Novo cronograma: ${simulacao.cronogramaFuturo.length} parcela(s) simulada(s).`,
@@ -260,6 +280,20 @@ export function montarResumoEfetivacao(options: {
         "Marca as parcelas selecionadas como DIFERIDA_FIM_CICLO (saiem da inadimplência/régua).",
         "Não cancela nem reemite títulos agora; a reemissão ocorre no fim da grade.",
         "Não publica nova versão de condições financeiras.",
+        "Registra auditoria; processo passa para status EFETIVADO.",
+      ],
+    });
+    return { podeEfetivarNoWizard: true, secoes };
+  }
+
+  if (modalidade === "DISTRATO" && processoValido) {
+    secoes.push({
+      titulo: "Ao clicar em Efetivar (neste wizard)",
+      itens: [
+        "Exige termo de distrato PDF já enviado no passo de documentos.",
+        "Cancela títulos em aberto (com baixa no banco quando houver boleto).",
+        "Lança contabilidade de retenção (distrato/multa) e, se houver, crédito ao cliente.",
+        "Encerra o contrato (CANCELADO) e libera o imóvel se não houver outro contrato ativo.",
         "Registra auditoria; processo passa para status EFETIVADO.",
       ],
     });

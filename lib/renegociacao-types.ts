@@ -7,7 +7,8 @@ export type ModalidadeRenegociacao =
   | "T4_QUITACAO"
   | "T5_COM_ENTRADA"
   | "T6_JUDICIAL"
-  | "DIFERIMENTO_FIM_CICLO";
+  | "DIFERIMENTO_FIM_CICLO"
+  | "DISTRATO";
 
 export type StatusRenegociacao =
   | "RASCUNHO"
@@ -29,7 +30,8 @@ export type ClassificacaoJuridica =
   | "TERMO_PARCELAMENTO"
   | "TERMO_QUITACAO"
   | "NOVACAO_RISCO"
-  | "ACORDO_JUDICIAL";
+  | "ACORDO_JUDICIAL"
+  | "DISTRATO";
 
 export type CanalRenegociacao = "DASHBOARD" | "ATENDIMENTO" | "PORTAL";
 
@@ -150,6 +152,22 @@ export type SimularRenegociacaoRequest = {
     dtHomologacao?: string;
   };
   confirmarCancelamentoTitulos?: boolean;
+  distrato?: DistratoParams;
+};
+
+export type DistratoParams = {
+  dispensarMulta?: boolean;
+  pctMulta?: number | null;
+  vlMulta?: number | null;
+  vlRetencao?: number | null;
+  vlIptuTributos?: number | null;
+  vlEncargosMoratorios?: number | null;
+  vlCustas?: number | null;
+  vlCorretagem?: number | null;
+  vlAvaliacaoBenfeitorias?: number | null;
+  vlSinalTerceiros?: number | null;
+  vlOutrasDeducoes?: number | null;
+  obrasInfraConcluidas?: boolean;
 };
 
 export type RenegociacaoSimulacaoResponse = {
@@ -218,6 +236,12 @@ export const MODALIDADE_OPTIONS: {
     label: "Diferir para o fim do ciclo",
     hint: "Adia cobrança das parcelas selecionadas; exige aditivo assinado antes de efetivar.",
     juridico: "ADITIVO",
+  },
+  {
+    value: "DISTRATO",
+    label: "Distrato",
+    hint: "Encerra o contrato com retenção/restituição (cláusula 7), libera o lote e exige termo de distrato.",
+    juridico: "DISTRATO",
   },
 ];
 
@@ -302,7 +326,8 @@ export type TipoDocumentoRenegociacao =
   | "TERMO_RENEGOCIACAO"
   | "TERMO_QUITACAO"
   | "HISTORICO_CONSOLIDADO"
-  | "ACORDO_JUDICIAL";
+  | "ACORDO_JUDICIAL"
+  | "TERMO_DISTRATO";
 
 export type DocumentoRenegociacao = {
   id: number;
@@ -336,4 +361,5 @@ export const DOCUMENTO_RENEGOCIACAO_LABEL: Record<TipoDocumentoRenegociacao, str
   TERMO_QUITACAO: "Termo de quitação",
   HISTORICO_CONSOLIDADO: "Histórico consolidado",
   ACORDO_JUDICIAL: "Acordo judicial",
+  TERMO_DISTRATO: "Termo de distrato",
 };

@@ -82,6 +82,15 @@ export const AJUDA_PARAMETROS_POR_MODALIDADE: Partial<
     desconto: "Não se aplica (valores de face permanecem como referência).",
     ocultarQuantidadeParcelas: true,
   },
+  DISTRATO: {
+    descricaoPasso:
+      "Composição do distrato (cláusula 7): total pago, multa, fruição e demais deduções. É possível dispensar/alterar a multa e editar a retenção. A efetivação encerra o contrato e libera o lote.",
+    dataAcordo: "Data de referência do distrato (fruição pro rata e composição).",
+    parcelaInicial: "Não se aplica.",
+    quantidadeParcelas: "Não se aplica.",
+    desconto: "Não se aplica — use os campos de multa e retenção.",
+    ocultarQuantidadeParcelas: true,
+  },
 };
 
 export function primeiraParcelaAberta(

@@ -11,6 +11,7 @@ import { DataTable } from "primereact/datatable";
 import { Dropdown } from "primereact/dropdown";
 import { InputNumber } from "primereact/inputnumber";
 import { InputTextarea } from "primereact/inputtextarea";
+import { Checkbox } from "primereact/checkbox";
 import { MultiSelect } from "primereact/multiselect";
 import { toast } from "sonner";
 import { FormSection } from "@/components/dashboard/cliente-form/FormSection";
@@ -59,6 +60,7 @@ import {
   modalidadeUsaMotorCondicoes,
   alinharSimulacaoQuitacaoT4,
   baixarAditivoPdfT1,
+  baixarDistratoPdf,
   baixarPropostaPdfT1,
   enviarAditivoClicksign,
   obterAssinaturaRenegociacao,
@@ -95,6 +97,7 @@ import {
   MODALIDADE_OPTIONS,
   STATUS_RENEGOCIACAO_LABEL,
   renegociacaoEstaFechada,
+  type DistratoParams,
   type ModalidadeRenegociacao,
   type RenegociacaoSimulacaoResponse,
   type EfetivarRenegociacaoResultado,
@@ -208,6 +211,17 @@ export function RenegociacaoWizard({
   const [titulosDiferimentoIds, setTitulosDiferimentoIds] = useState<string[]>(
     () => tituloIdsInicial?.filter(Boolean) ?? [],
   );
+  const [distratoDispensarMulta, setDistratoDispensarMulta] = useState(false);
+  const [distratoPctMulta, setDistratoPctMulta] = useState<number | null>(10);
+  const [distratoVlMulta, setDistratoVlMulta] = useState<number | null>(null);
+  const [distratoVlRetencao, setDistratoVlRetencao] = useState<number | null>(null);
+  const [distratoVlIptu, setDistratoVlIptu] = useState<number | null>(null);
+  const [distratoVlCustas, setDistratoVlCustas] = useState<number | null>(null);
+  const [distratoVlCorretagem, setDistratoVlCorretagem] = useState<number | null>(null);
+  const [distratoVlSinalTerceiros, setDistratoVlSinalTerceiros] = useState<number | null>(null);
+  const [distratoVlOutras, setDistratoVlOutras] = useState<number | null>(null);
+  const [distratoObrasConcluidas, setDistratoObrasConcluidas] = useState(false);
+  const [baixandoDistrato, setBaixandoDistrato] = useState(false);
   const [simulacao, setSimulacao] = useState<RenegociacaoSimulacaoResponse | null>(null);
   const [propostaId, setPropostaId] = useState<number | null>(null);
   const [workflowOk, setWorkflowOk] = useState(false);
@@ -288,6 +302,9 @@ export function RenegociacaoWizard({
   const motivoPadraoModalidade = useCallback((m: ModalidadeRenegociacao) => {
     if (m === "DIFERIMENTO_FIM_CICLO") {
       return "Diferimento de parcelas para o fim do ciclo (aditivo)";
+    }
+    if (m === "DISTRATO") {
+      return "Distrato amigável da promessa de compra e venda";
     }
     const label = MODALIDADE_OPTIONS.find((o) => o.value === m)?.label;
     return label
@@ -579,6 +596,21 @@ export function RenegociacaoWizard({
       if (procId > 0) {
         try {
           const payload = condicoesToApiPayload(contrato);
+          const distratoPayload: DistratoParams | undefined =
+            modalidade === "DISTRATO"
+              ? {
+                  dispensarMulta: distratoDispensarMulta || undefined,
+                  pctMulta: distratoDispensarMulta ? undefined : (distratoPctMulta ?? undefined),
+                  vlMulta: distratoDispensarMulta ? undefined : (distratoVlMulta ?? undefined),
+                  vlRetencao: distratoVlRetencao ?? undefined,
+                  vlIptuTributos: distratoVlIptu ?? undefined,
+                  vlCustas: distratoVlCustas ?? undefined,
+                  vlCorretagem: distratoVlCorretagem ?? undefined,
+                  vlSinalTerceiros: distratoVlSinalTerceiros ?? undefined,
+                  vlOutrasDeducoes: distratoVlOutras ?? undefined,
+                  obrasInfraConcluidas: distratoObrasConcluidas || undefined,
+                }
+              : undefined;
           const res = await simularRenegociacao(contratoId, procId, {
             modalidade,
             parcelaInicial,
@@ -594,13 +626,15 @@ export function RenegociacaoWizard({
             confirmarCancelamentoTitulos:
               modalidadeUsaMotorCondicoes(modalidade) ||
               modalidade === "T4_QUITACAO" ||
-              modalidade === "T1_PARCELAS_VENCIDAS"
+              modalidade === "T1_PARCELAS_VENCIDAS" ||
+              modalidade === "DISTRATO"
                 ? true
                 : undefined,
             dadosJudiciais:
               modalidade === "T6_JUDICIAL"
                 ? { nrProcesso: nrProcesso.trim() || undefined }
                 : undefined,
+            distrato: distratoPayload,
           });
           if (
             modalidade === "T4_QUITACAO" &&
@@ -1128,7 +1162,154 @@ export function RenegociacaoWizard({
                     </p>
                   </div>
                 )}
-                {modalidade !== "DIFERIMENTO_FIM_CICLO" && (
+                {modalidade === "DISTRATO" && (
+                  <div className="flex w-full flex-col gap-5">
+                    <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100/90">
+                      {ajudaParametros?.descricaoPasso}
+                    </p>
+                    <div className="grid w-full gap-5 md:grid-cols-2">
+                      <div>
+                        <label className={RENEGOCIACAO_LABEL_CLASS}>Data do distrato</label>
+                        <DashboardCalendar
+                          value={dataAcordo ? parseIsoDate(dataAcordo) : null}
+                          onChange={(e) => {
+                            const d = normalizarDataCalendario(e.value as Date | null | undefined);
+                            setDataAcordo(d ? formatIsoDate(d) : dataAcordoPadrao());
+                          }}
+                          className="w-full"
+                          inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                        />
+                      </div>
+                      <div className="flex items-center gap-3 pt-7">
+                        <Checkbox
+                          inputId="distrato-dispensar-multa"
+                          checked={distratoDispensarMulta}
+                          onChange={(e) => setDistratoDispensarMulta(Boolean(e.checked))}
+                        />
+                        <label htmlFor="distrato-dispensar-multa" className="text-sm text-white/80">
+                          Dispensar multa contratual (10%)
+                        </label>
+                      </div>
+                      {!distratoDispensarMulta && (
+                        <>
+                          <div>
+                            <label className={RENEGOCIACAO_LABEL_CLASS}>% multa (override)</label>
+                            <InputNumber
+                              value={distratoPctMulta}
+                              onValueChange={(e) => setDistratoPctMulta(e.value ?? null)}
+                              min={0}
+                              max={100}
+                              suffix="%"
+                              className="w-full"
+                              inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                            />
+                          </div>
+                          <div>
+                            <label className={RENEGOCIACAO_LABEL_CLASS}>Valor multa (override)</label>
+                            <InputNumber
+                              value={distratoVlMulta}
+                              onValueChange={(e) => setDistratoVlMulta(e.value ?? null)}
+                              mode="currency"
+                              currency="BRL"
+                              locale="pt-BR"
+                              className="w-full"
+                              inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                            />
+                            <p className={RENEGOCIACAO_HINT_CLASS}>
+                              Se informado, prevalece sobre o percentual.
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      <div>
+                        <label className={RENEGOCIACAO_LABEL_CLASS}>Retenção (override)</label>
+                        <InputNumber
+                          value={distratoVlRetencao}
+                          onValueChange={(e) => setDistratoVlRetencao(e.value ?? null)}
+                          mode="currency"
+                          currency="BRL"
+                          locale="pt-BR"
+                          className="w-full"
+                          inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                        />
+                        <p className={RENEGOCIACAO_HINT_CLASS}>
+                          Vazio = soma das deduções. Pode igualar ao total pago (retenção integral).
+                        </p>
+                      </div>
+                      <div>
+                        <label className={RENEGOCIACAO_LABEL_CLASS}>Sinal a terceiros</label>
+                        <InputNumber
+                          value={distratoVlSinalTerceiros}
+                          onValueChange={(e) => setDistratoVlSinalTerceiros(e.value ?? null)}
+                          mode="currency"
+                          currency="BRL"
+                          locale="pt-BR"
+                          className="w-full"
+                          inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <label className={RENEGOCIACAO_LABEL_CLASS}>IPTU / tributos</label>
+                        <InputNumber
+                          value={distratoVlIptu}
+                          onValueChange={(e) => setDistratoVlIptu(e.value ?? null)}
+                          mode="currency"
+                          currency="BRL"
+                          locale="pt-BR"
+                          className="w-full"
+                          inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <label className={RENEGOCIACAO_LABEL_CLASS}>Custas / notificações</label>
+                        <InputNumber
+                          value={distratoVlCustas}
+                          onValueChange={(e) => setDistratoVlCustas(e.value ?? null)}
+                          mode="currency"
+                          currency="BRL"
+                          locale="pt-BR"
+                          className="w-full"
+                          inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <label className={RENEGOCIACAO_LABEL_CLASS}>Corretagem</label>
+                        <InputNumber
+                          value={distratoVlCorretagem}
+                          onValueChange={(e) => setDistratoVlCorretagem(e.value ?? null)}
+                          mode="currency"
+                          currency="BRL"
+                          locale="pt-BR"
+                          className="w-full"
+                          inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <label className={RENEGOCIACAO_LABEL_CLASS}>Outras deduções</label>
+                        <InputNumber
+                          value={distratoVlOutras}
+                          onValueChange={(e) => setDistratoVlOutras(e.value ?? null)}
+                          mode="currency"
+                          currency="BRL"
+                          locale="pt-BR"
+                          className="w-full"
+                          inputClassName={RENEGOCIACAO_INPUT_CLASS}
+                        />
+                      </div>
+                      <div className="flex items-center gap-3 md:col-span-2">
+                        <Checkbox
+                          inputId="distrato-obras"
+                          checked={distratoObrasConcluidas}
+                          onChange={(e) => setDistratoObrasConcluidas(Boolean(e.checked))}
+                        />
+                        <label htmlFor="distrato-obras" className="text-sm text-white/80">
+                          Obras de infraestrutura do loteamento concluídas (prazo de restituição 12 meses)
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {modalidade !== "DIFERIMENTO_FIM_CICLO" && modalidade !== "DISTRATO" && (
                 <div className="grid w-full gap-5 md:grid-cols-2">
                 <div>
                   <label className={RENEGOCIACAO_LABEL_CLASS}>Data do acordo</label>
@@ -1248,12 +1429,94 @@ export function RenegociacaoWizard({
                   ? "Liquidação: memória (saldo devedor + inadimplência a VP − desconto) e parcelas de pagamento. Nada altera o contrato até assinatura."
                   : modalidade === "T1_PARCELAS_VENCIDAS"
                     ? "Acordo T1: mora a valor presente diluída e somada às próximas vincendas. Revise cada passo antes de gerar a proposta."
+                    : modalidade === "DISTRATO"
+                      ? "Composição do distrato: total pago, retenção, multa e restituição. A efetivação encerra o contrato e libera o lote."
                     : "Nenhuma alteração financeira até efetivação assinada."
               }
               contentClassName="!grid-cols-1 !gap-6 w-full min-w-0"
             >
               <div className="flex w-full flex-col gap-6">
-                {modalidade === "T4_QUITACAO" && simulacao.memoriaCalculo ? (
+                {modalidade === "DISTRATO" && simulacao.memoriaCalculo ? (
+                  <>
+                    <div className="flex w-full flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                      <MetricTile
+                        label="Total pago"
+                        value={formatBrl(simulacao.memoriaCalculo.vlPrincipal ?? simulacao.totalAnterior)}
+                      />
+                      <MetricTile
+                        label="Retenção"
+                        value={formatBrl(simulacao.memoriaCalculo.vlTotal ?? simulacao.totalNovo)}
+                      />
+                      <MetricTile
+                        label="Multa efetiva"
+                        value={formatBrl(simulacao.memoriaCalculo.vlMulta ?? 0)}
+                      />
+                      <MetricTile
+                        label="A restituir"
+                        value={formatBrl(simulacao.memoriaCalculo.vlValorPresente ?? simulacao.saldoDevedor)}
+                      />
+                    </div>
+                    {simulacao.memoriaCalculo.itens && simulacao.memoriaCalculo.itens.length > 0 && (
+                      <DashboardDataTableShell className={DASHBOARD_DATATABLE_INSET_SHELL_CLASS}>
+                        <DataTable
+                          value={simulacao.memoriaCalculo.itens}
+                          className={DASHBOARD_DATATABLE_CLASS}
+                          pt={TABLE_PT}
+                          emptyMessage="Sem deduções."
+                        >
+                          <Column
+                            header="Componente"
+                            body={(r) =>
+                              dashboardCellText(
+                                String(r.descricao ?? r.componente ?? "—"),
+                              )
+                            }
+                          />
+                          <Column
+                            header="Valor"
+                            body={(r) => dashboardCellMono(formatBrl(Number(r.valor ?? 0)))}
+                          />
+                        </DataTable>
+                      </DashboardDataTableShell>
+                    )}
+                    {simulacao.avisos.length > 0 && (
+                      <ul className="list-disc space-y-1 pl-5 text-sm text-white/70">
+                        {simulacao.avisos.map((a) => (
+                          <li key={a}>{a}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {renegociacaoId != null &&
+                      renegociacaoId > 0 &&
+                      simulacao.simulacaoId != null && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            label="Baixar minuta do distrato"
+                            icon={<Download className="mr-2 h-4 w-4" />}
+                            className="p-button-outlined"
+                            loading={baixandoDistrato}
+                            onClick={async () => {
+                              setBaixandoDistrato(true);
+                              try {
+                                await baixarDistratoPdf(
+                                  contratoId,
+                                  renegociacaoId,
+                                  simulacao.simulacaoId,
+                                );
+                              } catch (e) {
+                                toast.error(
+                                  e instanceof Error ? e.message : "Falha ao baixar PDF do distrato.",
+                                );
+                              } finally {
+                                setBaixandoDistrato(false);
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                  </>
+                ) : modalidade === "T4_QUITACAO" && simulacao.memoriaCalculo ? (
                   <>
                     <QuitacaoLiquidacaoMemoriaCard
                       saldoDevedor={simulacao.saldoDevedor}

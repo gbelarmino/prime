@@ -542,6 +542,29 @@ export function ContratosList() {
           </button>
         ),
       });
+      items.push({
+        label: "Distrato",
+        icon: "pi pi-times-circle",
+        template: (item: { label: string }) => (
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                buildRenegociacaoDashboardUrl({
+                  contratoId: r.id,
+                  modalidade: "DISTRATO",
+                }),
+              )
+            }
+            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-rose-500/10 transition-colors group"
+          >
+            <FilePlus size={16} className="text-rose-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold uppercase tracking-widest text-rose-400/80 text-left whitespace-nowrap">
+              {item.label}
+            </span>
+          </button>
+        ),
+      });
     }
 
     // Ações de Corretor (fluxo digital apenas)
