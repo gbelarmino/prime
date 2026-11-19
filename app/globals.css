@@ -20,6 +20,8 @@
 
   /* MultiSelect — distância entre checkbox e rótulo nos itens do painel */
   --aires-multiselect-checkbox-gap: 0.75rem;
+  /* MultiSelect — folga para clear + chevron (trigger ~2.5rem) */
+  --aires-multiselect-clear-right: 2.5rem;
 
   /* InputSwitch — trilho “on” success (esmeralda), alinhado ao severity success do Prime */
   --aires-inputswitch-off-bg: rgba(255, 255, 255, 0.12);
@@ -217,21 +219,97 @@ input[type="checkbox"]:not(.p-inputswitch-input):not(.p-checkbox-input):not(
   border-radius: 0.75rem !important;
 }
 
+/*
+ * MultiSelect (Aires dashboard)
+ * — chrome no root (position:relative) para o clear absoluto alinhar com o chevron
+ * — chips sóbrios; remove do chip em neutro (não danger)
+ */
 .p-multiselect {
-  background: transparent !important;
-  border: none !important;
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  width: 100%;
+  min-height: 2.75rem;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 0.75rem !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.p-multiselect:not(.p-disabled):hover {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.p-multiselect:not(.p-disabled).p-focus {
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18) !important;
+  outline: none !important;
 }
 
 .p-multiselect .p-multiselect-label-container {
-  border-radius: 0.75rem !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: transparent !important;
+  border: none !important;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.p-multiselect .p-multiselect-label {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.75rem !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.p-multiselect .p-multiselect-label.p-placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.p-multiselect.p-multiselect-clearable .p-multiselect-label {
+  padding-right: 0.25rem !important;
+}
+
+.p-multiselect .p-multiselect-trigger {
+  width: 2.5rem !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  background: transparent !important;
+}
+
+.p-multiselect-clear-icon {
+  position: absolute !important;
+  top: 50% !important;
+  right: var(--aires-multiselect-clear-right) !important;
+  margin-top: -0.5rem !important;
+  width: 1rem;
+  height: 1rem;
+  color: rgba(255, 255, 255, 0.35) !important;
+  cursor: pointer;
+  z-index: 1;
+  transition: color 0.15s ease;
+}
+
+.p-multiselect-clear-icon:hover {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.p-multiselect-clear-icon svg {
+  width: 1rem;
+  height: 1rem;
+  color: inherit !important;
+}
+
+.p-multiselect-clear-icon svg path {
+  fill: currentColor !important;
 }
 
 .p-multiselect-panel {
-  background: #0f172a !important;
+  background: #0f1419 !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   border-radius: 0.75rem !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45) !important;
 }
 
 /* MultiSelect — espaçamento padrão checkbox ↔ texto (itens e “selecionar todos”) */
@@ -249,9 +327,15 @@ input[type="checkbox"]:not(.p-inputswitch-input):not(.p-checkbox-input):not(
   margin-left: 0 !important;
 }
 
-/* MultiSelect chips — espaço entre rótulo e ícone remover (cor danger do tema) */
-.p-multiselect .p-multiselect-token {
-  gap: 0.5rem;
+/* Chips — neutros; remove discreto (sem vermelho de erro) */
+.p-multiselect.p-multiselect-chip .p-multiselect-token {
+  margin: 0 !important;
+  padding: 0.2rem 0.25rem 0.2rem 0.625rem !important;
+  gap: 0.375rem;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0.5rem !important;
 }
 
 .p-multiselect-token .p-multiselect-token-label {
@@ -261,15 +345,21 @@ input[type="checkbox"]:not(.p-inputswitch-input):not(.p-checkbox-input):not(
 .p-multiselect-token .p-multiselect-token-icon {
   margin-left: 0 !important;
   flex-shrink: 0;
-  color: var(--red-400) !important;
-  transition: color 0.15s ease;
+  width: 1rem;
+  height: 1rem;
+  color: rgba(255, 255, 255, 0.35) !important;
+  border-radius: 0.25rem;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .p-multiselect-token .p-multiselect-token-icon:hover {
-  color: var(--red-500) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .p-multiselect-token .p-multiselect-token-icon svg {
+  width: 0.75rem;
+  height: 0.75rem;
   color: inherit !important;
 }
 
